@@ -9,18 +9,22 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "pnpm lint:boundaries && turbo run lint",
+    "lint:boundaries": "eslint packages/domain/src packages/application/src packages/db/src packages/adapters/src packages/observability/src --max-warnings=0",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "test": "pnpm test:boundaries && turbo run test",
+    "test:boundaries": "node --test tooling/import-boundaries.test.mjs",
     "test:e2e": "turbo run test:e2e",
     "db:migrate": "pnpm --filter @between-moves/db migrate",
     "db:migrate:down": "pnpm --filter @between-moves/db migrate:down",
     "db:generate": "pnpm --filter @between-moves/db schema:generate",
-    "check": "turbo run lint typecheck test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@typescript-eslint/parser": "8.68.0",
+    "eslint": "9.39.5",
     "prettier": "3.9.6",
     "turbo": "2.10.12"
   }
