@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  ci:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,11 +41,76 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
+      - name: Unit tests
         run: pnpm test
 
       - name: Build
         run: pnpm build
 
-      - name: End-to-end test
+  database-integration:
+    needs: quality
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.10-bookworm
+        env:
+          POSTGRES_DB: between_moves_test
+          POSTGRES_PASSWORD: postgres-test-only
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d between_moves_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Enable PostgreSQL TLS and create runtime role
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+          PGPASSWORD: postgres-test-only
+        run: |
+          openssl req -new -x509 -nodes -days 1 -subj '/CN=localhost' \
+            -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+            -keyout /tmp/postgres-server.key -out /tmp/postgres-server.crt
+          docker cp /tmp/postgres-server.key "$POSTGRES_CONTAINER:/var/lib/postgresql/data/server.key"
+          docker cp /tmp/postgres-server.crt "$POSTGRES_CONTAINER:/var/lib/postgresql/data/server.crt"
+          docker exec --user root "$POSTGRES_CONTAINER" sh -c \
+            'chown postgres:postgres /var/lib/postgresql/data/server.* && chmod 600 /var/lib/postgresql/data/server.key'
+          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d between_moves_test -v ON_ERROR_STOP=1 \
+            -c "alter system set ssl = 'on'" \
+            -c "alter system set ssl_cert_file = 'server.crt'" \
+            -c "alter system set ssl_key_file = 'server.key'"
+          docker restart "$POSTGRES_CONTAINER"
+          until docker exec "$POSTGRES_CONTAINER" pg_isready -U postgres -d between_moves_test; do sleep 1; done
+          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d between_moves_test -v ON_ERROR_STOP=1 -c \
+            "create role between_moves_app login password 'runtime-test-only'; revoke create on schema public from public; grant connect on database between_moves_test to between_moves_app; grant usage on schema public to between_moves_app;"
+
+      - name: PostgreSQL migration and round-trip integration tests
+        env:
+          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
+          TEST_DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
+        run: pnpm --filter @between-moves/db test
+
+      - name: End-to-end test with database readiness
+        env:
+          DATABASE_URL: postgresql://between_moves_app:runtime-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
+          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
         run: pnpm test:e2e
