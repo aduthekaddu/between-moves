@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('[BM-003] GET /healthz responds with app and build information', async ({ request }) => {
+test('[BM-004] GET /healthz preserves app metadata and reports database readiness', async ({
+  request,
+}) => {
   const response = await request.get('/healthz');
 
   expect(response.status()).toBe(200);
@@ -14,6 +16,9 @@ test('[BM-003] GET /healthz responds with app and build information', async ({ r
     build: {
       id: expect.any(String),
       environment: expect.any(String),
+    },
+    database: {
+      status: 'reachable',
     },
   });
 });
