@@ -88,6 +88,7 @@ jobs:
           PGPASSWORD: postgres-test-only
         run: |
           openssl req -new -x509 -nodes -days 1 -subj '/CN=localhost' \
+            -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
             -keyout /tmp/postgres-server.key -out /tmp/postgres-server.crt
           docker cp /tmp/postgres-server.key "$POSTGRES_CONTAINER:/var/lib/postgresql/data/server.key"
           docker cp /tmp/postgres-server.crt "$POSTGRES_CONTAINER:/var/lib/postgresql/data/server.crt"
@@ -104,10 +105,12 @@ jobs:
 
       - name: PostgreSQL migration and round-trip integration tests
         env:
+          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
           TEST_DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
         run: pnpm --filter @between-moves/db test
 
       - name: End-to-end test with database readiness
         env:
           DATABASE_URL: postgresql://between_moves_app:runtime-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
+          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
         run: pnpm test:e2e

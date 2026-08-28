@@ -15,7 +15,8 @@
     },
     "test": {},
     "test:e2e": {
-      "cache": false
+      "cache": false,
+      "env": ["DATABASE_URL", "NODE_EXTRA_CA_CERTS"]
     }
   }
 }
