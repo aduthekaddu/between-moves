@@ -7,3 +7,5 @@ coverage
 pnpm-lock.yaml
 docs
 AGENTS.md
+playwright-report
+test-results
