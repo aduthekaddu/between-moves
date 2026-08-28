@@ -1,0 +1,114 @@
+/*
+ * Between Moves — global styles.
+ * Realizes the "paper, ink, wood, brass, evening light" direction (UX-TOK-01..04).
+ * Only the design tokens needed for the initial landing page are defined here.
+ */
+
+:root {
+  /* Color (UX-TOK-01) */
+  --bm-color-paper: #f4ecd8;
+  --bm-color-paper-raised: #fbf6e9;
+  --bm-color-ink: #1f1a17;
+  --bm-color-ink-muted: #5a5048;
+  --bm-color-brass: #b08d3e;
+  --bm-color-focus: #2c6fb0;
+
+  /* Typography (UX-TOK-02) */
+  --bm-font-serif: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --bm-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --bm-leading-body: 1.5;
+
+  /* Spacing, radius, elevation, motion */
+  --bm-space-3: 12px;
+  --bm-space-4: 16px;
+  --bm-space-5: 24px;
+  --bm-space-6: 32px;
+  --bm-radius-lg: 16px;
+  --bm-elev-card: 0 8px 24px rgba(74, 51, 32, 0.14);
+  --bm-motion-base: 200ms;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--bm-color-paper);
+  color: var(--bm-color-ink);
+  font-family: var(--bm-font-sans);
+  font-size: 16px; /* base body >= 16px (UX-TOK-02) */
+  line-height: var(--bm-leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible, high-contrast focus for keyboard users (a11y) */
+:focus-visible {
+  outline: 3px solid var(--bm-color-focus);
+  outline-offset: 2px;
+}
+
+.landing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--bm-space-5);
+}
+
+.landing__card {
+  width: 100%;
+  max-width: 34rem;
+  padding: var(--bm-space-6);
+  background-color: var(--bm-color-paper-raised);
+  border-radius: var(--bm-radius-lg);
+  box-shadow: var(--bm-elev-card);
+}
+
+.landing__eyebrow {
+  margin: 0 0 var(--bm-space-3);
+  color: var(--bm-color-brass);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing__title {
+  margin: 0 0 var(--bm-space-4);
+  font-family: var(--bm-font-serif);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.landing__tagline {
+  margin: 0 0 var(--bm-space-3);
+  font-family: var(--bm-font-serif);
+  font-size: 1.25rem;
+  color: var(--bm-color-ink);
+}
+
+.landing__promise {
+  margin: 0;
+  color: var(--bm-color-ink-muted);
+}
+
+/* Respect reduced-motion preference (UX-TOK-03) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
