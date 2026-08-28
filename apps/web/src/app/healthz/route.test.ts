@@ -19,7 +19,9 @@ const validEnvironment = {
 
 describe('GET /healthz', () => {
   it('[BM-003] returns 200 with app and build information', async () => {
-    const response = createHealthResponse(loadConfig(validEnvironment));
+    const response = await createHealthResponse(loadConfig(validEnvironment), async () => ({
+      status: 'reachable',
+    }));
 
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-store');
@@ -33,6 +35,36 @@ describe('GET /healthz', () => {
         id: 'build-123',
         environment: 'preview',
       },
+      database: {
+        status: 'reachable',
+      },
+    });
+  });
+
+  it('[BM-004] reports the database as reachable without exposing connection details', async () => {
+    const response = await createHealthResponse(loadConfig(validEnvironment), async () => ({
+      status: 'reachable',
+    }));
+
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(JSON.parse(body)).toMatchObject({
+      status: 'ok',
+      database: { status: 'reachable' },
+    });
+    expect(body).not.toContain(validEnvironment.DATABASE_URL);
+  });
+
+  it('[BM-004] reports an unreachable database as unhealthy without throwing', async () => {
+    const response = await createHealthResponse(loadConfig(validEnvironment), async () => ({
+      status: 'unreachable',
+    }));
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    await expect(response.json()).resolves.toMatchObject({
+      status: 'unhealthy',
+      database: { status: 'unreachable' },
     });
   });
 });
