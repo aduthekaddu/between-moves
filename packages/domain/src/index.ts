@@ -10,4 +10,14 @@ export type { SeasonsPorts } from './seasons';
 export type { GamesPorts } from './games';
 export type { NightsPorts } from './nights';
 export type { StoriesPorts } from './stories';
-export type { DeliveryPorts } from './delivery';
+export { OUTBOX_MAX_ATTEMPTS } from './delivery';
+export type {
+  ClaimedOutboxEvent,
+  ClaimOutboxBatch,
+  DeliveryPorts,
+  NewOutboxEvent,
+  OutboxConsumer,
+  OutboxConsumeResult,
+  OutboxMetrics,
+  OutboxRepository,
+} from './delivery';

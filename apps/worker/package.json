@@ -1,0 +1,22 @@
+{
+  "name": "@between-moves/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@between-moves/adapters": "workspace:*",
+    "@between-moves/application": "workspace:*",
+    "@between-moves/db": "workspace:*",
+    "@between-moves/observability": "workspace:*",
+    "@trigger.dev/sdk": "3.3.17"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "6.0.3"
+  }
+}
