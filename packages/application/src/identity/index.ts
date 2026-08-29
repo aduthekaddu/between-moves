@@ -12,3 +12,12 @@ export {
   type MagicLinkDeliveryQueueDependencies,
   type QueueMagicLinkDelivery,
 } from './magic-link';
+
+export {
+  createCompleteAccountRecovery,
+  createDiscardRecoveredSession,
+  createRequestAccountRecovery,
+  type CompleteAccountRecoveryDependencies,
+  type DiscardRecoveredSessionDependencies,
+  type RequestAccountRecoveryDependencies,
+} from './recovery';

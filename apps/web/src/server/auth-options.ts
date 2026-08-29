@@ -5,6 +5,7 @@ import type { StructuredLogger } from '@between-moves/observability';
 import type { BetterAuthOptions } from 'better-auth';
 import { magicLink } from 'better-auth/plugins';
 import type { AppConfig } from '../config';
+import { createMagicLinkPurposeProof } from './magic-link-purpose';
 
 const DAY_SECONDS = 24 * 60 * 60;
 const MAGIC_LINK_TTL_SECONDS = 15 * 60;
@@ -81,9 +82,16 @@ export function createBetterAuthOptions({
         expiresIn: MAGIC_LINK_TTL_SECONDS,
         storeToken: 'hashed',
         generateToken: generateMagicLinkToken,
-        async sendMagicLink({ email, token }) {
-          const signInUrl = new URL('/api/auth/callback', config.appOrigin);
+        async sendMagicLink({ email, token, metadata }) {
+          const purpose = metadata?.flow === 'recovery' ? 'recovery' : 'signin';
+          const callbackPath =
+            purpose === 'recovery' ? '/api/auth/recovery/callback' : '/api/auth/callback';
+          const signInUrl = new URL(callbackPath, config.appOrigin);
           signInUrl.searchParams.set('token', token);
+          signInUrl.searchParams.set(
+            'proof',
+            createMagicLinkPurposeProof(config.betterAuthSecret, purpose, token),
+          );
           await queueMagicLink({ email, signInUrl: signInUrl.toString() });
         },
       }),

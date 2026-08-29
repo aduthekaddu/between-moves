@@ -10,10 +10,14 @@ describe('Better Auth session reader', () => {
         name: 'Ada',
         image: null,
       },
-      session: { expiresAt: new Date('2026-09-05T00:00:00.000Z') },
+      session: {
+        id: '01941f29-7c00-7000-8000-000000000002',
+        expiresAt: new Date('2026-09-05T00:00:00.000Z'),
+      },
     });
     const log = vi.fn<StructuredLogger['log']>();
-    const reader = createBetterAuthSessionReader({ api: { getSession } }, { log });
+    const revocation = { isSessionActive: vi.fn(async () => true) };
+    const reader = createBetterAuthSessionReader({ api: { getSession } }, revocation, { log });
     const request = new Request('https://betweenmoves.example.test/private', {
       headers: {
         cookie: 'between-moves.session_token=opaque-secret-token',
@@ -44,7 +48,8 @@ describe('Better Auth session reader', () => {
   it('[BM-007] resolves an invalid or expired Better Auth session anonymously', async () => {
     const getSession = vi.fn().mockResolvedValue(null);
     const log = vi.fn<StructuredLogger['log']>();
-    const reader = createBetterAuthSessionReader({ api: { getSession } }, { log });
+    const revocation = { isSessionActive: vi.fn(async () => true) };
+    const reader = createBetterAuthSessionReader({ api: { getSession } }, revocation, { log });
 
     await expect(
       reader.read(new Request('https://betweenmoves.example.test/private')),
@@ -52,6 +57,34 @@ describe('Better Auth session reader', () => {
     expect(log).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: 'anonymous',
+        event: 'identity.session.resolved',
+        outcome: 'rejected',
+      }),
+    );
+  });
+});
+
+describe('BM-010 session revocation metadata', () => {
+  it('[BM-010] [DR-ID-02] rejects a provider-valid session whose metadata is revoked', async () => {
+    const getSession = vi.fn().mockResolvedValue({
+      user: {
+        id: '01941f29-7c00-7000-8000-000000000011',
+        name: 'Grace',
+        image: null,
+      },
+      session: { id: '01941f29-7c00-7000-8000-000000000012' },
+    });
+    const revocation = { isSessionActive: vi.fn(async () => false) };
+    const log = vi.fn<StructuredLogger['log']>();
+    const reader = createBetterAuthSessionReader({ api: { getSession } }, revocation, { log });
+
+    await expect(
+      reader.read(new Request('https://betweenmoves.example.test/private')),
+    ).resolves.toBeNull();
+    expect(revocation.isSessionActive).toHaveBeenCalledWith('01941f29-7c00-7000-8000-000000000012');
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: '01941f29-7c00-7000-8000-000000000011',
         event: 'identity.session.resolved',
         outcome: 'rejected',
       }),
