@@ -161,3 +161,86 @@ export const outboxEvents = pgTable(
     ),
   ],
 );
+
+/** [BM-011] [DR-HOUSE-01..02] Private House aggregate root. */
+export const houses = pgTable(
+  'houses',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    name: text('name').notNull(),
+    slug: citext('slug').notNull(),
+    description: text('description'),
+    emblemSeed: text('emblem_seed').notNull(),
+    timeZone: text('time_zone').notNull(),
+    ownerMembershipId: uuid('owner_membership_id'),
+    memberCap: integer('member_cap').default(30).notNull(),
+    status: text('status').default('active').notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('houses_active_slug_unique')
+      .on(table.slug)
+      .where(sql`${table.status} <> 'deleted'`),
+    check('houses_name_check', sql`char_length(${table.name}) between 1 and 80`),
+    check(
+      'houses_description_check',
+      sql`${table.description} is null or char_length(${table.description}) <= 500`,
+    ),
+    check('houses_member_cap_check', sql`${table.memberCap} between 3 and 30`),
+    check('houses_status_check', sql`${table.status} in ('active', 'deleted')`),
+  ],
+);
+
+/** [BM-011] [DR-MEM-01..02] One durable membership row per person and House. */
+export const memberships = pgTable(
+  'memberships',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    role: text('role').default('member').notNull(),
+    status: text('status').default('active').notNull(),
+    displayNameSnapshot: text('display_name_snapshot'),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
+    leftAt: timestamp('left_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('memberships_house_user_unique').on(table.houseId, table.userId),
+    uniqueIndex('memberships_one_active_owner_per_house')
+      .on(table.houseId)
+      .where(sql`${table.role} = 'owner' and ${table.status} = 'active'`),
+    index('memberships_house_status_idx').on(table.houseId, table.status),
+    index('memberships_user_status_idx').on(table.userId, table.status),
+    check('memberships_role_check', sql`${table.role} in ('owner', 'steward', 'member')`),
+    check('memberships_status_check', sql`${table.status} in ('active', 'left', 'removed')`),
+  ],
+);
+
+/** [BM-011] [DR-SEC-06] Append-only privileged membership history. */
+export const membershipAudit = pgTable(
+  'membership_audit',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    actorMembershipId: uuid('actor_membership_id').references(() => memberships.id, {
+      onDelete: 'restrict',
+    }),
+    action: text('action').notNull(),
+    targetMembershipId: uuid('target_membership_id').references(() => memberships.id, {
+      onDelete: 'restrict',
+    }),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('membership_audit_house_created_idx').on(table.houseId, table.createdAt)],
+);
