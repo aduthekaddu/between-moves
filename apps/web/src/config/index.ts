@@ -31,6 +31,8 @@ const environmentSchema = z
     REALTIME_PUBLIC_KEY: requiredValue,
     ANALYSIS_WORKER_URL: z.url(),
     ANALYSIS_WORKER_SECRET: requiredValue,
+    UPSTASH_REDIS_REST_URL: z.url(),
+    UPSTASH_REDIS_REST_TOKEN: requiredValue,
     APP_ENV: z.enum(['local', 'preview', 'staging', 'production']).optional(),
     BUILD_ID: requiredValue.optional(),
     VERCEL_ENV: z.enum(['development', 'preview', 'production']).optional(),
@@ -56,6 +58,8 @@ export interface AppConfig {
   readonly realtimePublicKey: string;
   readonly analysisWorkerUrl: URL;
   readonly analysisWorkerSecret: string;
+  readonly upstashRedisRestUrl: URL;
+  readonly upstashRedisRestToken: string;
   readonly environment: AppEnvironment;
   readonly buildId: string;
 }
@@ -116,6 +120,8 @@ export function loadConfig(
     realtimePublicKey: values.REALTIME_PUBLIC_KEY,
     analysisWorkerUrl: new URL(values.ANALYSIS_WORKER_URL),
     analysisWorkerSecret: values.ANALYSIS_WORKER_SECRET,
+    upstashRedisRestUrl: new URL(values.UPSTASH_REDIS_REST_URL),
+    upstashRedisRestToken: values.UPSTASH_REDIS_REST_TOKEN,
     environment: resolveEnvironment(values),
     buildId: values.BUILD_ID ?? values.VERCEL_GIT_COMMIT_SHA ?? 'local',
   });

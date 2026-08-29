@@ -13,6 +13,8 @@ const validEnvironment = {
   REALTIME_PUBLIC_KEY: 'realtime-test-public-key',
   ANALYSIS_WORKER_URL: 'https://worker.example.test',
   ANALYSIS_WORKER_SECRET: 'analysis-test-secret',
+  UPSTASH_REDIS_REST_URL: 'https://rate-limit.example.test',
+  UPSTASH_REDIS_REST_TOKEN: 'upstash-test-token',
   APP_ENV: 'preview',
   BUILD_ID: 'build-123',
 } as const;

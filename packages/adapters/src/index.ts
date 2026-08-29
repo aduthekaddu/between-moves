@@ -13,3 +13,9 @@ export {
   type ResendWebhookInput,
   type TestMagicLinkDelivery,
 } from './magic-link-email';
+
+export {
+  UpstashRateLimiter,
+  type UpstashLimitClientFactory,
+  type UpstashRateLimiterOptions,
+} from './upstash-rate-limiter';
