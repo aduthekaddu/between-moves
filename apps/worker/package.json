@@ -12,6 +12,7 @@
     "@between-moves/adapters": "workspace:*",
     "@between-moves/application": "workspace:*",
     "@between-moves/db": "workspace:*",
+    "@between-moves/domain": "workspace:*",
     "@between-moves/observability": "workspace:*",
     "@trigger.dev/sdk": "3.3.17"
   },

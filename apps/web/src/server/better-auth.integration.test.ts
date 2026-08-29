@@ -33,6 +33,7 @@ integration('Better Auth PostgreSQL sessions', () => {
     config,
     database: database.pool,
     logger: { log: vi.fn() },
+    queueMagicLink: vi.fn(),
   });
   const auth = betterAuth(options);
 

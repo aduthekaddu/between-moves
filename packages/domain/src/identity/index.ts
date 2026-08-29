@@ -27,3 +27,27 @@ export interface SessionIdentityReader<RequestContext> {
 export interface IdentityPorts {
   readonly module: 'identity';
 }
+
+/** [BM-008] [DR-ID-03] Secret-bearing email data exists only at trusted delivery seams. */
+export interface MagicLinkEmail {
+  readonly email: string;
+  readonly signInUrl: string;
+}
+
+export interface MagicLinkDeliveryCodec {
+  seal(message: MagicLinkEmail): Promise<string>;
+  open(sealed: string): Promise<MagicLinkEmail>;
+}
+
+export interface MagicLinkOutboxWriter {
+  enqueue(event: import('../delivery').NewOutboxEvent): Promise<void>;
+}
+
+export type MagicLinkEmailSendResult = 'sent' | 'duplicate';
+
+export interface MagicLinkEmailSender {
+  sendMagicLink(
+    message: MagicLinkEmail,
+    options: { readonly idempotencyKey: string },
+  ): Promise<MagicLinkEmailSendResult>;
+}

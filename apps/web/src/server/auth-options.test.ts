@@ -24,6 +24,7 @@ describe('Better Auth configuration', () => {
       config,
       database: {} as never,
       logger: { log: vi.fn() },
+      queueMagicLink: vi.fn(),
     });
 
     expect(options.database).toBeDefined();
@@ -58,6 +59,7 @@ describe('Better Auth configuration', () => {
       config,
       database: {} as never,
       logger: { log: vi.fn() },
+      queueMagicLink: vi.fn(),
     });
 
     expect(options.advanced).toMatchObject({
@@ -83,7 +85,12 @@ describe('Better Auth configuration', () => {
 
   it('[BM-007] [DR-SEC-06] observes session creation by actor id without logging its token', async () => {
     const log = vi.fn<StructuredLogger['log']>();
-    const options = createBetterAuthOptions({ config, database: {} as never, logger: { log } });
+    const options = createBetterAuthOptions({
+      config,
+      database: {} as never,
+      logger: { log },
+      queueMagicLink: vi.fn(),
+    });
     const afterCreate = options.databaseHooks?.session?.create?.after;
 
     await afterCreate?.(
@@ -95,7 +102,6 @@ describe('Better Auth configuration', () => {
         createdAt: new Date('2026-08-29T00:00:00.000Z'),
         updatedAt: new Date('2026-08-29T00:00:00.000Z'),
       },
-      null,
     );
 
     expect(log).toHaveBeenCalledWith(
