@@ -12,3 +12,11 @@ export {
   type OutboxDispatcher,
   type OutboxDispatcherOptions,
 } from './delivery';
+
+export {
+  createMagicLinkDeliveryQueue,
+  createMagicLinkEmailConsumer,
+  MAGIC_LINK_EMAIL_TOPIC,
+  type MagicLinkDeliveryQueueDependencies,
+  type QueueMagicLinkDelivery,
+} from './identity';
