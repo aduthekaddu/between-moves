@@ -15,6 +15,8 @@ const config = loadConfig({
   REALTIME_PUBLIC_KEY: 'realtime-test-public-key',
   ANALYSIS_WORKER_URL: 'https://worker.example.test',
   ANALYSIS_WORKER_SECRET: 'analysis-test-secret',
+  UPSTASH_REDIS_REST_URL: 'https://rate-limit.example.test',
+  UPSTASH_REDIS_REST_TOKEN: 'upstash-test-token',
   APP_ENV: 'preview',
 });
 
@@ -93,16 +95,14 @@ describe('Better Auth configuration', () => {
     });
     const afterCreate = options.databaseHooks?.session?.create?.after;
 
-    await afterCreate?.(
-      {
-        id: '01941f29-7c00-7000-8000-000000000002',
-        userId: '01941f29-7c00-7000-8000-000000000001',
-        token: 'must-never-be-logged',
-        expiresAt: new Date('2026-09-05T00:00:00.000Z'),
-        createdAt: new Date('2026-08-29T00:00:00.000Z'),
-        updatedAt: new Date('2026-08-29T00:00:00.000Z'),
-      },
-    );
+    await afterCreate?.({
+      id: '01941f29-7c00-7000-8000-000000000002',
+      userId: '01941f29-7c00-7000-8000-000000000001',
+      token: 'must-never-be-logged',
+      expiresAt: new Date('2026-09-05T00:00:00.000Z'),
+      createdAt: new Date('2026-08-29T00:00:00.000Z'),
+      updatedAt: new Date('2026-08-29T00:00:00.000Z'),
+    });
 
     expect(log).toHaveBeenCalledWith(
       expect.objectContaining({

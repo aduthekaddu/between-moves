@@ -1,3 +1,4 @@
+import type { RateLimitResult } from '@between-moves/domain';
 import { z } from 'zod';
 
 const bodySchema = z.object({ email: z.email() }).strict();
@@ -9,14 +10,15 @@ interface SignInMetrics {
 export interface MagicLinkRequestHandlerDependencies {
   readonly expectedOrigin: string;
   readonly requestMagicLink: (email: string, headers: Headers) => Promise<void>;
+  readonly rateLimit: (request: Request, email: string) => Promise<RateLimitResult>;
   readonly metrics: SignInMetrics;
 }
 
-function empty(status: number): Response {
-  return new Response(null, { status });
+function empty(status: number, headers?: HeadersInit): Response {
+  return new Response(null, headers === undefined ? { status } : { status, headers });
 }
 
-/** [BM-008] [DR-ID-03] Uniform for valid emails; malformed and cross-origin requests fail. */
+/** [BM-008] [BM-009] [DR-ID-03] [DR-SEC-04] Enumeration-safe magic-link seam. */
 export function createMagicLinkRequestHandler(
   dependencies: MagicLinkRequestHandlerDependencies,
 ): (request: Request) => Promise<Response> {
@@ -37,6 +39,15 @@ export function createMagicLinkRequestHandler(
     if (!parsed.success) {
       dependencies.metrics.incrementSignInAttempt('rejected');
       return empty(422);
+    }
+
+    const rateLimit = await dependencies.rateLimit(request, parsed.data.email);
+    if (!rateLimit.allowed) {
+      dependencies.metrics.incrementSignInAttempt('rejected');
+      return empty(429, {
+        'Cache-Control': 'no-store',
+        'Retry-After': String(rateLimit.retryAfterSeconds),
+      });
     }
 
     try {

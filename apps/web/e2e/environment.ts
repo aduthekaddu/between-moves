@@ -15,6 +15,8 @@ export const e2eEnvironment: Record<string, string> = {
   REALTIME_PUBLIC_KEY: 'realtime-e2e-public-key',
   ANALYSIS_WORKER_URL: 'http://127.0.0.1:3101',
   ANALYSIS_WORKER_SECRET: 'analysis-e2e-secret',
+  UPSTASH_REDIS_REST_URL: 'https://rate-limit.e2e.example.test',
+  UPSTASH_REDIS_REST_TOKEN: 'upstash-e2e-token',
   APP_ENV: 'local',
   BUILD_ID: 'e2e-build',
 };
