@@ -16,6 +16,8 @@ export {
   type DomainErrorCode,
 } from './shared/errors';
 export type {
+  AccountRecoveryReader,
+  AccountRecoveryResult,
   AnonymousViewer,
   AuthenticatedViewer,
   IdentityPorts,
@@ -24,8 +26,11 @@ export type {
   MagicLinkEmailSender,
   MagicLinkEmailSendResult,
   MagicLinkOutboxWriter,
+  RecoverySessionCleaner,
+  RecoverySessionRepository,
   SessionIdentity,
   SessionIdentityReader,
+  SessionRevocationReader,
   Viewer,
 } from './identity';
 export type { HouseReference, HouseReferenceRepository, HousesPorts } from './houses';

@@ -1,6 +1,8 @@
+import type { QueueMagicLinkDelivery } from '@between-moves/application';
 import { describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../config';
 import { createBetterAuthOptions } from './auth-options';
+import { verifyMagicLinkPurpose } from './magic-link-purpose';
 
 const config = loadConfig({
   DATABASE_URL: 'postgresql://app:test@db.example.test/app?sslmode=require',
@@ -19,8 +21,8 @@ const config = loadConfig({
 });
 
 describe('Better Auth magic-link configuration', () => {
-  it('[BM-008] [PR-PLAT-04] [DR-ID-03] configures the sole sign-in plugin safely', async () => {
-    const queueMagicLink = vi.fn(async () => undefined);
+  it('[BM-008] [BM-010] [DR-ID-03] configures flow-bound sign-in and recovery links', async () => {
+    const queueMagicLink = vi.fn<QueueMagicLinkDelivery>(async () => undefined);
     const options = createBetterAuthOptions({
       config,
       database: {} as never,
@@ -32,7 +34,12 @@ describe('Better Auth magic-link configuration', () => {
       expiresIn: number;
       storeToken: string;
       generateToken(email: string): Promise<string> | string;
-      sendMagicLink(data: { email: string; url: string; token: string }): Promise<void> | void;
+      sendMagicLink(data: {
+        email: string;
+        url: string;
+        token: string;
+        metadata?: Record<string, unknown>;
+      }): Promise<void> | void;
     };
 
     expect(pluginOptions).toMatchObject({ expiresIn: 15 * 60, storeToken: 'hashed' });
@@ -44,10 +51,33 @@ describe('Better Auth magic-link configuration', () => {
       token,
       url: `https://preview.example.test/api/auth/magic-link/verify?token=${token}`,
     });
-    expect(queueMagicLink).toHaveBeenCalledWith({
+    const signInUrl = new URL(String(queueMagicLink.mock.calls[0]?.[0]?.signInUrl));
+    const signInProof = signInUrl.searchParams.get('proof');
+    expect(signInUrl.pathname).toBe('/api/auth/callback');
+    expect(signInUrl.searchParams.get('token')).toBe(token);
+    expect(verifyMagicLinkPurpose(config.betterAuthSecret, 'signin', token, signInProof)).toBe(
+      true,
+    );
+    expect(verifyMagicLinkPurpose(config.betterAuthSecret, 'recovery', token, signInProof)).toBe(
+      false,
+    );
+
+    await pluginOptions.sendMagicLink({
       email: 'member@example.test',
-      signInUrl: `https://preview.example.test/api/auth/callback?token=${encodeURIComponent(token)}`,
+      token,
+      url: `https://preview.example.test/api/auth/magic-link/verify?token=${token}`,
+      metadata: { flow: 'recovery' },
     });
+    const recoveryUrl = new URL(String(queueMagicLink.mock.calls[1]?.[0]?.signInUrl));
+    const recoveryProof = recoveryUrl.searchParams.get('proof');
+    expect(recoveryUrl.pathname).toBe('/api/auth/recovery/callback');
+    expect(recoveryUrl.searchParams.get('token')).toBe(token);
+    expect(verifyMagicLinkPurpose(config.betterAuthSecret, 'recovery', token, recoveryProof)).toBe(
+      true,
+    );
+    expect(verifyMagicLinkPurpose(config.betterAuthSecret, 'signin', token, recoveryProof)).toBe(
+      false,
+    );
   });
 
   it('[BM-008] maps Better Auth-owned account and verification fields to reviewed tables', () => {

@@ -64,16 +64,20 @@ export class InMemoryRateLimiter implements RateLimiter {
   }
 }
 
+type AuthRateLimitSurface = 'signin' | 'recovery';
+
 interface RateLimitMetrics {
-  incrementRateLimitHit(surface: 'signin'): void;
+  incrementRateLimitHit(surface: AuthRateLimitSurface): void;
 }
 
-export interface SignInRateLimitDependencies {
+export interface AuthRateLimitDependencies {
   readonly primary: RateLimiter;
   readonly fallback: RateLimiter;
   readonly metrics: RateLimitMetrics;
-  readonly onStoreError: (surface: 'signin') => void;
+  readonly onStoreError: (surface: AuthRateLimitSurface) => void;
 }
+
+export type SignInRateLimitDependencies = AuthRateLimitDependencies;
 
 interface RateLimitChecks {
   readonly primary: readonly RateLimitInput[];
@@ -89,9 +93,13 @@ function clientIp(request: Request): string {
   return forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
 }
 
-function signInChecks(request: Request, email: string): RateLimitChecks {
-  const accountKey = `signin:account:${digest(email.trim().toLowerCase())}`;
-  const ipKey = `signin:ip:${digest(clientIp(request))}`;
+function authChecks(
+  surface: AuthRateLimitSurface,
+  request: Request,
+  email: string,
+): RateLimitChecks {
+  const accountKey = `${surface}:account:${digest(email.trim().toLowerCase())}`;
+  const ipKey = `${surface}:ip:${digest(clientIp(request))}`;
   return {
     primary: [
       { key: accountKey, policy: SIGN_IN_POLICIES.account },
@@ -128,24 +136,37 @@ function decision(denied: readonly RateLimitResult[]): RateLimitResult {
   };
 }
 
-/** [BM-009] [DR-SEC-04] Reusable dual-scope guard for the sign-in route seam. */
-export function createSignInRateLimit(
-  dependencies: SignInRateLimitDependencies,
+/** [BM-009] [BM-010] [DR-SEC-04] Reusable dual-scope guard for auth request seams. */
+function createAuthRateLimit(
+  surface: AuthRateLimitSurface,
+  dependencies: AuthRateLimitDependencies,
 ): (request: Request, email: string) => Promise<RateLimitResult> {
   return async (request, email) => {
-    const checks = signInChecks(request, email);
+    const checks = authChecks(surface, request, email);
     const primary = await evaluate(dependencies.primary, checks.primary);
     let result = decision(primary.denied);
 
     if (primary.failures > 0) {
-      dependencies.onStoreError('signin');
+      dependencies.onStoreError(surface);
       if (result.allowed) {
         const fallback = await evaluate(dependencies.fallback, checks.fallback);
         result = fallback.failures > 0 ? result : decision(fallback.denied);
       }
     }
 
-    if (!result.allowed) dependencies.metrics.incrementRateLimitHit('signin');
+    if (!result.allowed) dependencies.metrics.incrementRateLimitHit(surface);
     return result;
   };
+}
+
+export function createSignInRateLimit(
+  dependencies: SignInRateLimitDependencies,
+): (request: Request, email: string) => Promise<RateLimitResult> {
+  return createAuthRateLimit('signin', dependencies);
+}
+
+export function createRecoveryRateLimit(
+  dependencies: AuthRateLimitDependencies,
+): (request: Request, email: string) => Promise<RateLimitResult> {
+  return createAuthRateLimit('recovery', dependencies);
 }

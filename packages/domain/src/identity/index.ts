@@ -51,3 +51,31 @@ export interface MagicLinkEmailSender {
     options: { readonly idempotencyKey: string },
   ): Promise<MagicLinkEmailSendResult>;
 }
+
+/** [BM-010] [DR-ID-02] Account recovery can target only an active durable identity. */
+export interface AccountRecoveryReader {
+  hasActiveAccount(email: string): Promise<boolean>;
+}
+
+export interface AccountRecoveryResult {
+  readonly userId: string;
+  readonly revokedSessionCount: number;
+}
+
+/** Soft-revokes every pre-recovery session while preserving the newly issued session. */
+export interface RecoverySessionRepository {
+  revokePriorSessions(
+    currentSessionToken: string,
+    revokedAt: Date,
+  ): Promise<AccountRecoveryResult | null>;
+}
+
+/** Best-effort cleanup when a provider session is minted but recovery cannot complete. */
+export interface RecoverySessionCleaner {
+  revokeSession(sessionToken: string, revokedAt: Date): Promise<void>;
+}
+
+/** Revocation metadata is an application-owned check layered over provider validation. */
+export interface SessionRevocationReader {
+  isSessionActive(sessionId: string): Promise<boolean>;
+}
