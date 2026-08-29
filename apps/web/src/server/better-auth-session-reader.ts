@@ -1,4 +1,4 @@
-import type { SessionIdentityReader } from '@between-moves/domain';
+import type { SessionIdentityReader, SessionRevocationReader } from '@between-moves/domain';
 import type { StructuredLogger } from '@between-moves/observability';
 
 interface BetterAuthSessionResult {
@@ -6,6 +6,9 @@ interface BetterAuthSessionResult {
     readonly id: string;
     readonly name: string;
     readonly image?: string | null | undefined;
+  };
+  readonly session: {
+    readonly id: string;
   };
 }
 
@@ -21,6 +24,7 @@ export interface BetterAuthSessionApi {
 /** [BM-007] [DR-ID-01] Adapt the untrusted request to Better Auth's DB validation. */
 export function createBetterAuthSessionReader(
   auth: BetterAuthSessionApi,
+  revocation: SessionRevocationReader,
   logger: StructuredLogger,
 ): SessionIdentityReader<Request> {
   return {
@@ -30,6 +34,7 @@ export function createBetterAuthSessionReader(
         headers: request.headers,
         query: { disableCookieCache: true },
       });
+      const active = result === null ? false : await revocation.isSessionActive(result.session.id);
       const actorId = result?.user.id ?? 'anonymous';
 
       logger.log({
@@ -40,11 +45,11 @@ export function createBetterAuthSessionReader(
         gameId: null,
         commandId: null,
         event: 'identity.session.resolved',
-        outcome: result === null ? 'rejected' : 'success',
+        outcome: active ? 'success' : 'rejected',
         durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
       });
 
-      return result === null
+      return result === null || !active
         ? null
         : {
             userId: result.user.id,

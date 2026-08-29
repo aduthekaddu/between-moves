@@ -1,6 +1,6 @@
 import type { RateLimitPolicy, RateLimiter, RateLimitResult } from '@between-moves/domain';
 import { describe, expect, it, vi } from 'vitest';
-import { createSignInRateLimit, InMemoryRateLimiter } from './rate-limit';
+import { createRecoveryRateLimit, createSignInRateLimit, InMemoryRateLimiter } from './rate-limit';
 
 const hour = 60 * 60;
 
@@ -125,5 +125,49 @@ describe('sign-in rate limit', () => {
       allowed: true,
       retryAfterSeconds: 0,
     });
+  });
+});
+
+describe('recovery rate limit', () => {
+  it('[BM-010] [DR-SEC-04] uses an independent opaque 5/hour account bucket', async () => {
+    const seen: string[] = [];
+    const limiter: RateLimiter = {
+      async limit(input): Promise<RateLimitResult> {
+        seen.push(input.key);
+        return new InMemoryRateLimiter().limit(input);
+      },
+    };
+    const metrics = { incrementRateLimitHit: vi.fn() };
+    const check = createRecoveryRateLimit({
+      primary: limiter,
+      fallback: new InMemoryRateLimiter(),
+      metrics,
+      onStoreError: vi.fn(),
+    });
+
+    await check(request(), 'private.member@example.test');
+
+    expect(seen).toEqual([
+      expect.stringMatching(/^recovery:account:[a-f0-9]{64}$/),
+      expect.stringMatching(/^recovery:ip:[a-f0-9]{64}$/),
+    ]);
+    expect(seen.join(' ')).not.toContain('private.member@example.test');
+    expect(seen.join(' ')).not.toContain('203.0.113.10');
+
+    const enforced = createRecoveryRateLimit({
+      primary: new InMemoryRateLimiter(),
+      fallback: new InMemoryRateLimiter(),
+      metrics,
+      onStoreError: vi.fn(),
+    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(enforced(request(), 'member@example.test')).resolves.toMatchObject({
+        allowed: true,
+      });
+    }
+    await expect(enforced(request(), 'member@example.test')).resolves.toMatchObject({
+      allowed: false,
+    });
+    expect(metrics.incrementRateLimitHit).toHaveBeenCalledWith('recovery');
   });
 });
