@@ -92,4 +92,11 @@ describe('BM-005 package import boundaries', () => {
       "import type { Clock } from '@between-moves/domain'; void (0 as unknown as Clock);",
     );
   });
+
+  it('[BM-006] rejects worker imports from the web composition root', async () => {
+    await assertForbidden(
+      'apps/worker/src/example.ts',
+      "import { GET } from '../../web/src/app/healthz/route.ts'; void GET;",
+    );
+  });
 });

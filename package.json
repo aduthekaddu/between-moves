@@ -10,7 +10,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "pnpm lint:boundaries && turbo run lint",
-    "lint:boundaries": "eslint packages/domain/src packages/application/src packages/db/src packages/adapters/src packages/observability/src --max-warnings=0",
+    "lint:boundaries": "eslint apps/worker/src packages/domain/src packages/application/src packages/db/src packages/adapters/src packages/observability/src --max-warnings=0",
     "typecheck": "turbo run typecheck",
     "test": "pnpm test:boundaries && turbo run test",
     "test:boundaries": "node --test tooling/import-boundaries.test.mjs",
