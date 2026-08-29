@@ -3,8 +3,20 @@ export type {
   AuthorizationContextInput,
 } from './shared/authorization-context';
 export type { Clock } from './shared/clock';
-export { AuthorizationDeniedError, DomainError, type DomainErrorCode } from './shared/errors';
-export type { IdentityPorts } from './identity';
+export {
+  AuthenticationRequiredError,
+  AuthorizationDeniedError,
+  DomainError,
+  type DomainErrorCode,
+} from './shared/errors';
+export type {
+  AnonymousViewer,
+  AuthenticatedViewer,
+  IdentityPorts,
+  SessionIdentity,
+  SessionIdentityReader,
+  Viewer,
+} from './identity';
 export type { HouseReference, HouseReferenceRepository, HousesPorts } from './houses';
 export type { SeasonsPorts } from './seasons';
 export type { GamesPorts } from './games';
