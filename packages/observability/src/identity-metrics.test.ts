@@ -11,11 +11,16 @@ describe('identity metrics', () => {
     metrics.incrementEmailSend('success');
     metrics.incrementEmailSend('failure');
     metrics.incrementRateLimitHit('signin');
+    metrics.incrementRateLimitHit('recovery');
+    metrics.incrementRecoveryAttempt('accepted');
+    metrics.incrementRecoveryAttempt('rejected');
+    metrics.incrementRecoveryAttempt('error');
 
     expect(metrics.snapshot()).toEqual({
       sign_in_attempt_total: { accepted: 1, rejected: 1, error: 1 },
+      recovery_attempt_total: { accepted: 1, rejected: 1, error: 1 },
       email_send_total: { success: 1, failure: 1 },
-      rate_limit_hit_total: { signin: 1 },
+      rate_limit_hit_total: { signin: 1, recovery: 1 },
     });
   });
 });

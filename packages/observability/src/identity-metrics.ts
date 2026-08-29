@@ -1,16 +1,19 @@
 export type SignInAttemptOutcome = 'accepted' | 'rejected' | 'error';
+export type RecoveryAttemptOutcome = 'accepted' | 'rejected' | 'error';
 export type EmailSendOutcome = 'success' | 'failure';
-export type RateLimitSurface = 'signin';
+export type RateLimitSurface = 'signin' | 'recovery';
 
 export interface IdentityMetricSnapshot {
   readonly email_send_total: Readonly<Record<EmailSendOutcome, number>>;
   readonly sign_in_attempt_total: Readonly<Record<SignInAttemptOutcome, number>>;
+  readonly recovery_attempt_total: Readonly<Record<RecoveryAttemptOutcome, number>>;
   readonly rate_limit_hit_total: Readonly<Record<RateLimitSurface, number>>;
 }
 
 export interface IdentityMetricStubs {
   incrementEmailSend(outcome: EmailSendOutcome): void;
   incrementSignInAttempt(outcome: SignInAttemptOutcome): void;
+  incrementRecoveryAttempt(outcome: RecoveryAttemptOutcome): void;
   incrementRateLimitHit(surface: RateLimitSurface): void;
   snapshot(): IdentityMetricSnapshot;
 }
@@ -19,7 +22,8 @@ export interface IdentityMetricStubs {
 export function createIdentityMetricStubs(): IdentityMetricStubs {
   const email = { success: 0, failure: 0 };
   const signIn = { accepted: 0, rejected: 0, error: 0 };
-  const rateLimit = { signin: 0 };
+  const recovery = { accepted: 0, rejected: 0, error: 0 };
+  const rateLimit = { signin: 0, recovery: 0 };
 
   return {
     incrementEmailSend(outcome) {
@@ -28,6 +32,9 @@ export function createIdentityMetricStubs(): IdentityMetricStubs {
     incrementSignInAttempt(outcome) {
       signIn[outcome] += 1;
     },
+    incrementRecoveryAttempt(outcome) {
+      recovery[outcome] += 1;
+    },
     incrementRateLimitHit(surface) {
       rateLimit[surface] += 1;
     },
@@ -35,6 +42,7 @@ export function createIdentityMetricStubs(): IdentityMetricStubs {
       return {
         email_send_total: { ...email },
         sign_in_attempt_total: { ...signIn },
+        recovery_attempt_total: { ...recovery },
         rate_limit_hit_total: { ...rateLimit },
       };
     },
