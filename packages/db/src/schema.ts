@@ -1,7 +1,9 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   check,
+  customType,
   index,
   integer,
   jsonb,
@@ -11,6 +13,64 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+
+const citext = customType<{ data: string }>({
+  dataType: () => 'citext',
+});
+
+/** [BM-007] [DR-ID-04] Durable identity mapped to Better Auth's user model. */
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    displayName: text('display_name').notNull(),
+    email: citext('email').notNull(),
+    emailVerified: boolean('email_verified').default(false).notNull(),
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+    imageUrl: text('image_url'),
+    status: text('status').default('active').notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('users_active_email_unique')
+      .on(table.email)
+      .where(sql`${table.status} <> 'deleted'`),
+    check('users_display_name_check', sql`char_length(${table.displayName}) between 1 and 60`),
+    check('users_status_check', sql`${table.status} in ('active', 'deleted')`),
+    check(
+      'users_deletion_state_check',
+      sql`(${table.status} = 'active' and ${table.deletedAt} is null) or ${table.status} = 'deleted'`,
+    ),
+  ],
+);
+
+/** [BM-007] [DR-ID-02] Better Auth database-backed session storage. */
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    token: text('token').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('sessions_token_unique').on(table.token),
+    check('sessions_token_length_check', sql`char_length(${table.token}) >= 32`),
+    index('sessions_user_id_idx').on(table.userId),
+    index('sessions_active_expiry_idx')
+      .on(table.expiresAt)
+      .where(sql`${table.revokedAt} is null`),
+  ],
+);
 
 /** [BM-005] Scaffold-only table proving scoped repository reads against PostgreSQL. */
 export const houseReferenceRecords = pgTable(

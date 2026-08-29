@@ -1,5 +1,5 @@
 export type DomainErrorCode =
-  'authorization_denied' | 'conflict' | 'not_found' | 'validation_failed';
+  'unauthenticated' | 'authorization_denied' | 'conflict' | 'not_found' | 'validation_failed';
 
 /** [BM-005] Stable error codes let application seams map failures without string matching. */
 export class DomainError extends Error {
@@ -11,6 +11,14 @@ export class DomainError extends Error {
     options?: ErrorOptions,
   ) {
     super(message, options);
+  }
+}
+
+export class AuthenticationRequiredError extends DomainError {
+  override readonly name = 'AuthenticationRequiredError';
+
+  constructor(message = 'Authentication is required', options?: ErrorOptions) {
+    super('unauthenticated', message, options);
   }
 }
 
