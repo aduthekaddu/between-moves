@@ -1,3 +1,15 @@
 export { IdempotentLoggingConsumer } from './idempotent-logging-consumer';
 export { SystemClock } from './system-clock';
 export { generateUuidV7 } from './uuid-v7';
+
+export {
+  AesGcmMagicLinkDeliveryCodec,
+  generateMagicLinkToken,
+  parseResendWebhook,
+  ResendMagicLinkEmailSender,
+  TestMagicLinkEmailSender,
+  type ResendMagicLinkEmailSenderOptions,
+  type ResendWebhookEvent,
+  type ResendWebhookInput,
+  type TestMagicLinkDelivery,
+} from './magic-link-email';

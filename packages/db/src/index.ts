@@ -9,3 +9,5 @@ export { DrizzleHouseReferenceRepository } from './house-reference-repository';
 export { enqueueOutboxEvent } from './enqueue-outbox-event';
 export type { OutboxTransaction } from './enqueue-outbox-event';
 export { PgOutboxRepository } from './outbox-repository';
+
+export { PgMagicLinkOutboxWriter } from './magic-link-outbox-writer';
