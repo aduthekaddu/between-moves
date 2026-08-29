@@ -4,3 +4,11 @@ import type { UseCase } from '../shared/use-case';
 export type IdentityUseCase<Command, Result> = UseCase<Command, Result>;
 
 export { createViewerResolver, type ViewerResolver } from './viewer';
+
+export {
+  createMagicLinkDeliveryQueue,
+  createMagicLinkEmailConsumer,
+  MAGIC_LINK_EMAIL_TOPIC,
+  type MagicLinkDeliveryQueueDependencies,
+  type QueueMagicLinkDelivery,
+} from './magic-link';
