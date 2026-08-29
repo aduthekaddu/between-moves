@@ -5,7 +5,7 @@ const globalDatabase = globalThis as typeof globalThis & {
   betweenMovesDatabase?: Database;
 };
 
-function getDatabase(): Database {
+export function getDatabase(): Database {
   globalDatabase.betweenMovesDatabase ??= createDatabase(getConfig().databaseUrl);
   return globalDatabase.betweenMovesDatabase;
 }

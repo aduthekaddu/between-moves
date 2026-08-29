@@ -109,8 +109,25 @@ jobs:
           TEST_DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
         run: pnpm --filter @between-moves/db test
 
+      - name: Better Auth PostgreSQL integration tests
+        env:
+          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
+          TEST_DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
+        run: pnpm --filter @between-moves/web test
+
+      - name: Prepare migrated database for end-to-end auth
+        env:
+          DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
+          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
+          PGPASSWORD: postgres-test-only
+        run: |
+          pnpm db:migrate
+          psql -h 127.0.0.1 -U postgres -d between_moves_test -v ON_ERROR_STOP=1 \
+            -c "grant select, insert, update, delete on all tables in schema public to between_moves_app"
+
       - name: End-to-end test with database readiness
         env:
           DATABASE_URL: postgresql://between_moves_app:runtime-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
+          TEST_DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
           NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
         run: pnpm test:e2e
