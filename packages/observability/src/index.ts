@@ -11,4 +11,8 @@ export { createDeliveryMetricStubs } from './delivery-metrics';
 export type { DeliveryMetricSnapshot, DeliveryMetricStubs } from './delivery-metrics';
 
 export { createIdentityMetricStubs } from './identity-metrics';
-export type { IdentityMetricSnapshot, IdentityMetricStubs } from './identity-metrics';
+export type {
+  IdentityMetricSnapshot,
+  IdentityMetricStubs,
+  RateLimitSurface,
+} from './identity-metrics';

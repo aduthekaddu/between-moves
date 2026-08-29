@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createSignInRateLimit, InMemoryRateLimiter } from '../../../../kernel/rate-limit';
 import { createMagicLinkRequestHandler } from './handler';
 
 const url = 'https://app.example.test/api/auth/magic-link';
+const allow = vi.fn(async () => ({ allowed: true as const, retryAfterSeconds: 0 }));
 
 function request(body: unknown, origin = 'https://app.example.test'): Request {
   return new Request(url, {
@@ -17,6 +19,7 @@ describe('POST /api/auth/magic-link', () => {
     const existing = createMagicLinkRequestHandler({
       expectedOrigin: 'https://app.example.test',
       requestMagicLink: vi.fn(async () => undefined),
+      rateLimit: allow,
       metrics,
     });
     const unknown = createMagicLinkRequestHandler({
@@ -24,6 +27,7 @@ describe('POST /api/auth/magic-link', () => {
       requestMagicLink: vi.fn(async () => {
         throw new Error('delivery unavailable');
       }),
+      rateLimit: allow,
       metrics,
     });
 
@@ -40,11 +44,76 @@ describe('POST /api/auth/magic-link', () => {
     });
   });
 
+  it('[BM-009] [DR-SEC-04] returns the same bodyless 429 without account disclosure', async () => {
+    const knownRequest = vi.fn(async () => undefined);
+    const unknownRequest = vi.fn(async () => {
+      throw new Error('account absent');
+    });
+    const denied = vi.fn(async () => ({ allowed: false as const, retryAfterSeconds: 37 }));
+    const dependencies = {
+      expectedOrigin: 'https://app.example.test',
+      rateLimit: denied,
+      metrics: { incrementSignInAttempt: vi.fn() },
+    };
+    const known = createMagicLinkRequestHandler({
+      ...dependencies,
+      requestMagicLink: knownRequest,
+    });
+    const unknown = createMagicLinkRequestHandler({
+      ...dependencies,
+      requestMagicLink: unknownRequest,
+    });
+
+    const knownResponse = await known(request({ email: 'known@example.test' }));
+    const unknownResponse = await unknown(request({ email: 'unknown@example.test' }));
+
+    for (const response of [knownResponse, unknownResponse]) {
+      expect(response.status).toBe(429);
+      expect(response.headers.get('retry-after')).toBe('37');
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      await expect(response.text()).resolves.toBe('');
+    }
+    expect(knownRequest).not.toHaveBeenCalled();
+    expect(unknownRequest).not.toHaveBeenCalled();
+  });
+
+  it('[BM-009] [DR-SEC-04] enforces the account threshold at the route seam and emits its metric', async () => {
+    const requestMagicLink = vi.fn(async () => undefined);
+    const metrics = {
+      incrementSignInAttempt: vi.fn(),
+      incrementRateLimitHit: vi.fn(),
+    };
+    const handler = createMagicLinkRequestHandler({
+      expectedOrigin: 'https://app.example.test',
+      requestMagicLink,
+      rateLimit: createSignInRateLimit({
+        primary: new InMemoryRateLimiter(),
+        fallback: new InMemoryRateLimiter(),
+        metrics,
+        onStoreError: vi.fn(),
+      }),
+      metrics,
+    });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(handler(request({ email: 'member@example.test' }))).resolves.toMatchObject({
+        status: 204,
+      });
+    }
+    const denied = await handler(request({ email: 'member@example.test' }));
+
+    expect(denied.status).toBe(429);
+    expect(requestMagicLink).toHaveBeenCalledTimes(5);
+    expect(metrics.incrementRateLimitHit).toHaveBeenCalledOnce();
+    expect(metrics.incrementRateLimitHit).toHaveBeenCalledWith('signin');
+  });
+
   it('[BM-008] [DR-ID-03] rejects malformed input without invoking auth', async () => {
     const requestMagicLink = vi.fn();
     const handler = createMagicLinkRequestHandler({
       expectedOrigin: 'https://app.example.test',
       requestMagicLink,
+      rateLimit: allow,
       metrics: { incrementSignInAttempt: vi.fn() },
     });
 
@@ -52,6 +121,7 @@ describe('POST /api/auth/magic-link', () => {
 
     expect(response.status).toBe(422);
     expect(requestMagicLink).not.toHaveBeenCalled();
+    expect(allow).not.toHaveBeenCalledWith(expect.anything(), 'not-an-email');
   });
 
   it('[BM-008] [DR-ID-03] rejects an unexpected origin before any state change', async () => {
@@ -59,6 +129,7 @@ describe('POST /api/auth/magic-link', () => {
     const handler = createMagicLinkRequestHandler({
       expectedOrigin: 'https://app.example.test',
       requestMagicLink,
+      rateLimit: allow,
       metrics: { incrementSignInAttempt: vi.fn() },
     });
 

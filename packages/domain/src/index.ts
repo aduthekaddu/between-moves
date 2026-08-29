@@ -3,6 +3,12 @@ export type {
   AuthorizationContextInput,
 } from './shared/authorization-context';
 export type { Clock } from './shared/clock';
+export type {
+  RateLimitInput,
+  RateLimitPolicy,
+  RateLimiter,
+  RateLimitResult,
+} from './shared/rate-limiter';
 export {
   AuthenticationRequiredError,
   AuthorizationDeniedError,

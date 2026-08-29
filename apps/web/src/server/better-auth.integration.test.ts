@@ -27,6 +27,8 @@ integration('Better Auth PostgreSQL sessions', () => {
     REALTIME_PUBLIC_KEY: 'realtime-integration-public-key',
     ANALYSIS_WORKER_URL: 'https://worker.integration.example.test',
     ANALYSIS_WORKER_SECRET: 'analysis-integration-secret',
+    UPSTASH_REDIS_REST_URL: 'https://rate-limit.integration.example.test',
+    UPSTASH_REDIS_REST_TOKEN: 'upstash-integration-token',
     APP_ENV: 'local',
   });
   const options = createBetterAuthOptions({
