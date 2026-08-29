@@ -4,3 +4,4 @@ import type { AuthorizedUseCase } from '../shared/use-case';
 export type HousesUseCase<Command, Result> = AuthorizedUseCase<Command, Result>;
 
 export { createHouse } from './create-house';
+export { createAuthorizeHouseAction } from './authorize-house-action';

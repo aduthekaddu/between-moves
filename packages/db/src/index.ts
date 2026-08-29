@@ -15,3 +15,4 @@ export { PgMagicLinkOutboxWriter } from './magic-link-outbox-writer';
 export { PgIdentityRecoveryRepository } from './identity-recovery-repository';
 
 export { PgHouseCreationRepository } from './pg-house-creation-repository';
+export { PgHouseAuthorizationMembershipRepository } from './pg-house-authorization-membership-repository';

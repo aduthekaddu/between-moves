@@ -34,8 +34,19 @@ export type {
   Viewer,
 } from './identity';
 export { createHouseEmblemSeed, createHouseSlug, validateCreateHouseCommand } from './houses';
+export { HouseAuthorizationDeniedError, houseAuthorizationDenialReason } from './houses';
 export type {
+  AuthorizeHouseAction,
   CreateHouseCommand,
+  HouseAction,
+  HouseAuthorizationDenial,
+  HouseAuthorizationDenialReason,
+  HouseAuthorizationDenialRecorder,
+  HouseAuthorizationDependencies,
+  HouseAuthorizationEvaluation,
+  HouseAuthorizationMembership,
+  HouseAuthorizationMembershipRepository,
+  HouseNightHostAssignmentRepository,
   HouseCreationDependencies,
   HouseCreationInput,
   HouseCreationRepository,
@@ -44,6 +55,8 @@ export type {
   HouseReferenceRepository,
   HousesPorts,
   IdGenerator,
+  MembershipRole,
+  MembershipStatus,
   ValidatedCreateHouseCommand,
 } from './houses';
 export type { SeasonsPorts } from './seasons';
