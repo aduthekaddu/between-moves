@@ -33,7 +33,19 @@ export type {
   SessionRevocationReader,
   Viewer,
 } from './identity';
-export type { HouseReference, HouseReferenceRepository, HousesPorts } from './houses';
+export { createHouseEmblemSeed, createHouseSlug, validateCreateHouseCommand } from './houses';
+export type {
+  CreateHouseCommand,
+  HouseCreationDependencies,
+  HouseCreationInput,
+  HouseCreationRepository,
+  HouseCreationResult,
+  HouseReference,
+  HouseReferenceRepository,
+  HousesPorts,
+  IdGenerator,
+  ValidatedCreateHouseCommand,
+} from './houses';
 export type { SeasonsPorts } from './seasons';
 export type { GamesPorts } from './games';
 export type { NightsPorts } from './nights';
