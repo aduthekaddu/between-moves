@@ -12,6 +12,8 @@ const validEnvironment = {
   REALTIME_PUBLIC_KEY: 'realtime-test-public-key',
   ANALYSIS_WORKER_URL: 'https://worker.example.test',
   ANALYSIS_WORKER_SECRET: 'analysis-test-secret',
+  UPSTASH_REDIS_REST_URL: 'https://rate-limit.example.test',
+  UPSTASH_REDIS_REST_TOKEN: 'upstash-test-token',
   APP_ENV: 'preview',
   BUILD_ID: 'build-123',
 } as const;
@@ -34,6 +36,23 @@ describe('loadConfig', () => {
       expect(String(error)).toContain('BETTER_AUTH_SECRET');
       expect(String(error)).not.toContain(validEnvironment.RESEND_API_KEY);
       expect(String(error)).not.toContain(validEnvironment.ANALYSIS_WORKER_SECRET);
+    }
+  });
+
+  it('[BM-009] [DR-SEC-03] fails closed when an Upstash credential is missing', () => {
+    const { UPSTASH_REDIS_REST_TOKEN: omitted, ...environment } = validEnvironment;
+
+    expect(omitted).toBeTruthy();
+    try {
+      loadConfig(environment);
+      expect.unreachable('Expected configuration validation to fail');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigValidationError);
+      expect(error).toMatchObject({
+        missingKeys: ['UPSTASH_REDIS_REST_TOKEN'],
+        invalidKeys: [],
+      });
+      expect(String(error)).not.toContain(validEnvironment.UPSTASH_REDIS_REST_TOKEN);
     }
   });
 
@@ -62,5 +81,7 @@ describe('loadConfig', () => {
     expect(config.environment).toBe('preview');
     expect(config.buildId).toBe('build-123');
     expect(config.appOrigin.href).toBe('https://preview.example.test/');
+    expect(config.upstashRedisRestUrl.href).toBe('https://rate-limit.example.test/');
+    expect(config.upstashRedisRestToken).toBe('upstash-test-token');
   });
 });
