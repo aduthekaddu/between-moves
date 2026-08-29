@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createDatabase } from '@between-moves/db';
+import { createDatabase } from '@between-moves/db/database';
 import { makeSignature } from 'better-auth/crypto';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
