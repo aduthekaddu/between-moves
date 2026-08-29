@@ -7,3 +7,5 @@ export type {
   StructuredLogger,
   StructuredLoggerOptions,
 } from './logger';
+export { createDeliveryMetricStubs } from './delivery-metrics';
+export type { DeliveryMetricSnapshot, DeliveryMetricStubs } from './delivery-metrics';

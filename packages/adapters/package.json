@@ -9,12 +9,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@between-moves/domain": "workspace:*"
+    "@between-moves/domain": "workspace:*",
+    "@between-moves/observability": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
   }
 }
