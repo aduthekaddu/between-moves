@@ -5,11 +5,14 @@ const boundaryMessage =
   'Package boundary violation: this layer may only import the workspace packages allowed by the architecture.';
 
 function packageRootFor(filename) {
-  const marker = `${sep}packages${sep}`;
-  const markerIndex = filename.lastIndexOf(marker);
-  if (markerIndex < 0) return undefined;
-  const packageNameEnd = filename.indexOf(sep, markerIndex + marker.length);
-  return packageNameEnd < 0 ? undefined : filename.slice(0, packageNameEnd);
+  for (const directory of ['packages', 'apps']) {
+    const marker = `${sep}${directory}${sep}`;
+    const markerIndex = filename.lastIndexOf(marker);
+    if (markerIndex < 0) continue;
+    const packageNameEnd = filename.indexOf(sep, markerIndex + marker.length);
+    return packageNameEnd < 0 ? undefined : filename.slice(0, packageNameEnd);
+  }
+  return undefined;
 }
 
 const boundaryPlugin = {
@@ -76,7 +79,10 @@ export default [
     ignores: ['**/dist/**', '**/node_modules/**'],
   },
   {
-    files: ['packages/{domain,application,db,adapters,observability}/src/**/*.ts'],
+    files: [
+      'apps/worker/src/**/*.ts',
+      'packages/{domain,application,db,adapters,observability}/src/**/*.ts',
+    ],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -89,6 +95,20 @@ export default [
     },
     rules: {
       'boundaries/no-cross-package-relative-imports': 'error',
+    },
+  },
+  {
+    files: ['apps/worker/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': workspaceImportsAllowedFrom([
+        '@between-moves/application',
+        '@between-moves/domain',
+        '@between-moves/db',
+        '@between-moves/adapters',
+        '@between-moves/contracts',
+        '@between-moves/config',
+        '@between-moves/observability',
+      ]),
     },
   },
   {

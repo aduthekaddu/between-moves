@@ -5,3 +5,7 @@ export type { DatabaseHealth, DatabaseLogger, Gauge, HealthPool } from './health
 export { migrateDown, migrateUp } from './migrations';
 export type { MigrationOptions } from './migrations';
 export { DrizzleHouseReferenceRepository } from './house-reference-repository';
+
+export { enqueueOutboxEvent } from './enqueue-outbox-event';
+export type { OutboxTransaction } from './enqueue-outbox-event';
+export { PgOutboxRepository } from './outbox-repository';
