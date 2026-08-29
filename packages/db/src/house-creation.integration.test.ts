@@ -127,8 +127,8 @@ integration('House creation persistence', () => {
       await client.query(
         `insert into houses
           (id, name, slug, emblem_seed, time_zone, member_cap, status)
-         values ($1, 'Ownerless', $1, 'ownerless', 'UTC', 30, 'active')`,
-        ['01941f29-7c00-7000-8000-000000000231'],
+         values ($1, 'Ownerless', $2, 'ownerless', 'UTC', 30, 'active')`,
+        ['01941f29-7c00-7000-8000-000000000231', 'ownerless'],
       );
       await expect(client.query('commit')).rejects.toMatchObject({ code: '23514' });
     } finally {
