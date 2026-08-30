@@ -73,8 +73,15 @@ export async function twoHousesWithMembers(database: Pool): Promise<TwoHousesWit
         `insert into houses
           (id, name, slug, description, emblem_seed, time_zone, owner_membership_id,
            member_cap, status, created_at, updated_at)
-         values ($1, $2, $1, $3, $4, 'Asia/Kolkata', null, 30, 'active', $5, $5)`,
-        [house.houseId, house.name, house.description, `house:${house.houseId}`, createdAt],
+         values ($1, $2, $3, $4, $5, 'Asia/Kolkata', null, 30, 'active', $6, $6)`,
+        [
+          house.houseId,
+          house.name,
+          `house-${house.houseId}`,
+          house.description,
+          `house:${house.houseId}`,
+          createdAt,
+        ],
       );
       await client.query(
         `insert into memberships
