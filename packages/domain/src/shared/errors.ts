@@ -1,5 +1,10 @@
 export type DomainErrorCode =
-  'unauthenticated' | 'authorization_denied' | 'conflict' | 'not_found' | 'validation_failed';
+  | 'unauthenticated'
+  | 'authorization_denied'
+  | 'conflict'
+  | 'idempotency_conflict'
+  | 'not_found'
+  | 'validation_failed';
 
 /** [BM-005] Stable error codes let application seams map failures without string matching. */
 export class DomainError extends Error {

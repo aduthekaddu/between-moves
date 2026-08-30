@@ -30,6 +30,34 @@ export type {
   MembershipRole,
   MembershipStatus,
 } from './authorization';
+export { invitationCreationPolicy } from './invitation';
+export type {
+  CreateInvitationCommand,
+  CreateInvitationRequest,
+  InspectInvitationRequest,
+  InvitationCreationDependencies,
+  InvitationCreationInput,
+  InvitationCreationPolicy,
+  InvitationCreationPolicyContext,
+  InvitationCreationRepository,
+  InvitationCreationResult,
+  InvitationInspectionDependencies,
+  InvitationInspectionInput,
+  InvitationInspectionRepository,
+  InvitationPreview,
+  InvitationRevocationDependencies,
+  InvitationRevocationInput,
+  InvitationRevocationRepository,
+  InvitationRevocationResult,
+  InvitationToken,
+  InvitationTokenDigester,
+  InvitationTokenIssueRequest,
+  InvitationTokenIssuer,
+  PersistedInvitationCreation,
+  SharedInvitationCommand,
+  SingleInvitationCommand,
+  RevokeInvitationRequest,
+} from './invitation';
 
 /** [BM-005] Logical House module boundary and future authorization authority. */
 export interface HousesPorts {
