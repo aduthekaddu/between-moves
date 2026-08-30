@@ -10,7 +10,11 @@
   --bm-color-paper-raised: #fbf6e9;
   --bm-color-ink: #1f1a17;
   --bm-color-ink-muted: #5a5048;
+  --bm-color-wood: #6b4a2b;
+  --bm-color-wood-dark: #4a3320;
+  --bm-color-wood-light: #d9c29a;
   --bm-color-brass: #b08d3e;
+  --bm-color-brass-strong: #8a6d2a;
   --bm-color-focus: #2c6fb0;
 
   /* Typography (UX-TOK-02) */
@@ -20,10 +24,13 @@
 
   /* Spacing, radius, elevation, motion */
   --bm-space-3: 12px;
+  --bm-space-2: 8px;
   --bm-space-4: 16px;
   --bm-space-5: 24px;
   --bm-space-6: 32px;
   --bm-radius-lg: 16px;
+  --bm-radius-sm: 4px;
+  --bm-radius-md: 8px;
   --bm-elev-card: 0 8px 24px rgba(74, 51, 32, 0.14);
   --bm-motion-base: 200ms;
 }
@@ -99,6 +106,190 @@ body {
 .landing__promise {
   margin: 0;
   color: var(--bm-color-ink-muted);
+}
+
+.house-shell {
+  min-height: 100vh;
+  background: linear-gradient(rgba(107, 74, 43, 0.045) 1px, transparent 1px), var(--bm-color-paper);
+  background-size: 100% 32px;
+}
+
+.house-masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100% - 32px, 70rem);
+  min-height: 64px;
+  margin: 0 auto;
+  border-bottom: 1px solid var(--bm-color-wood-light);
+}
+
+.house-masthead p {
+  margin: 0;
+}
+
+.house-masthead__brand {
+  font-family: var(--bm-font-serif);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.house-masthead__place,
+.house-home__eyebrow {
+  color: var(--bm-color-wood);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.house-home {
+  display: grid;
+  gap: var(--bm-space-5);
+  width: min(100% - 32px, 70rem);
+  margin: 0 auto;
+  padding: clamp(32px, 8vw, 80px) 0;
+}
+
+.house-identity,
+.house-status {
+  min-width: 0;
+  background: var(--bm-color-paper-raised);
+  border: 1px solid var(--bm-color-wood-light);
+}
+
+.house-identity {
+  display: grid;
+  align-content: start;
+  gap: var(--bm-space-5);
+  padding: clamp(24px, 6vw, 48px);
+}
+
+.house-emblem {
+  display: grid;
+  width: 88px;
+  aspect-ratio: 1;
+  place-items: center;
+  color: var(--bm-color-paper-raised);
+  background: var(--bm-color-wood-dark);
+  border: 8px double var(--bm-color-brass);
+  border-radius: var(--bm-radius-md);
+  box-shadow: 0 8px 20px rgba(74, 51, 32, 0.18);
+  font-family: var(--bm-font-serif);
+  font-size: 2rem;
+}
+
+.house-home__eyebrow {
+  margin: 0 0 var(--bm-space-3);
+}
+
+.house-home__title,
+.house-status__title,
+.house-unavailable h1 {
+  margin: 0;
+  font-family: var(--bm-font-serif);
+  text-wrap: balance;
+}
+
+.house-home__title {
+  max-width: 13ch;
+  font-size: clamp(2.25rem, 8vw, 4.5rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+.house-home__description {
+  max-width: 38rem;
+  margin: var(--bm-space-4) 0 0;
+  color: var(--bm-color-ink-muted);
+  font-family: var(--bm-font-serif);
+  font-size: 1.125rem;
+  text-wrap: pretty;
+}
+
+.house-status {
+  align-self: start;
+  padding: clamp(24px, 6vw, 40px);
+  border-top: 5px solid var(--bm-color-brass);
+  border-radius: 0 0 var(--bm-radius-lg) var(--bm-radius-lg);
+  box-shadow: var(--bm-elev-card);
+}
+
+.house-status__title {
+  max-width: 14ch;
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.house-status__copy {
+  max-width: 38rem;
+  margin: var(--bm-space-4) 0 var(--bm-space-6);
+  color: var(--bm-color-ink-muted);
+  text-wrap: pretty;
+}
+
+.house-details {
+  display: grid;
+  gap: var(--bm-space-4);
+  margin: 0;
+  padding-top: var(--bm-space-4);
+  border-top: 1px solid var(--bm-color-wood-light);
+}
+
+.house-details div {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) minmax(0, 1.4fr);
+  gap: var(--bm-space-4);
+}
+
+.house-details dt {
+  color: var(--bm-color-ink-muted);
+  font-size: 0.875rem;
+}
+
+.house-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.house-unavailable {
+  display: grid;
+  min-height: 100vh;
+  padding: var(--bm-space-4);
+  place-items: center;
+}
+
+.house-unavailable__sheet {
+  width: min(100%, 34rem);
+  padding: clamp(24px, 7vw, 48px);
+  background: var(--bm-color-paper-raised);
+  border: 1px solid var(--bm-color-wood-light);
+  border-top: 5px solid var(--bm-color-brass);
+  box-shadow: var(--bm-elev-card);
+}
+
+.house-unavailable h1 {
+  font-size: clamp(2rem, 7vw, 3rem);
+  line-height: 1.1;
+}
+
+.house-unavailable p:last-child {
+  margin: var(--bm-space-4) 0 0;
+  color: var(--bm-color-ink-muted);
+}
+
+@media (min-width: 48rem) {
+  .house-home {
+    grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+    align-items: start;
+  }
+
+  .house-identity {
+    min-height: 32rem;
+  }
 }
 
 /* Respect reduced-motion preference (UX-TOK-03) */

@@ -51,12 +51,16 @@ export type {
   HouseCreationInput,
   HouseCreationRepository,
   HouseCreationResult,
+  HouseHome,
+  HouseHomeReadRepository,
   HouseReference,
   HouseReferenceRepository,
   HousesPorts,
   IdGenerator,
   MembershipRole,
   MembershipStatus,
+  ReadHouseHomeDependencies,
+  ReadHouseHomeQuery,
   ValidatedCreateHouseCommand,
 } from './houses';
 export type { SeasonsPorts } from './seasons';
