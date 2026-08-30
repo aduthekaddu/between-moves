@@ -1,5 +1,6 @@
 export { IdempotentLoggingConsumer } from './idempotent-logging-consumer';
 export { SystemClock } from './system-clock';
+export { SecureInvitationTokenIssuer } from './invitation-token';
 export { generateUuidV7 } from './uuid-v7';
 
 export {

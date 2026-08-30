@@ -1,7 +1,14 @@
 export type { AuthorizedUseCase, UseCase } from './shared/use-case';
 export type { IdentityUseCase } from './identity';
 export { createViewerResolver, type ViewerResolver } from './identity';
-export { createAuthorizeHouseAction, createHouse, readHouseHome } from './houses';
+export {
+  createAuthorizeHouseAction,
+  createHouse,
+  createInvitation,
+  inspectInvitation,
+  readHouseHome,
+  revokeInvitation,
+} from './houses';
 export type { HousesUseCase } from './houses';
 export type { SeasonsUseCase } from './seasons';
 export type { GamesUseCase } from './games';

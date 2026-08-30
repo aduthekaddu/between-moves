@@ -1,0 +1,77 @@
+import type { RateLimitInput, RateLimiter, RateLimitResult } from '@between-moves/domain';
+import { createHash } from 'node:crypto';
+
+const MINUTE_SECONDS = 60;
+const HOUR_SECONDS = 60 * 60;
+
+export type InvitationRateLimitSurface = 'create' | 'inspect';
+
+const POLICIES = {
+  create: {
+    account: { limit: 20, windowSeconds: HOUR_SECONDS },
+    ip: { limit: 40, windowSeconds: HOUR_SECONDS },
+  },
+  inspect: {
+    account: { limit: 30, windowSeconds: MINUTE_SECONDS },
+    ip: { limit: 60, windowSeconds: MINUTE_SECONDS },
+  },
+} as const;
+
+export interface InvitationRateLimitDependencies {
+  readonly primary: RateLimiter;
+  readonly incrementRateLimitHit: (surface: InvitationRateLimitSurface) => void;
+  readonly onStoreError: (surface: InvitationRateLimitSurface) => void;
+}
+
+export type InvitationRateLimit = (
+  request: Request,
+  accountId: string,
+  surface: InvitationRateLimitSurface,
+) => Promise<RateLimitResult>;
+
+function digest(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
+}
+
+function checks(
+  request: Request,
+  accountId: string,
+  surface: InvitationRateLimitSurface,
+): readonly RateLimitInput[] {
+  return [
+    {
+      key: `invitation:${surface}:account:${digest(accountId)}`,
+      policy: POLICIES[surface].account,
+    },
+    { key: `invitation:${surface}:ip:${digest(clientIp(request))}`, policy: POLICIES[surface].ip },
+  ];
+}
+
+/** [BM-014] [DR-INVITE-13] Defensive per-account and per-IP Invitation limiter. */
+export function createInvitationRateLimit(
+  dependencies: InvitationRateLimitDependencies,
+): InvitationRateLimit {
+  return async (request, accountId, surface) => {
+    const settled = await Promise.allSettled(
+      checks(request, accountId, surface).map((input) => dependencies.primary.limit(input)),
+    );
+    if (settled.some((result) => result.status === 'rejected')) {
+      dependencies.onStoreError(surface);
+    }
+    const denied = settled.flatMap((result) =>
+      result.status === 'fulfilled' && !result.value.allowed ? [result.value] : [],
+    );
+    if (denied.length === 0) return { allowed: true, retryAfterSeconds: 0 };
+
+    dependencies.incrementRateLimitHit(surface);
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(...denied.map((result) => result.retryAfterSeconds)),
+    };
+  };
+}
