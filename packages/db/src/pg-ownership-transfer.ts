@@ -153,10 +153,10 @@ export async function transferOwnershipInPostgres(
     await client.query(
       `insert into membership_audit
         (id, house_id, actor_membership_id, action, target_membership_id, metadata, created_at)
-       values ($1, $2, $3, 'ownership_transferred', $4,
+       values ($1, $2, $3::uuid, 'ownership_transferred', $4::uuid,
                jsonb_build_object(
-                 'previous_owner_membership_id', $3::text,
-                 'owner_membership_id', $4::text,
+                 'previous_owner_membership_id', $3::uuid::text,
+                 'owner_membership_id', $4::uuid::text,
                  'idempotency_key_digest', encode(digest($5, 'sha256'), 'hex')
                ), $6)`,
       [
