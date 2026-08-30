@@ -16,3 +16,9 @@ export type {
   IdentityMetricStubs,
   RateLimitSurface,
 } from './identity-metrics';
+
+export { createHouseAuthorizationMetricStubs } from './house-authorization-metrics';
+export type {
+  HouseAuthorizationMetricSnapshot,
+  HouseAuthorizationMetricStubs,
+} from './house-authorization-metrics';
