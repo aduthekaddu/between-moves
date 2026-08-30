@@ -15,6 +15,7 @@
   "dependencies": {
     "@between-moves/adapters": "workspace:*",
     "@between-moves/application": "workspace:*",
+    "@between-moves/contracts": "workspace:*",
     "@between-moves/db": "workspace:*",
     "@between-moves/domain": "workspace:*",
     "@between-moves/observability": "workspace:*",
