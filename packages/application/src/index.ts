@@ -5,9 +5,13 @@ export {
   createAuthorizeHouseAction,
   createHouse,
   createInvitation,
+  changeMembershipRole,
   inspectInvitation,
+  leaveHouse,
   readHouseHome,
+  removeHouseMember,
   revokeInvitation,
+  transferHouseOwnership,
 } from './houses';
 export type { HousesUseCase } from './houses';
 export type { SeasonsUseCase } from './seasons';

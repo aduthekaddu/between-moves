@@ -57,12 +57,13 @@ async function resolveEvaluation(
           : null;
       return {
         kind: action.kind,
-        targetRole: target?.status === 'active' ? target.role : null,
+        targetRole: target?.role ?? null,
       };
     }
     case 'view_house_content':
     case 'create_or_join_game':
     case 'write_house_chat_or_game_note':
+    case 'leave_house':
     case 'create_member_invite':
     case 'revoke_invite':
     case 'draft_or_publish_charter':

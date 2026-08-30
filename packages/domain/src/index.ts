@@ -13,6 +13,7 @@ export {
   AuthenticationRequiredError,
   AuthorizationDeniedError,
   DomainError,
+  RetryableTransactionError,
   type DomainErrorCode,
 } from './shared/errors';
 export type {
@@ -42,6 +43,7 @@ export {
 export { HouseAuthorizationDeniedError, houseAuthorizationDenialReason } from './houses';
 export type {
   AuthorizeHouseAction,
+  ChangeMembershipRoleRequest,
   CreateInvitationCommand,
   CreateInvitationRequest,
   CreateHouseCommand,
@@ -84,13 +86,28 @@ export type {
   InvitationTokenIssueRequest,
   InvitationTokenIssuer,
   MembershipRole,
+  MembershipAdminDependencies,
+  MembershipAdminRepository,
+  MembershipLeaveInput,
+  MembershipLeaveResult,
+  MembershipRemovalInput,
+  MembershipRemovalResult,
+  MembershipRoleChangeInput,
+  MembershipRoleChangeResult,
   MembershipStatus,
+  LeaveHouseRequest,
+  OwnershipTransferInput,
+  OwnershipTransferReplayQuery,
+  OwnershipTransferResult,
+  PermanentMembershipRole,
   ReadHouseHomeDependencies,
   ReadHouseHomeQuery,
   RevokeInvitationRequest,
+  RemoveHouseMemberRequest,
   PersistedInvitationCreation,
   SharedInvitationCommand,
   SingleInvitationCommand,
+  TransferHouseOwnershipRequest,
   ValidatedCreateHouseCommand,
 } from './houses';
 export type { SeasonsPorts } from './seasons';

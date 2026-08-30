@@ -34,3 +34,12 @@ export class AuthorizationDeniedError extends DomainError {
     super('authorization_denied', message, options);
   }
 }
+
+/** A transaction that is safe for the application use case to retry in full. */
+export class RetryableTransactionError extends DomainError {
+  override readonly name = 'RetryableTransactionError';
+
+  constructor(message = 'Transaction must be retried', options?: ErrorOptions) {
+    super('conflict', message, options);
+  }
+}
