@@ -73,6 +73,7 @@ const actions = [
     action: { kind: 'write_house_chat_or_game_note' },
     roles: ['owner', 'steward', 'member'],
   },
+  { action: { kind: 'leave_house' }, roles: ['owner', 'steward', 'member'] },
   { action: { kind: 'create_member_invite' }, roles: ['owner', 'steward'] },
   { action: { kind: 'revoke_invite' }, roles: ['owner', 'steward'] },
   { action: { kind: 'draft_or_publish_charter' }, roles: ['owner', 'steward'] },
@@ -154,6 +155,23 @@ describe('authorizeHouseAction permission matrix', () => {
         membershipId: targetMembershipId,
       });
     }
+  });
+
+  it('[BM-015] permits a Steward to replay removal of an already removed Member', async () => {
+    const removedMember = {
+      ...membership('member'),
+      membershipId: targetMembershipId,
+      userId: '01941f29-7c00-7000-8000-000000000199',
+      status: 'removed' as const,
+    };
+    const { authorizeHouseAction } = authorizerFor(membership('steward'), {
+      assignedNightId,
+      targetMembership: removedMember,
+    });
+
+    await expect(
+      authorizeHouseAction({ kind: 'remove_member', targetMembershipId }, houseId, viewer),
+    ).resolves.toEqual({ viewerId: viewer.userId, houseId });
   });
 
   it.each([

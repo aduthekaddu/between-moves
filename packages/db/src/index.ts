@@ -18,3 +18,4 @@ export { PgHouseCreationRepository } from './pg-house-creation-repository';
 export { PgHouseAuthorizationMembershipRepository } from './pg-house-authorization-membership-repository';
 export { PgHouseHomeRepository } from './pg-house-home-repository';
 export { PgInvitationRepository } from './pg-invitation-repository';
+export { PgMembershipAdminRepository } from './pg-membership-admin-repository';

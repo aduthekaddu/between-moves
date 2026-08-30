@@ -9,3 +9,9 @@ export { inspectInvitation } from './inspect-invitation';
 export { revokeInvitation } from './revoke-invitation';
 export { createAuthorizeHouseAction } from './authorize-house-action';
 export { readHouseHome } from './read-house-home';
+export {
+  changeMembershipRole,
+  leaveHouse,
+  removeHouseMember,
+  transferHouseOwnership,
+} from './membership-admin';

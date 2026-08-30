@@ -58,6 +58,24 @@ export type {
   SingleInvitationCommand,
   RevokeInvitationRequest,
 } from './invitation';
+export type {
+  ChangeMembershipRoleRequest,
+  LeaveHouseRequest,
+  MembershipAdminDependencies,
+  MembershipAdminRepository,
+  MembershipLeaveInput,
+  MembershipLeaveResult,
+  MembershipRemovalInput,
+  MembershipRemovalResult,
+  MembershipRoleChangeInput,
+  MembershipRoleChangeResult,
+  OwnershipTransferInput,
+  OwnershipTransferReplayQuery,
+  OwnershipTransferResult,
+  PermanentMembershipRole,
+  RemoveHouseMemberRequest,
+  TransferHouseOwnershipRequest,
+} from './membership-admin';
 
 /** [BM-005] Logical House module boundary and future authorization authority. */
 export interface HousesPorts {
