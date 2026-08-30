@@ -33,10 +33,17 @@ export type {
   SessionRevocationReader,
   Viewer,
 } from './identity';
-export { createHouseEmblemSeed, createHouseSlug, validateCreateHouseCommand } from './houses';
+export {
+  createHouseEmblemSeed,
+  createHouseSlug,
+  invitationCreationPolicy,
+  validateCreateHouseCommand,
+} from './houses';
 export { HouseAuthorizationDeniedError, houseAuthorizationDenialReason } from './houses';
 export type {
   AuthorizeHouseAction,
+  CreateInvitationCommand,
+  CreateInvitationRequest,
   CreateHouseCommand,
   HouseAction,
   HouseAuthorizationDenial,
@@ -57,10 +64,33 @@ export type {
   HouseReferenceRepository,
   HousesPorts,
   IdGenerator,
+  InspectInvitationRequest,
+  InvitationCreationDependencies,
+  InvitationCreationInput,
+  InvitationCreationPolicy,
+  InvitationCreationPolicyContext,
+  InvitationCreationRepository,
+  InvitationCreationResult,
+  InvitationInspectionDependencies,
+  InvitationInspectionInput,
+  InvitationInspectionRepository,
+  InvitationPreview,
+  InvitationRevocationDependencies,
+  InvitationRevocationInput,
+  InvitationRevocationRepository,
+  InvitationRevocationResult,
+  InvitationToken,
+  InvitationTokenDigester,
+  InvitationTokenIssueRequest,
+  InvitationTokenIssuer,
   MembershipRole,
   MembershipStatus,
   ReadHouseHomeDependencies,
   ReadHouseHomeQuery,
+  RevokeInvitationRequest,
+  PersistedInvitationCreation,
+  SharedInvitationCommand,
+  SingleInvitationCommand,
   ValidatedCreateHouseCommand,
 } from './houses';
 export type { SeasonsPorts } from './seasons';
