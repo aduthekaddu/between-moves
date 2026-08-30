@@ -224,6 +224,46 @@ export const memberships = pgTable(
   ],
 );
 
+/** [BM-014] [DR-INVITE-01..06] Digest-only, capacity-bounded House Invitations. */
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    tokenDigest: customType<{ data: Buffer }>({ dataType: () => 'bytea' })(
+      'token_digest',
+    ).notNull(),
+    intendedEmail: citext('intended_email'),
+    roleGrant: text('role_grant').default('member').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    useLimit: integer('use_limit').notNull(),
+    useCount: integer('use_count').default(0).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    creatorMembershipId: uuid('creator_membership_id')
+      .notNull()
+      .references(() => memberships.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('invitations_token_digest_unique').on(table.tokenDigest),
+    index('invitations_house_expiry_idx').on(table.houseId, table.expiresAt),
+    check('invitations_token_digest_length_check', sql`octet_length(${table.tokenDigest}) = 32`),
+    check('invitations_role_grant_check', sql`${table.roleGrant} = 'member'`),
+    check('invitations_use_limit_check', sql`${table.useLimit} > 0`),
+    check(
+      'invitations_use_count_check',
+      sql`${table.useCount} >= 0 and ${table.useCount} <= ${table.useLimit}`,
+    ),
+    check(
+      'invitations_restriction_check',
+      sql`(${table.intendedEmail} is null and ${table.useLimit} >= 1) or (${table.intendedEmail} is not null and ${table.useLimit} = 1)`,
+    ),
+    check('invitations_expiry_check', sql`${table.expiresAt} > ${table.createdAt}`),
+  ],
+);
+
 /** [BM-011] [DR-SEC-06] Append-only privileged membership history. */
 export const membershipAudit = pgTable(
   'membership_audit',
