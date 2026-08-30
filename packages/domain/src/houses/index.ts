@@ -1,4 +1,10 @@
 export type { HouseReference, HouseReferenceRepository } from './reference-repository';
+export type {
+  HouseHome,
+  HouseHomeReadRepository,
+  ReadHouseHomeDependencies,
+  ReadHouseHomeQuery,
+} from './house-home';
 export { createHouseEmblemSeed, createHouseSlug, validateCreateHouseCommand } from './house';
 export type {
   CreateHouseCommand,
