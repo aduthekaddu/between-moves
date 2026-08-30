@@ -62,18 +62,18 @@ integration('House home persistence and tenant isolation', () => {
     },
   );
 
-  it('[BM-013] [DR-MEM-04] denies a stale context after the membership becomes inactive', async () => {
+  it('[BM-013] [DR-MEM-04] denies a stale context after the non-Owner membership becomes inactive', async () => {
     await database.query(
       `update memberships set status = 'left', left_at = now()
         where id = $1`,
-      [world.first.member.membershipId],
+      [world.first.nonOwner.membershipId],
     );
 
     await expect(
       repository.read(
         fakeAuthorizationContext({
           houseId: world.first.houseId,
-          viewerId: world.first.member.userId,
+          viewerId: world.first.nonOwner.userId,
         }),
       ),
     ).resolves.toBeNull();

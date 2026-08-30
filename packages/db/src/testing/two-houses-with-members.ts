@@ -13,6 +13,7 @@ export interface HouseWithMemberFixture {
   readonly name: string;
   readonly description: string;
   readonly member: HouseMemberFixture;
+  readonly nonOwner: HouseMemberFixture;
 }
 
 export interface TwoHousesWithMembers {
@@ -32,6 +33,13 @@ const world: TwoHousesWithMembers = {
       sessionId: '01941f29-7c00-7000-8000-000000000631',
       sessionToken: 'bm-013-first-member-session-token-0001',
     },
+    nonOwner: {
+      userId: '01941f29-7c00-7000-8000-000000000613',
+      membershipId: '01941f29-7c00-7000-8000-000000000623',
+      displayName: 'Bea',
+      sessionId: '01941f29-7c00-7000-8000-000000000633',
+      sessionToken: 'bm-013-first-non-owner-session-token-0001',
+    },
   },
   second: {
     houseId: '01941f29-7c00-7000-8000-000000000602',
@@ -43,6 +51,13 @@ const world: TwoHousesWithMembers = {
       displayName: 'Grace',
       sessionId: '01941f29-7c00-7000-8000-000000000632',
       sessionToken: 'bm-013-second-member-session-token-001',
+    },
+    nonOwner: {
+      userId: '01941f29-7c00-7000-8000-000000000614',
+      membershipId: '01941f29-7c00-7000-8000-000000000624',
+      displayName: 'Lin',
+      sessionId: '01941f29-7c00-7000-8000-000000000634',
+      sessionToken: 'bm-013-second-non-owner-session-token-001',
     },
   },
 };
@@ -56,18 +71,28 @@ export async function twoHousesWithMembers(database: Pool): Promise<TwoHousesWit
     await client.query(
       `insert into users (id, display_name, email, email_verified)
        values ($1, $2, 'ada-isolation@example.test', true),
-              ($3, $4, 'grace-isolation@example.test', true)`,
+              ($3, $4, 'bea-isolation@example.test', true),
+              ($5, $6, 'grace-isolation@example.test', true),
+              ($7, $8, 'lin-isolation@example.test', true)`,
       [
         world.first.member.userId,
         world.first.member.displayName,
+        world.first.nonOwner.userId,
+        world.first.nonOwner.displayName,
         world.second.member.userId,
         world.second.member.displayName,
+        world.second.nonOwner.userId,
+        world.second.nonOwner.displayName,
       ],
     );
 
-    for (const [house, auditId] of [
-      [world.first, '01941f29-7c00-7000-8000-000000000641'],
-      [world.second, '01941f29-7c00-7000-8000-000000000642'],
+    for (const [house, ownerAuditId, memberAuditId] of [
+      [world.first, '01941f29-7c00-7000-8000-000000000641', '01941f29-7c00-7000-8000-000000000643'],
+      [
+        world.second,
+        '01941f29-7c00-7000-8000-000000000642',
+        '01941f29-7c00-7000-8000-000000000644',
+      ],
     ] as const) {
       await client.query(
         `insert into houses
@@ -97,7 +122,25 @@ export async function twoHousesWithMembers(database: Pool): Promise<TwoHousesWit
         `insert into membership_audit
           (id, house_id, actor_membership_id, action, target_membership_id, metadata, created_at)
          values ($1, $2, $3, 'member_joined', $3, null, $4)`,
-        [auditId, house.houseId, house.member.membershipId, createdAt],
+        [ownerAuditId, house.houseId, house.member.membershipId, createdAt],
+      );
+      await client.query(
+        `insert into memberships
+          (id, house_id, user_id, role, status, joined_at, created_at, updated_at)
+         values ($1, $2, $3, 'member', 'active', $4, $4, $4)`,
+        [house.nonOwner.membershipId, house.houseId, house.nonOwner.userId, createdAt],
+      );
+      await client.query(
+        `insert into membership_audit
+          (id, house_id, actor_membership_id, action, target_membership_id, metadata, created_at)
+         values ($1, $2, $3, 'member_joined', $4, null, $5)`,
+        [
+          memberAuditId,
+          house.houseId,
+          house.member.membershipId,
+          house.nonOwner.membershipId,
+          createdAt,
+        ],
       );
     }
 
@@ -114,7 +157,12 @@ export async function twoHousesWithMembers(database: Pool): Promise<TwoHousesWit
 /** Remove this fixture's stable rows so E2E setup is rerunnable after an interrupted run. */
 export async function resetTwoHousesWithMembers(database: Pool): Promise<void> {
   const houseIds = [world.first.houseId, world.second.houseId];
-  const userIds = [world.first.member.userId, world.second.member.userId];
+  const userIds = [
+    world.first.member.userId,
+    world.first.nonOwner.userId,
+    world.second.member.userId,
+    world.second.nonOwner.userId,
+  ];
   const client = await database.connect();
   try {
     await client.query('begin');
