@@ -5,3 +5,4 @@ export type HousesUseCase<Command, Result> = AuthorizedUseCase<Command, Result>;
 
 export { createHouse } from './create-house';
 export { createAuthorizeHouseAction } from './authorize-house-action';
+export { readHouseHome } from './read-house-home';
