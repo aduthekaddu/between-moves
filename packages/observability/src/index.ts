@@ -28,3 +28,5 @@ export type {
   InvitationMetricStubs,
   InvitationRateLimitMetricSurface,
 } from './invitation-metrics';
+export { createSeasonTransitionRecorder } from './season-transition-logger';
+export type { SeasonTransitionRecorderOptions } from './season-transition-logger';
