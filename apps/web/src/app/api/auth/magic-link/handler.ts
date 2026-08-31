@@ -1,7 +1,8 @@
 import type { RateLimitResult } from '@between-moves/domain';
 import { z } from 'zod';
+import { invitationReturnPath } from '../../../../kernel/invitation-return-path';
 
-const bodySchema = z.object({ email: z.email() }).strict();
+const bodySchema = z.object({ email: z.email(), returnTo: z.string().optional() }).strict();
 
 interface SignInMetrics {
   incrementSignInAttempt(outcome: 'accepted' | 'rejected' | 'error'): void;
@@ -9,7 +10,11 @@ interface SignInMetrics {
 
 export interface MagicLinkRequestHandlerDependencies {
   readonly expectedOrigin: string;
-  readonly requestMagicLink: (email: string, headers: Headers) => Promise<void>;
+  readonly requestMagicLink: (
+    email: string,
+    headers: Headers,
+    returnTo: string | null,
+  ) => Promise<void>;
   readonly rateLimit: (request: Request, email: string) => Promise<RateLimitResult>;
   readonly metrics: SignInMetrics;
 }
@@ -40,6 +45,11 @@ export function createMagicLinkRequestHandler(
       dependencies.metrics.incrementSignInAttempt('rejected');
       return empty(422);
     }
+    const returnTo = invitationReturnPath(parsed.data.returnTo);
+    if (parsed.data.returnTo !== undefined && returnTo === null) {
+      dependencies.metrics.incrementSignInAttempt('rejected');
+      return empty(422);
+    }
 
     const rateLimit = await dependencies.rateLimit(request, parsed.data.email);
     if (!rateLimit.allowed) {
@@ -51,7 +61,7 @@ export function createMagicLinkRequestHandler(
     }
 
     try {
-      await dependencies.requestMagicLink(parsed.data.email, request.headers);
+      await dependencies.requestMagicLink(parsed.data.email, request.headers, returnTo);
       dependencies.metrics.incrementSignInAttempt('accepted');
     } catch {
       // Deliberately suppress account/provider details at the public enumeration boundary.

@@ -58,6 +58,15 @@ export type {
   SingleInvitationCommand,
   RevokeInvitationRequest,
 } from './invitation';
+export { InvitationRedemptionError } from './redeem';
+export type {
+  InvitationRedemptionDependencies,
+  InvitationRedemptionFailure,
+  InvitationRedemptionInput,
+  InvitationRedemptionRepository,
+  InvitationRedemptionResult,
+  RedeemInvitationRequest,
+} from './redeem';
 export type {
   ChangeMembershipRoleRequest,
   LeaveHouseRequest,

@@ -5,6 +5,7 @@ import type { StructuredLogger } from '@between-moves/observability';
 import type { BetterAuthOptions } from 'better-auth';
 import { magicLink } from 'better-auth/plugins';
 import type { AppConfig } from '../config';
+import { invitationReturnPath } from '../kernel/invitation-return-path';
 import { createMagicLinkPurposeProof } from './magic-link-purpose';
 
 const DAY_SECONDS = 24 * 60 * 60;
@@ -92,6 +93,10 @@ export function createBetterAuthOptions({
             'proof',
             createMagicLinkPurposeProof(config.betterAuthSecret, purpose, token),
           );
+          const returnTo = invitationReturnPath(metadata?.returnTo);
+          if (purpose === 'signin' && returnTo !== null) {
+            signInUrl.searchParams.set('returnTo', returnTo);
+          }
           await queueMagicLink({ email, signInUrl: signInUrl.toString() });
         },
       }),

@@ -3,19 +3,23 @@ import {
   createAuthorizeHouseAction,
   createInvitation as createInvitationUseCase,
   inspectInvitation as inspectInvitationUseCase,
+  redeemInvitation as redeemInvitationUseCase,
   revokeInvitation as revokeInvitationUseCase,
 } from '@between-moves/application';
 import {
   PgHouseAuthorizationMembershipRepository,
   PgInvitationRepository,
+  PgInvitationRedemptionRepository,
 } from '@between-moves/db';
 import type {
   CreateInvitationRequest,
   InspectInvitationRequest,
   InvitationCreationResult,
   InvitationPreview,
+  InvitationRedemptionResult,
   InvitationRevocationResult,
   RevokeInvitationRequest,
+  RedeemInvitationRequest,
 } from '@between-moves/domain';
 import { createHouseAuthorizationMetricStubs } from '@between-moves/observability';
 import { getConfig } from '../config';
@@ -74,5 +78,18 @@ export function inspectHouseInvitation(
     clock,
     tokens: invitationTokens(),
     invitations: new PgInvitationRepository(database),
+  });
+}
+
+/** [BM-016] Web composition for transactional Invitation redemption. */
+export function redeemHouseInvitation(
+  request: RedeemInvitationRequest,
+): Promise<InvitationRedemptionResult> {
+  const database = getDatabase().pool;
+  return redeemInvitationUseCase(request, {
+    clock,
+    ids: { generate: () => generateUuidV7() },
+    tokens: invitationTokens(),
+    invitations: new PgInvitationRedemptionRepository(database),
   });
 }
