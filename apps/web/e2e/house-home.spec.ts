@@ -57,7 +57,8 @@ test.describe('member-scoped House home', () => {
     await database.pool.query(
       `insert into sessions (id, user_id, token, expires_at)
        values ($1, $2, $3, '2099-01-01T00:00:00.000Z'),
-              ($4, $5, $6, '2099-01-01T00:00:00.000Z')`,
+              ($4, $5, $6, '2099-01-01T00:00:00.000Z'),
+              ($7, $8, $9, '2099-01-01T00:00:00.000Z')`,
       [
         seeded.first.member.sessionId,
         seeded.first.member.userId,
@@ -65,6 +66,9 @@ test.describe('member-scoped House home', () => {
         seeded.second.member.sessionId,
         seeded.second.member.userId,
         seeded.second.member.sessionToken,
+        seeded.switchingMember.sessionId,
+        seeded.switchingMember.userId,
+        seeded.switchingMember.sessionToken,
       ],
     );
   });
@@ -125,5 +129,30 @@ test.describe('member-scoped House home', () => {
       'This House is not available.',
     );
     await expect(page.getByText(seeded.second.name)).toHaveCount(0);
+  });
+
+  test('[BM-017] one session switches Houses without mixing data or capabilities', async ({
+    page,
+  }) => {
+    const seeded = fixture();
+    await page.setExtraHTTPHeaders({
+      cookie: await signedCookie(seeded.switchingMember.sessionToken),
+      'x-request-id': 'bm-017-multi-house-switch-e2e',
+    });
+
+    const firstResponse = await page.goto(`/h/${seeded.first.houseId}`);
+    expect(firstResponse?.status()).toBe(200);
+    expect(firstResponse?.headers()['cache-control']).toContain('no-store');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(seeded.first.name);
+    await expect(page.getByText('Steward', { exact: true })).toBeVisible();
+    await expect(page.getByText(seeded.second.name)).toHaveCount(0);
+
+    const secondResponse = await page.goto(`/h/${seeded.second.houseId}`);
+    expect(secondResponse?.status()).toBe(200);
+    expect(secondResponse?.headers()['cache-control']).toContain('no-store');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(seeded.second.name);
+    await expect(page.getByText('Member', { exact: true })).toBeVisible();
+    await expect(page.getByText(seeded.first.name)).toHaveCount(0);
+    await expect(page.getByText('Steward', { exact: true })).toHaveCount(0);
   });
 });
