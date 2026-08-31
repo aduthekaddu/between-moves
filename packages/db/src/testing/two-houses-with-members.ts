@@ -19,6 +19,14 @@ export interface HouseWithMemberFixture {
 export interface TwoHousesWithMembers {
   readonly first: HouseWithMemberFixture;
   readonly second: HouseWithMemberFixture;
+  readonly switchingMember: {
+    readonly userId: string;
+    readonly displayName: string;
+    readonly sessionId: string;
+    readonly sessionToken: string;
+    readonly firstMembershipId: string;
+    readonly secondMembershipId: string;
+  };
 }
 
 const world: TwoHousesWithMembers = {
@@ -60,9 +68,17 @@ const world: TwoHousesWithMembers = {
       sessionToken: 'bm-013-second-non-owner-session-token-001',
     },
   },
+  switchingMember: {
+    userId: '01941f29-7c00-7000-8000-000000000615',
+    displayName: 'Mira',
+    sessionId: '01941f29-7c00-7000-8000-000000000635',
+    sessionToken: 'bm-017-multi-house-member-session-token-01',
+    firstMembershipId: '01941f29-7c00-7000-8000-000000000625',
+    secondMembershipId: '01941f29-7c00-7000-8000-000000000626',
+  },
 };
 
-/** [BM-013] [PR-PLAT-05] Reusable two-tenant PostgreSQL isolation world. */
+/** [BM-013] [BM-017] [PR-PLAT-05] Reusable two-tenant PostgreSQL isolation world. */
 export async function twoHousesWithMembers(database: Pool): Promise<TwoHousesWithMembers> {
   const client = await database.connect();
   const createdAt = new Date('2026-08-30T00:00:00.000Z');
@@ -73,7 +89,8 @@ export async function twoHousesWithMembers(database: Pool): Promise<TwoHousesWit
        values ($1, $2, 'ada-isolation@example.test', true),
               ($3, $4, 'bea-isolation@example.test', true),
               ($5, $6, 'grace-isolation@example.test', true),
-              ($7, $8, 'lin-isolation@example.test', true)`,
+              ($7, $8, 'lin-isolation@example.test', true),
+              ($9, $10, 'mira-isolation@example.test', true)`,
       [
         world.first.member.userId,
         world.first.member.displayName,
@@ -83,15 +100,34 @@ export async function twoHousesWithMembers(database: Pool): Promise<TwoHousesWit
         world.second.member.displayName,
         world.second.nonOwner.userId,
         world.second.nonOwner.displayName,
+        world.switchingMember.userId,
+        world.switchingMember.displayName,
       ],
     );
 
-    for (const [house, ownerAuditId, memberAuditId] of [
-      [world.first, '01941f29-7c00-7000-8000-000000000641', '01941f29-7c00-7000-8000-000000000643'],
+    for (const [
+      house,
+      ownerAuditId,
+      memberAuditId,
+      switchingMembershipId,
+      switchingAuditId,
+      role,
+    ] of [
+      [
+        world.first,
+        '01941f29-7c00-7000-8000-000000000641',
+        '01941f29-7c00-7000-8000-000000000643',
+        world.switchingMember.firstMembershipId,
+        '01941f29-7c00-7000-8000-000000000645',
+        'steward',
+      ],
       [
         world.second,
         '01941f29-7c00-7000-8000-000000000642',
         '01941f29-7c00-7000-8000-000000000644',
+        world.switchingMember.secondMembershipId,
+        '01941f29-7c00-7000-8000-000000000646',
+        'member',
       ],
     ] as const) {
       await client.query(
@@ -142,6 +178,24 @@ export async function twoHousesWithMembers(database: Pool): Promise<TwoHousesWit
           createdAt,
         ],
       );
+      await client.query(
+        `insert into memberships
+          (id, house_id, user_id, role, status, joined_at, created_at, updated_at)
+         values ($1, $2, $3, $4, 'active', $5, $5, $5)`,
+        [switchingMembershipId, house.houseId, world.switchingMember.userId, role, createdAt],
+      );
+      await client.query(
+        `insert into membership_audit
+          (id, house_id, actor_membership_id, action, target_membership_id, metadata, created_at)
+         values ($1, $2, $3, 'member_joined', $4, null, $5)`,
+        [
+          switchingAuditId,
+          house.houseId,
+          house.member.membershipId,
+          switchingMembershipId,
+          createdAt,
+        ],
+      );
     }
 
     await client.query('commit');
@@ -162,6 +216,7 @@ export async function resetTwoHousesWithMembers(database: Pool): Promise<void> {
     world.first.nonOwner.userId,
     world.second.member.userId,
     world.second.nonOwner.userId,
+    world.switchingMember.userId,
   ];
   const client = await database.connect();
   try {
