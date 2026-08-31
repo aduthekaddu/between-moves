@@ -1,0 +1,66 @@
+/**
+ * [BM-017] CI inventory for every current House-scoped write command.
+ *
+ * `house-id` paths take their authorization context from a House route parameter.
+ * `invitation-token` derives the only writable House from the locked Invitation row.
+ */
+export const houseWritePaths = Object.freeze([
+  {
+    id: 'invitation.create',
+    useCase: 'createInvitation',
+    route: 'apps/web/src/app/api/houses/[houseId]/invitations/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'invitation.revoke',
+    useCase: 'revokeInvitation',
+    route: 'apps/web/src/app/api/houses/[houseId]/invitations/[invitationId]/revoke/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'invitation.redeem',
+    useCase: 'redeemInvitation',
+    route: 'apps/web/src/app/api/invitations/[token]/redeem/route.ts',
+    scope: 'invitation-token',
+  },
+  {
+    id: 'membership.change-role',
+    useCase: 'changeMembershipRole',
+    route: 'apps/web/src/app/api/houses/[houseId]/members/[membershipId]/role/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'membership.remove',
+    useCase: 'removeHouseMember',
+    route: 'apps/web/src/app/api/houses/[houseId]/members/[membershipId]/remove/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'membership.leave',
+    useCase: 'leaveHouse',
+    route: 'apps/web/src/app/api/houses/[houseId]/leave/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'ownership.transfer',
+    useCase: 'transferHouseOwnership',
+    route: 'apps/web/src/app/api/houses/[houseId]/transfer/route.ts',
+    scope: 'house-id',
+  },
+]);
+
+/** Runtime House exports which do not mutate an existing House. */
+export const nonHouseWriteExports = Object.freeze([
+  'createAuthorizeHouseAction',
+  'createHouse',
+  'inspectInvitation',
+  'readHouseHome',
+]);
+
+/** Mutating API routes which do not act on an existing House. */
+export const nonHouseMutationRoutes = Object.freeze([
+  'apps/web/src/app/api/auth/[...all]/route.ts',
+  'apps/web/src/app/api/auth/magic-link/route.ts',
+  'apps/web/src/app/api/auth/recovery/route.ts',
+  'apps/web/src/app/api/houses/route.ts',
+]);

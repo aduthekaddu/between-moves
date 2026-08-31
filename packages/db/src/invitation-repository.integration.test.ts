@@ -63,7 +63,7 @@ integration('PostgreSQL Invitation repository', () => {
       invitationId: input.invitationId,
       houseId: houses.first.houseId,
       expiresAt: new Date('2026-09-06T10:00:00.000Z'),
-      useLimit: 28,
+      useLimit: 27,
     });
     await expect(
       repository.create(context, {
@@ -75,7 +75,7 @@ integration('PostgreSQL Invitation repository', () => {
       invitationId: input.invitationId,
       houseId: houses.first.houseId,
       expiresAt: new Date('2026-09-06T10:00:00.000Z'),
-      useLimit: 28,
+      useLimit: 27,
     });
 
     const rows = await database.query(
@@ -91,13 +91,13 @@ integration('PostgreSQL Invitation repository', () => {
       {
         token_digest_hex: input.tokenDigestHex,
         role_grant: 'member',
-        use_limit: 28,
+        use_limit: 27,
         use_count: 0,
         intended_email: null,
         creator_membership_id: houses.first.member.membershipId,
         action: 'invite_created',
         actor_membership_id: houses.first.member.membershipId,
-        metadata: { invitation_id: input.invitationId, kind: 'shared', use_limit: 28 },
+        metadata: { invitation_id: input.invitationId, kind: 'shared', use_limit: 27 },
       },
     ]);
     const replayCounts = await database.query(

@@ -41,6 +41,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: House write isolation coverage
+        run: pnpm test:isolation-coverage
+
       - name: Unit tests
         run: pnpm test
 
