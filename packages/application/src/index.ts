@@ -16,6 +16,7 @@ export {
 } from './houses';
 export type { HousesUseCase } from './houses';
 export type { SeasonsUseCase } from './seasons';
+export { draftSeason, draftSeasonCharter, publishSeason } from './seasons';
 export type { GamesUseCase } from './games';
 export type { NightsUseCase } from './nights';
 export type { StoriesUseCase } from './stories';
