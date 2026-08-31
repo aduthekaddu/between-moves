@@ -41,6 +41,7 @@ export {
   validateCreateHouseCommand,
 } from './houses';
 export { HouseAuthorizationDeniedError, houseAuthorizationDenialReason } from './houses';
+export { InvitationRedemptionError } from './houses';
 export type {
   AuthorizeHouseAction,
   ChangeMembershipRoleRequest,
@@ -81,6 +82,11 @@ export type {
   InvitationRevocationInput,
   InvitationRevocationRepository,
   InvitationRevocationResult,
+  InvitationRedemptionDependencies,
+  InvitationRedemptionFailure,
+  InvitationRedemptionInput,
+  InvitationRedemptionRepository,
+  InvitationRedemptionResult,
   InvitationToken,
   InvitationTokenDigester,
   InvitationTokenIssueRequest,
@@ -102,6 +108,7 @@ export type {
   PermanentMembershipRole,
   ReadHouseHomeDependencies,
   ReadHouseHomeQuery,
+  RedeemInvitationRequest,
   RevokeInvitationRequest,
   RemoveHouseMemberRequest,
   PersistedInvitationCreation,

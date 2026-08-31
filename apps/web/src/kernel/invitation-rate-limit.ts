@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 const MINUTE_SECONDS = 60;
 const HOUR_SECONDS = 60 * 60;
 
-export type InvitationRateLimitSurface = 'create' | 'inspect';
+export type InvitationRateLimitSurface = 'create' | 'inspect' | 'redeem';
 
 const POLICIES = {
   create: {
@@ -14,6 +14,10 @@ const POLICIES = {
   inspect: {
     account: { limit: 30, windowSeconds: MINUTE_SECONDS },
     ip: { limit: 60, windowSeconds: MINUTE_SECONDS },
+  },
+  redeem: {
+    account: { limit: 10, windowSeconds: HOUR_SECONDS },
+    ip: { limit: 30, windowSeconds: HOUR_SECONDS },
   },
 } as const;
 
@@ -52,7 +56,7 @@ function checks(
   ];
 }
 
-/** [BM-014] [DR-INVITE-13] Defensive per-account and per-IP Invitation limiter. */
+/** [BM-014/016] [DR-INVITE-13] Defensive per-account and per-IP Invitation limiter. */
 export function createInvitationRateLimit(
   dependencies: InvitationRateLimitDependencies,
 ): InvitationRateLimit {

@@ -1,6 +1,12 @@
+import { invitationReturnPath } from '../../../../kernel/invitation-return-path';
+
 export interface MagicLinkCallbackHandlerDependencies {
   readonly isExpectedPurpose: (token: string, proof: string | null) => boolean;
-  readonly verifyMagicLink: (token: string, headers: Headers) => Promise<Response>;
+  readonly verifyMagicLink: (
+    token: string,
+    headers: Headers,
+    returnTo: string,
+  ) => Promise<Response>;
 }
 
 function invalidRedirect(request: Request): Response {
@@ -15,9 +21,10 @@ export function createMagicLinkCallbackHandler(
     const url = new URL(request.url);
     const token = url.searchParams.get('token');
     const proof = url.searchParams.get('proof');
+    const returnTo = invitationReturnPath(url.searchParams.get('returnTo')) ?? '/';
     if (!token || !dependencies.isExpectedPurpose(token, proof)) return invalidRedirect(request);
     try {
-      const response = await dependencies.verifyMagicLink(token, request.headers);
+      const response = await dependencies.verifyMagicLink(token, request.headers, returnTo);
       if (response.status < 300 || response.status >= 400) return invalidRedirect(request);
       const location = response.headers.get('location');
       if (location && new URL(location, request.url).pathname === '/auth/link-invalid') {
