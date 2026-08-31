@@ -117,7 +117,32 @@ export type {
   TransferHouseOwnershipRequest,
   ValidatedCreateHouseCommand,
 } from './houses';
-export type { SeasonsPorts } from './seasons';
+export {
+  FIXED_MVP_POINTS_RECIPE,
+  transitionSeasonState,
+  validateCharter,
+  validateSeasonTitle,
+  validateSeasonWindow,
+} from './seasons';
+export type {
+  CharterDraftInput,
+  CharterDraftResult,
+  DraftSeasonCharterRequest,
+  DraftSeasonRequest,
+  NightRecurrence,
+  PointsRecipe,
+  PublishSeasonRequest,
+  SeasonDependencies,
+  SeasonDraftInput,
+  SeasonDraftResult,
+  SeasonPublishInput,
+  SeasonPublishResult,
+  SeasonRepository,
+  SeasonState,
+  SeasonTransitionEvent,
+  SeasonTransitionObservation,
+  SeasonTransitionRecorder,
+} from './seasons';
 export type { GamesPorts } from './games';
 export type { NightsPorts } from './nights';
 export type { StoriesPorts } from './stories';
