@@ -358,6 +358,7 @@ integration('PostgreSQL Invitation repository', () => {
     await expect(redemptions.redeem(input)).resolves.toEqual({
       houseId: houses.first.houseId,
       membershipId: input.membershipId,
+      inviteKind: 'shared',
       reactivated: false,
     });
 
@@ -477,6 +478,7 @@ integration('PostgreSQL Invitation repository', () => {
     await expect(redemptions.redeem(input)).resolves.toEqual({
       houseId: houses.first.houseId,
       membershipId: existingMembershipId,
+      inviteKind: 'shared',
       reactivated: true,
     });
     const rows = await database.query(
