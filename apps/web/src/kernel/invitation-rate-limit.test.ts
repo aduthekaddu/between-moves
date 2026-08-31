@@ -3,6 +3,35 @@ import { describe, expect, it, vi } from 'vitest';
 import { createInvitationRateLimit } from './invitation-rate-limit';
 
 describe('Invitation rate limits', () => {
+  it('[BM-016] [DR-INVITE-13] applies redemption limits per opaque account and IP', async () => {
+    const seen: RateLimitInput[] = [];
+    const limit = createInvitationRateLimit({
+      primary: {
+        async limit(input) {
+          seen.push(input);
+          return { allowed: true, retryAfterSeconds: 0 };
+        },
+      },
+      incrementRateLimitHit: vi.fn(),
+      onStoreError: vi.fn(),
+    });
+
+    await expect(
+      limit(
+        new Request('https://app.example.test', {
+          headers: { 'x-forwarded-for': '203.0.113.24' },
+        }),
+        '01941f29-7c00-7000-8000-000000000101',
+        'redeem',
+      ),
+    ).resolves.toEqual({ allowed: true, retryAfterSeconds: 0 });
+    expect(seen.map(({ policy }) => policy)).toEqual([
+      { limit: 10, windowSeconds: 3600 },
+      { limit: 30, windowSeconds: 3600 },
+    ]);
+    expect(JSON.stringify(seen)).not.toContain('203.0.113.24');
+  });
+
   it('[BM-014] [DR-INVITE-13] applies creation limits to opaque account and IP keys', async () => {
     const seen: RateLimitInput[] = [];
     const primary: RateLimiter = {

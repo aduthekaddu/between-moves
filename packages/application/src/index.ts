@@ -10,6 +10,7 @@ export {
   leaveHouse,
   readHouseHome,
   removeHouseMember,
+  redeemInvitation,
   revokeInvitation,
   transferHouseOwnership,
 } from './houses';
