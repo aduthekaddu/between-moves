@@ -14,6 +14,43 @@ function request(body: unknown, origin = 'https://app.example.test'): Request {
 }
 
 describe('POST /api/auth/magic-link', () => {
+  it('[BM-016] [DR-INVITE-09] carries a valid Invitation return path into magic-link delivery', async () => {
+    const requestMagicLink = vi.fn(async () => undefined);
+    const handler = createMagicLinkRequestHandler({
+      expectedOrigin: 'https://app.example.test',
+      requestMagicLink,
+      rateLimit: allow,
+      metrics: { incrementSignInAttempt: vi.fn() },
+    });
+    const returnTo = `/invitations/${'A'.repeat(43)}`;
+
+    const response = await handler(request({ email: 'friend@example.test', returnTo }));
+
+    expect(response.status).toBe(204);
+    expect(requestMagicLink).toHaveBeenCalledWith(
+      'friend@example.test',
+      expect.any(Headers),
+      returnTo,
+    );
+  });
+
+  it('[BM-016] rejects an external magic-link return URL', async () => {
+    const requestMagicLink = vi.fn(async () => undefined);
+    const handler = createMagicLinkRequestHandler({
+      expectedOrigin: 'https://app.example.test',
+      requestMagicLink,
+      rateLimit: allow,
+      metrics: { incrementSignInAttempt: vi.fn() },
+    });
+
+    const response = await handler(
+      request({ email: 'friend@example.test', returnTo: 'https://evil.example.test/steal' }),
+    );
+
+    expect(response.status).toBe(422);
+    expect(requestMagicLink).not.toHaveBeenCalled();
+  });
+
   it('[BM-008] [DR-ID-03] returns the same 204 response for existing and unknown emails', async () => {
     const metrics = { incrementSignInAttempt: vi.fn() };
     const existing = createMagicLinkRequestHandler({

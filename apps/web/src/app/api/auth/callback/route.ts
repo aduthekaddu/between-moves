@@ -10,11 +10,11 @@ const GET = createMagicLinkCallbackHandler({
   isExpectedPurpose(token, proof) {
     return verifyMagicLinkPurpose(getConfig().betterAuthSecret, 'signin', token, proof);
   },
-  async verifyMagicLink(token, headers) {
+  async verifyMagicLink(token, headers, returnTo) {
     return getAuth().api.magicLinkVerify({
       query: {
         token,
-        callbackURL: '/',
+        callbackURL: returnTo,
         errorCallbackURL: '/auth/link-invalid',
       },
       headers,

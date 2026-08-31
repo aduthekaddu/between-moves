@@ -62,13 +62,24 @@ describe('Better Auth magic-link configuration', () => {
       false,
     );
 
+    const returnTo = `/invitations/${'A'.repeat(43)}`;
+    await pluginOptions.sendMagicLink({
+      email: 'member@example.test',
+      token,
+      url: `https://preview.example.test/api/auth/magic-link/verify?token=${token}`,
+      metadata: { returnTo },
+    });
+    const invitationUrl = new URL(String(queueMagicLink.mock.calls[1]?.[0]?.signInUrl));
+    expect(invitationUrl.pathname).toBe('/api/auth/callback');
+    expect(invitationUrl.searchParams.get('returnTo')).toBe(returnTo);
+
     await pluginOptions.sendMagicLink({
       email: 'member@example.test',
       token,
       url: `https://preview.example.test/api/auth/magic-link/verify?token=${token}`,
       metadata: { flow: 'recovery' },
     });
-    const recoveryUrl = new URL(String(queueMagicLink.mock.calls[1]?.[0]?.signInUrl));
+    const recoveryUrl = new URL(String(queueMagicLink.mock.calls[2]?.[0]?.signInUrl));
     const recoveryProof = recoveryUrl.searchParams.get('proof');
     expect(recoveryUrl.pathname).toBe('/api/auth/recovery/callback');
     expect(recoveryUrl.searchParams.get('token')).toBe(token);

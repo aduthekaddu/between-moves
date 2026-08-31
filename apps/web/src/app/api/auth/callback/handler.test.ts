@@ -8,6 +8,40 @@ function validRequest(): Request {
 }
 
 describe('GET /api/auth/callback', () => {
+  it('[BM-016] [DR-INVITE-09] returns a signed-in person to the preserved Invitation path', async () => {
+    const returnTo = `/invitations/${'A'.repeat(43)}`;
+    const verifyMagicLink = vi.fn(async () =>
+      Response.redirect(`https://app.example.test${returnTo}`, 302),
+    );
+    const handler = createMagicLinkCallbackHandler({
+      isExpectedPurpose: vi.fn(() => true),
+      verifyMagicLink,
+    });
+    const incoming = new Request(
+      `${callback}?token=valid-token&proof=signin-proof&returnTo=${encodeURIComponent(returnTo)}`,
+    );
+
+    const response = await handler(incoming);
+
+    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', incoming.headers, returnTo);
+    expect(response.headers.get('location')).toBe(`https://app.example.test${returnTo}`);
+  });
+
+  it('[BM-016] drops an external return URL before magic-link verification', async () => {
+    const verifyMagicLink = vi.fn(async () => Response.redirect('https://app.example.test/', 302));
+    const handler = createMagicLinkCallbackHandler({
+      isExpectedPurpose: vi.fn(() => true),
+      verifyMagicLink,
+    });
+    const incoming = new Request(
+      `${callback}?token=valid-token&proof=signin-proof&returnTo=${encodeURIComponent('https://evil.example.test/steal')}`,
+    );
+
+    await handler(incoming);
+
+    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', incoming.headers, '/');
+  });
+
   it('[BM-008] [DR-ID-02] forwards the rotated secure session cookie on valid redemption', async () => {
     const verified = new Response(null, {
       status: 302,
@@ -25,7 +59,7 @@ describe('GET /api/auth/callback', () => {
     const response = await handler(request);
 
     expect(isExpectedPurpose).toHaveBeenCalledWith('valid-token', 'signin-proof');
-    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', request.headers);
+    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', request.headers, '/');
     expect(response.status).toBe(302);
     expect(response.headers.get('set-cookie')).toContain('new-session');
   });
