@@ -224,6 +224,69 @@ export const memberships = pgTable(
   ],
 );
 
+/** [BM-018] [DR-SEASON-01/03/04] House-scoped four-week Season lifecycle. */
+export const seasons = pgTable(
+  'seasons',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    title: text('title').notNull(),
+    state: text('state').default('draft').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    publishedCharterVersion: integer('published_charter_version'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('seasons_one_active_or_closing_per_house')
+      .on(table.houseId)
+      .where(sql`${table.state} in ('active', 'closing')`),
+    index('seasons_house_state_idx').on(table.houseId, table.state),
+    check('seasons_title_check', sql`char_length(${table.title}) between 1 and 80`),
+    check('seasons_state_check', sql`${table.state} in ('draft', 'active', 'closing', 'closed')`),
+    check(
+      'seasons_lifecycle_fields_check',
+      sql`(${table.state} = 'draft' and ${table.startsAt} is null and ${table.endsAt} is null and ${table.publishedCharterVersion} is null and ${table.closedAt} is null)
+          or (${table.state} in ('active', 'closing') and ${table.startsAt} is not null and ${table.endsAt} > ${table.startsAt} and ${table.publishedCharterVersion} > 0 and ${table.closedAt} is null)
+          or (${table.state} = 'closed' and ${table.startsAt} is not null and ${table.endsAt} > ${table.startsAt} and ${table.publishedCharterVersion} > 0 and ${table.closedAt} is not null)`,
+    ),
+  ],
+);
+
+/** [BM-018] [DR-SEASON-02/05] Immutable, monotonic Charter versions. */
+export const seasonCharters = pgTable(
+  'season_charters',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    seasonId: uuid('season_id')
+      .notNull()
+      .references(() => seasons.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull(),
+    correspondencePaceHours: integer('correspondence_pace_hours').notNull(),
+    nightRecurrence: jsonb('night_recurrence').notNull(),
+    pointsRecipe: jsonb('points_recipe').notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('season_charters_season_version_unique').on(table.seasonId, table.version),
+    check('season_charters_version_check', sql`${table.version} > 0`),
+    check('season_charters_pace_check', sql`${table.correspondencePaceHours} > 0`),
+    check(
+      'season_charters_night_recurrence_check',
+      sql`jsonb_typeof(${table.nightRecurrence}) = 'object'`,
+    ),
+    check(
+      'season_charters_points_recipe_check',
+      sql`jsonb_typeof(${table.pointsRecipe}) = 'object'`,
+    ),
+  ],
+);
+
 /** [BM-014] [DR-INVITE-01..06] Digest-only, capacity-bounded House Invitations. */
 export const invitations = pgTable(
   'invitations',
