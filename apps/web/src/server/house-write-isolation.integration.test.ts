@@ -1,6 +1,7 @@
 import {
   changeMembershipRole,
   createAuthorizeHouseAction,
+  createGameSeat,
   createInvitation,
   changeNightSchedule,
   draftSeason,
@@ -16,6 +17,7 @@ import {
   migrateDown,
   migrateUp,
   PgHouseAuthorizationMembershipRepository,
+  PgGameSeatRepository,
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
@@ -27,6 +29,7 @@ import type {
   AuthenticatedViewer,
   AuthorizeHouseAction,
   Clock,
+  GameSeatCreationRepository,
   IdGenerator,
   InvitationCreationRepository,
   InvitationRedemptionRepository,
@@ -66,6 +69,7 @@ interface IsolationHarness {
   readonly redemptions: InvitationRedemptionRepository;
   readonly memberships: MembershipAdminRepository;
   readonly nights: NightRepository;
+  readonly seats: GameSeatCreationRepository;
   readonly changes: NightScheduleChangeRecorder;
   readonly seasons: SeasonRepository;
   readonly transitions: SeasonTransitionRecorder;
@@ -266,6 +270,29 @@ const cases: readonly IsolationCase[] = [
         harness,
       ),
   },
+  {
+    id: 'game.seat-create',
+    name: 'Game seat creation',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      createGameSeat(
+        {
+          houseId: harness.world.second.houseId,
+          mode: 'correspondence',
+          clockPolicy: { kind: 'correspondence', perMoveHours: 24 },
+          offeredColor: 'any',
+          intendedMembershipId: null,
+          idempotencyKey: null,
+          viewer: viewer(harness.world.first.nonOwner),
+        },
+        { ...harness, colors: { choose: () => 'white' } },
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -325,6 +352,10 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
        'night_audit', coalesce((
          select jsonb_agg(jsonb_build_object('id', a.id::text, 'action', a.action) order by a.id)
          from night_audit a where a.house_id = h.id
+       ), '[]'::jsonb),
+       'games', coalesce((
+         select jsonb_agg(jsonb_build_object('id', g.id::text, 'state', g.state) order by g.id)
+         from games g where g.house_id = h.id
        ), '[]'::jsonb)
      ) as state
      from houses h where h.id = $1`,
@@ -423,6 +454,7 @@ integration('BM-017 current House write-path isolation', () => {
       redemptions: new PgInvitationRedemptionRepository(database),
       memberships: new PgMembershipAdminRepository(database),
       nights: new PgNightRepository(database),
+      seats: new PgGameSeatRepository(database),
       changes: { record: () => undefined },
       seasons,
       transitions: { record: () => undefined },

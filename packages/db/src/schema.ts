@@ -523,6 +523,8 @@ export const openSeats = pgTable(
     offeredColor: text('offered_color').notNull(),
     creatorMembershipId: uuid('creator_membership_id').notNull(),
     intendedMembershipId: uuid('intended_membership_id'),
+    creationIdempotencyDigest: text('creation_idempotency_digest'),
+    creationPayloadDigest: text('creation_payload_digest'),
     state: text('state').default('open').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -546,6 +548,9 @@ export const openSeats = pgTable(
     uniqueIndex('open_seats_one_open_per_game')
       .on(table.gameId)
       .where(sql`${table.state} = 'open'`),
+    uniqueIndex('open_seats_creator_idempotency_unique')
+      .on(table.houseId, table.creatorMembershipId, table.creationIdempotencyDigest)
+      .where(sql`${table.creationIdempotencyDigest} is not null`),
     index('open_seats_house_state_expiry_idx').on(table.houseId, table.state, table.expiresAt),
     check('open_seats_color_check', sql`${table.offeredColor} in ('white', 'black', 'any')`),
     check(
@@ -553,6 +558,18 @@ export const openSeats = pgTable(
       sql`${table.state} in ('open', 'accepted', 'expired', 'cancelled')`,
     ),
     check('open_seats_expiry_check', sql`${table.expiresAt} > ${table.createdAt}`),
+    check(
+      'open_seats_creation_idempotency_digest_check',
+      sql`${table.creationIdempotencyDigest} is null or ${table.creationIdempotencyDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      'open_seats_creation_payload_digest_check',
+      sql`${table.creationPayloadDigest} is null or ${table.creationPayloadDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      'open_seats_creation_idempotency_pair_check',
+      sql`(${table.creationIdempotencyDigest} is null) = (${table.creationPayloadDigest} is null)`,
+    ),
   ],
 );
 
