@@ -37,7 +37,12 @@ async function prepareDraft(
   seasonId: string,
   charterId: string,
 ) {
-  await repository.draft(context, { seasonId, title: 'Autumn tables', createdAt });
+  await repository.draft(context, {
+    seasonId,
+    title: 'Autumn tables',
+    idempotencyKey: null,
+    createdAt,
+  });
   await repository.draftCharter(context, {
     charterId,
     seasonId,
@@ -67,8 +72,39 @@ integration('PostgreSQL Season repository', () => {
   it('[BM-018] [DR-SEASON-01..05] drafts, versions, and atomically publishes a Charter', async () => {
     const context = contextFor(world.first);
     await expect(
-      repository.draft(context, { seasonId: firstSeasonId, title: 'Autumn tables', createdAt }),
-    ).resolves.toEqual({ seasonId: firstSeasonId, houseId: world.first.houseId, state: 'draft' });
+      repository.draft(context, {
+        seasonId: firstSeasonId,
+        title: 'Autumn tables',
+        idempotencyKey: 'draft-first',
+        createdAt,
+      }),
+    ).resolves.toEqual({
+      seasonId: firstSeasonId,
+      houseId: world.first.houseId,
+      state: 'draft',
+      createdNow: true,
+    });
+    await expect(
+      repository.draft(context, {
+        seasonId: secondSeasonId,
+        title: 'Autumn tables',
+        idempotencyKey: 'draft-first',
+        createdAt,
+      }),
+    ).resolves.toEqual({
+      seasonId: firstSeasonId,
+      houseId: world.first.houseId,
+      state: 'draft',
+      createdNow: false,
+    });
+    await expect(
+      repository.draft(context, {
+        seasonId: secondSeasonId,
+        title: 'A different draft',
+        idempotencyKey: 'draft-first',
+        createdAt,
+      }),
+    ).rejects.toEqual(expect.objectContaining({ code: 'idempotency_conflict' }));
     await expect(
       repository.draftCharter(context, {
         charterId: firstCharterId,
@@ -93,7 +129,7 @@ integration('PostgreSQL Season repository', () => {
     await expect(
       repository.publish(context, {
         seasonId: firstSeasonId,
-        title: 'Autumn tables',
+        title: 'Published Autumn tables',
         startsAt,
         endsAt,
         publishedAt: createdAt,
@@ -104,6 +140,7 @@ integration('PostgreSQL Season repository', () => {
       state: 'active',
       publishedCharterVersion: 2,
       activatedNow: true,
+      actorMembershipId: world.first.member.membershipId,
     });
     await expect(
       repository.publish(context, {
@@ -119,6 +156,20 @@ integration('PostgreSQL Season repository', () => {
       state: 'active',
       publishedCharterVersion: 2,
       activatedNow: false,
+      actorMembershipId: world.first.member.membershipId,
+    });
+    await expect(
+      repository.draft(context, {
+        seasonId: secondSeasonId,
+        title: 'Autumn tables',
+        idempotencyKey: 'draft-first',
+        createdAt,
+      }),
+    ).resolves.toEqual({
+      seasonId: firstSeasonId,
+      houseId: world.first.houseId,
+      state: 'draft',
+      createdNow: false,
     });
 
     const persisted = await database.query(
@@ -142,6 +193,44 @@ integration('PostgreSQL Season repository', () => {
         points_recipe: pointsRecipe,
       },
     ]);
+
+    await expect(repository.readCurrent(context)).resolves.toEqual({
+      seasonId: firstSeasonId,
+      title: 'Published Autumn tables',
+      state: 'active',
+      startsAt,
+      endsAt,
+      charter: {
+        version: 2,
+        correspondencePaceHours: 48,
+        nightRecurrence: { ...nightRecurrence, localTime: '20:00' },
+        pointsRecipe,
+      },
+    });
+  });
+
+  it('[BM-019] returns no current Season for another House', async () => {
+    await prepareDraft(repository, contextFor(world.first), firstSeasonId, firstCharterId);
+
+    await expect(repository.readCurrent(contextFor(world.second))).resolves.toBeNull();
+  });
+
+  it('[BM-019] [DR-SEC-01] rechecks active membership on the current Season read', async () => {
+    await prepareDraft(repository, contextFor(world.first), firstSeasonId, firstCharterId);
+    const memberContext = fakeAuthorizationContext({
+      viewerId: world.first.nonOwner.userId,
+      houseId: world.first.houseId,
+    });
+    await expect(repository.readCurrent(memberContext)).resolves.toMatchObject({
+      seasonId: firstSeasonId,
+    });
+
+    await database.query(
+      `update memberships set status = 'removed', left_at = $2, updated_at = $2 where id = $1`,
+      [world.first.nonOwner.membershipId, createdAt],
+    );
+
+    await expect(repository.readCurrent(memberContext)).resolves.toBeNull();
   });
 
   it('[BM-018] [DR-SEASON-04] rejects a second active Season in the same House', async () => {
@@ -236,7 +325,12 @@ integration('PostgreSQL Season repository', () => {
       houseId: world.first.houseId,
     });
     await expect(
-      repository.draft(memberContext, { seasonId: firstSeasonId, title: 'Nope', createdAt }),
+      repository.draft(memberContext, {
+        seasonId: firstSeasonId,
+        title: 'Nope',
+        idempotencyKey: null,
+        createdAt,
+      }),
     ).rejects.toEqual(expect.objectContaining({ code: 'not_found' }));
   });
 

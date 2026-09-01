@@ -5,7 +5,7 @@ import type {
   SeasonPublishInput,
   SeasonRepository,
 } from '@between-moves/domain';
-import { DomainError } from '@between-moves/domain';
+import { DomainError, HouseAuthorizationDeniedError } from '@between-moves/domain';
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { draftSeason, draftSeasonCharter, publishSeason } from './season-lifecycle';
@@ -26,6 +26,7 @@ function dependencies(repository: Partial<SeasonRepository> = {}) {
       seasonId: input.seasonId,
       houseId,
       state: 'draft' as const,
+      createdNow: true,
     })),
     draftCharter: vi.fn(async (_context, input: CharterDraftInput) => ({
       seasonId: input.seasonId,
@@ -37,6 +38,7 @@ function dependencies(repository: Partial<SeasonRepository> = {}) {
       state: 'active' as const,
       publishedCharterVersion: 1,
       activatedNow: true,
+      actorMembershipId: '01941f29-7c00-7000-8000-000000000202',
     })),
     ...repository,
   };
@@ -59,8 +61,8 @@ describe('Season lifecycle commands', () => {
     const deps = dependencies();
 
     await expect(
-      draftSeason({ houseId, title: '  Autumn tables ', viewer }, deps),
-    ).resolves.toEqual({ seasonId, houseId, state: 'draft' });
+      draftSeason({ houseId, title: '  Autumn tables ', idempotencyKey: 'draft-1', viewer }, deps),
+    ).resolves.toEqual({ seasonId, houseId, state: 'draft', createdNow: true });
     expect(deps.authorizeHouseAction).toHaveBeenCalledWith(
       { kind: 'draft_or_publish_charter' },
       houseId,
@@ -69,6 +71,7 @@ describe('Season lifecycle commands', () => {
     expect(deps.seasons.draft).toHaveBeenCalledWith(context, {
       seasonId,
       title: 'Autumn tables',
+      idempotencyKey: 'draft-1',
       createdAt: new Date('2026-09-01T12:00:00.000Z'),
     });
     expect(deps.transitions.record).toHaveBeenCalledWith({
@@ -115,6 +118,22 @@ describe('Season lifecycle commands', () => {
     );
   });
 
+  it('[BM-019] does not report an idempotent draft replay as a new state transition', async () => {
+    const deps = dependencies({
+      draft: vi.fn(async () => ({
+        seasonId,
+        houseId,
+        state: 'draft' as const,
+        createdNow: false,
+      })),
+    });
+
+    await expect(
+      draftSeason({ houseId, title: 'Autumn tables', idempotencyKey: 'draft-1', viewer }, deps),
+    ).resolves.toMatchObject({ createdNow: false });
+    expect(deps.transitions.record).not.toHaveBeenCalled();
+  });
+
   it('[BM-018] [DR-SEASON-03..05] publishes an exact four-week Season and observes it', async () => {
     const deps = dependencies();
     const startsAt = new Date('2026-09-04T12:00:00.000Z');
@@ -153,6 +172,7 @@ describe('Season lifecycle commands', () => {
         state: 'active' as const,
         publishedCharterVersion: 1,
         activatedNow: false,
+        actorMembershipId: '01941f29-7c00-7000-8000-000000000202',
       })),
     });
 
@@ -203,16 +223,36 @@ describe('Season lifecycle commands', () => {
     );
   });
 
+  it('[BM-019] [DR-PERM-01] denies a Member before publication reaches persistence', async () => {
+    const deps = dependencies();
+    deps.authorizeHouseAction.mockRejectedValue(
+      new HouseAuthorizationDeniedError('role_not_permitted', false),
+    );
+
+    await expect(
+      publishSeason(
+        {
+          houseId,
+          seasonId,
+          title: 'Autumn tables',
+          startsAt: new Date('2026-09-04T12:00:00.000Z'),
+          endsAt: new Date('2026-10-02T12:00:00.000Z'),
+          viewer,
+        },
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: 'authorization_denied', reason: 'role_not_permitted' });
+    expect(deps.seasons.publish).not.toHaveBeenCalled();
+  });
+
   it('[BM-018] does not turn a committed transition into a failure when logging fails', async () => {
     const deps = dependencies();
     deps.transitions.record.mockImplementation(() => {
       throw new Error('log sink unavailable');
     });
 
-    await expect(draftSeason({ houseId, title: 'Autumn tables', viewer }, deps)).resolves.toEqual({
-      seasonId,
-      houseId,
-      state: 'draft',
-    });
+    await expect(
+      draftSeason({ houseId, title: 'Autumn tables', idempotencyKey: 'draft-2', viewer }, deps),
+    ).resolves.toEqual({ seasonId, houseId, state: 'draft', createdNow: true });
   });
 });
