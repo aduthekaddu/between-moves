@@ -2,6 +2,7 @@ import {
   changeMembershipRole,
   createAuthorizeHouseAction,
   createInvitation,
+  changeNightSchedule,
   draftSeason,
   draftSeasonCharter,
   leaveHouse,
@@ -18,6 +19,7 @@ import {
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
+  PgNightRepository,
   PgSeasonRepository,
 } from '@between-moves/db';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from '@between-moves/db/testing';
@@ -32,6 +34,8 @@ import type {
   InvitationTokenDigester,
   InvitationTokenIssuer,
   MembershipAdminRepository,
+  NightRepository,
+  NightScheduleChangeRecorder,
   SeasonRepository,
   SeasonTransitionRecorder,
 } from '@between-moves/domain';
@@ -50,6 +54,7 @@ const invitationDigest = 'c'.repeat(64);
 const invitationToken = 'bm-017-first-house-invitation-token';
 const seasonId = '01941f29-7c00-7000-8000-000000000971';
 const charterId = '01941f29-7c00-7000-8000-000000000972';
+const nightId = '01941f29-7c00-7000-8000-000000000973';
 
 interface IsolationHarness {
   readonly world: TwoHousesWithMembers;
@@ -60,6 +65,8 @@ interface IsolationHarness {
   readonly invitations: InvitationCreationRepository & InvitationRevocationRepository;
   readonly redemptions: InvitationRedemptionRepository;
   readonly memberships: MembershipAdminRepository;
+  readonly nights: NightRepository;
+  readonly changes: NightScheduleChangeRecorder;
   readonly seasons: SeasonRepository;
   readonly transitions: SeasonTransitionRecorder;
 }
@@ -243,6 +250,22 @@ const cases: readonly IsolationCase[] = [
         harness,
       ),
   },
+  {
+    id: 'night.schedule-change',
+    name: 'Night schedule change',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      changeNightSchedule(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          command: { kind: 'cancel' },
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -292,6 +315,16 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
            'charters', (select count(*) from season_charters c where c.season_id = s.id)
          ) order by s.id)
          from seasons s where s.house_id = h.id
+       ), '[]'::jsonb),
+       'nights', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'id', n.id::text, 'state', n.state, 'start', n.scheduled_start
+         ) order by n.id)
+         from house_nights n where n.house_id = h.id
+       ), '[]'::jsonb),
+       'night_audit', coalesce((
+         select jsonb_agg(jsonb_build_object('id', a.id::text, 'action', a.action) order by a.id)
+         from night_audit a where a.house_id = h.id
        ), '[]'::jsonb)
      ) as state
      from houses h where h.id = $1`,
@@ -354,6 +387,19 @@ integration('BM-017 current House write-path isolation', () => {
         createdAt: clock.now(),
       },
     );
+    await database.query(
+      `insert into house_nights
+        (id, house_id, season_id, scheduled_start, scheduled_end, state, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, 'scheduled', $6, $6)`,
+      [
+        nightId,
+        world.first.houseId,
+        seasonId,
+        new Date('2026-09-04T14:00:00.000Z'),
+        new Date('2026-09-04T16:00:00.000Z'),
+        clock.now(),
+      ],
+    );
     await invitations.create(
       fakeAuthorizationContext({
         viewerId: world.first.member.userId,
@@ -376,6 +422,8 @@ integration('BM-017 current House write-path isolation', () => {
       invitations,
       redemptions: new PgInvitationRedemptionRepository(database),
       memberships: new PgMembershipAdminRepository(database),
+      nights: new PgNightRepository(database),
+      changes: { record: () => undefined },
       seasons,
       transitions: { record: () => undefined },
     };

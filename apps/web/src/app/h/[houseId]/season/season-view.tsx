@@ -1,5 +1,11 @@
-import type { HouseSeasonView, MembershipRole, NightRecurrence } from '@between-moves/domain';
+import type {
+  HouseNightView,
+  HouseSeasonView,
+  MembershipRole,
+  NightRecurrence,
+} from '@between-moves/domain';
 import { CharterAuthoringForm } from './charter-authoring-form';
+import { NightSchedule } from './night-schedule';
 import { PointsRecipe } from './points-recipe';
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -8,7 +14,19 @@ function nightLabel(recurrence: NightRecurrence): string {
   return `${weekdays[recurrence.weekday] ?? 'Weekly'} at ${recurrence.localTime}`;
 }
 
-function ActiveSeason({ season }: { readonly season: HouseSeasonView }) {
+function ActiveSeason({
+  houseId,
+  membershipRole,
+  nights,
+  season,
+  timeZone,
+}: {
+  readonly houseId: string;
+  readonly membershipRole: MembershipRole;
+  readonly nights: readonly HouseNightView[];
+  readonly season: HouseSeasonView;
+  readonly timeZone: string;
+}) {
   const charter = season.charter;
   if (charter === null || season.startsAt === null || season.endsAt === null) return null;
   const status = season.state === 'active' ? 'Season active' : `Season ${season.state}`;
@@ -35,6 +53,12 @@ function ActiveSeason({ season }: { readonly season: HouseSeasonView }) {
         </div>
       </dl>
       <PointsRecipe recipe={charter.pointsRecipe} />
+      <NightSchedule
+        houseId={houseId}
+        membershipRole={membershipRole}
+        timeZone={timeZone}
+        initialNights={nights}
+      />
     </article>
   );
 }
@@ -43,13 +67,27 @@ function ActiveSeason({ season }: { readonly season: HouseSeasonView }) {
 export function SeasonView({
   houseId,
   membershipRole,
+  nights = [],
   season,
+  timeZone = 'UTC',
 }: {
   readonly houseId: string;
   readonly membershipRole: MembershipRole;
+  readonly nights?: readonly HouseNightView[];
   readonly season: HouseSeasonView | null;
+  readonly timeZone?: string;
 }) {
-  if (season !== null && season.state !== 'draft') return <ActiveSeason season={season} />;
+  if (season !== null && season.state !== 'draft') {
+    return (
+      <ActiveSeason
+        houseId={houseId}
+        membershipRole={membershipRole}
+        nights={nights}
+        season={season}
+        timeZone={timeZone}
+      />
+    );
+  }
   if (membershipRole === 'member') {
     return (
       <section className="season-passive" aria-labelledby="season-passive-title">
