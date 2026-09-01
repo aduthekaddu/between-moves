@@ -466,6 +466,88 @@ body {
   font-weight: 700;
 }
 
+.night-schedule {
+  margin-top: var(--bm-space-8);
+  padding-top: var(--bm-space-6);
+  border-top: 2px solid var(--bm-color-wood-light);
+}
+
+.night-schedule h2,
+.night-card h3 {
+  font-family: var(--bm-font-serif);
+}
+
+.night-schedule__list {
+  display: grid;
+  gap: var(--bm-space-4);
+  margin: var(--bm-space-5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.night-card {
+  padding: var(--bm-space-4);
+  border: 1px solid var(--bm-color-wood-light);
+  background: var(--bm-color-paper);
+}
+
+.night-card h3,
+.night-card p {
+  margin: 0;
+}
+
+.night-card__zone {
+  margin-top: var(--bm-space-2) !important;
+  color: var(--bm-color-ink-muted);
+  font-size: 0.875rem;
+}
+
+.night-card__cancelled {
+  text-decoration: line-through;
+}
+
+.night-edit {
+  display: grid;
+  gap: var(--bm-space-3);
+  margin-top: var(--bm-space-4);
+}
+
+.night-edit label {
+  display: grid;
+  gap: var(--bm-space-2);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.night-edit input,
+.night-edit button,
+.night-card > button,
+.night-cancel-confirm button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--bm-color-wood-light);
+  border-radius: var(--bm-radius-sm);
+  color: var(--bm-color-ink);
+  background: var(--bm-color-paper-raised);
+  font: inherit;
+}
+
+.night-card > button,
+.night-cancel-confirm {
+  margin-top: var(--bm-space-3);
+}
+
+.night-cancel-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bm-space-3);
+}
+
+.night-cancel {
+  border-color: var(--bm-color-danger) !important;
+  color: var(--bm-color-danger) !important;
+}
+
 .house-unavailable {
   display: grid;
   min-height: 100vh;

@@ -1,5 +1,6 @@
 import {
   DomainError,
+  materializeNightSchedule,
   type AuthorizationContext,
   type CharterDraftInput,
   type CharterDraftResult,
@@ -9,6 +10,7 @@ import {
   type SeasonPublishResult,
   type SeasonReadRepository,
   type SeasonRepository,
+  type NightRecurrence,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { parseHouseSeasonRow, type HouseSeasonRow } from './season-row-parser';
@@ -24,6 +26,12 @@ interface ExistingDraftRow extends QueryResultRow {
   readonly draft_idempotency_payload_digest: unknown;
 }
 
+interface PublishCharterRow extends QueryResultRow {
+  readonly version: unknown;
+  readonly night_recurrence: unknown;
+  readonly time_zone: unknown;
+}
+
 function parseInteger(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value)) {
     throw new Error(`Invalid Season ${field}`);
@@ -34,6 +42,23 @@ function parseInteger(value: unknown, field: string): number {
 function parseString(value: unknown, field: string): string {
   if (typeof value !== 'string') throw new Error(`Invalid Season ${field}`);
   return value;
+}
+
+function parseNightRecurrence(value: unknown): NightRecurrence {
+  if (typeof value !== 'object' || value === null) throw new Error('Invalid Night recurrence');
+  const recurrence = value as Record<string, unknown>;
+  if (
+    !Number.isInteger(recurrence.weekday) ||
+    typeof recurrence.localTime !== 'string' ||
+    recurrence.count !== 4
+  ) {
+    throw new Error('Invalid Night recurrence');
+  }
+  return {
+    weekday: recurrence.weekday as number,
+    localTime: recurrence.localTime,
+    count: 4,
+  };
 }
 
 function isActiveSeasonConflict(error: unknown): boolean {
@@ -272,19 +297,29 @@ export class PgSeasonRepository implements SeasonRepository, SeasonReadRepositor
       if (active.rowCount !== 0) {
         throw new DomainError('conflict', 'House already has an active or closing Season');
       }
-      const charter = await client.query<{ version: number }>(
-        `select version
-           from season_charters
-          where season_id = $1
-          order by version desc
+      const charter = await client.query<PublishCharterRow>(
+        `select c.version, c.night_recurrence, h.time_zone
+           from season_charters c
+           join seasons s on s.id = c.season_id
+           join houses h on h.id = s.house_id
+          where c.season_id = $1 and s.house_id = $2
+          order by c.version desc
           limit 1
-          for update`,
-        [input.seasonId],
+          for update of c`,
+        [input.seasonId, context.houseId],
       );
-      if (charter.rows[0] === undefined) {
+      const charterRow = charter.rows[0];
+      if (charterRow === undefined) {
         throw new DomainError('validation_failed', 'A draft Charter is required to publish');
       }
-      const version = parseInteger(charter.rows[0].version, 'Charter version');
+      const version = parseInteger(charterRow.version, 'Charter version');
+      const schedule = materializeNightSchedule({
+        ids: input.nightIds,
+        seasonStartsAt: input.startsAt,
+        seasonEndsAt: input.endsAt,
+        recurrence: parseNightRecurrence(charterRow.night_recurrence),
+        timeZone: parseString(charterRow.time_zone, 'House time zone'),
+      });
       await client.query(
         `update season_charters
             set published_at = $3
@@ -306,6 +341,22 @@ export class PgSeasonRepository implements SeasonRepository, SeasonReadRepositor
           input.publishedAt,
         ],
       );
+      for (const night of schedule) {
+        await client.query(
+          `insert into house_nights
+            (id, house_id, season_id, scheduled_start, scheduled_end, state,
+             created_at, updated_at)
+           values ($1, $2, $3, $4, $5, 'scheduled', $6, $6)`,
+          [
+            night.nightId,
+            context.houseId,
+            input.seasonId,
+            night.scheduledStart,
+            night.scheduledEnd,
+            input.publishedAt,
+          ],
+        );
+      }
       return {
         seasonId: input.seasonId,
         houseId: context.houseId,

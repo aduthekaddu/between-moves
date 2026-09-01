@@ -1,4 +1,6 @@
 import type { AuthorizedUseCase } from '../shared/use-case';
 
-/** [BM-005] Between Moves Night contract; behavior arrives with its owning ticket. */
+/** [BM-020] Between Moves Night application contract. */
 export type NightsUseCase<Command, Result> = AuthorizedUseCase<Command, Result>;
+
+export { changeNightSchedule, readScheduledNights } from './schedule';

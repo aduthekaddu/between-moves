@@ -155,6 +155,12 @@ export async function publishSeason(
         startsAt: request.startsAt,
         endsAt: request.endsAt,
         publishedAt,
+        nightIds: [
+          dependencies.ids.generate(),
+          dependencies.ids.generate(),
+          dependencies.ids.generate(),
+          dependencies.ids.generate(),
+        ],
       });
     },
   });
