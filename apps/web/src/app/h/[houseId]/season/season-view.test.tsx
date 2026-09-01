@@ -25,6 +25,15 @@ const activeSeason: HouseSeasonView = {
 };
 
 describe('SeasonView', () => {
+  const nights = [0, 1, 2, 3].map((week) => ({
+    nightId: `01941f29-7c00-7000-8000-00000000090${week + 1}`,
+    houseId: '01941f29-7c00-7000-8000-000000000201',
+    seasonId: activeSeason.seasonId,
+    scheduledStart: new Date(Date.UTC(2026, 8, 4 + week * 7, 14)),
+    scheduledEnd: new Date(Date.UTC(2026, 8, 4 + week * 7, 16)),
+    state: 'scheduled' as const,
+  }));
+
   it('[BM-019] [PR-JRN-03] shows the active Season and published Charter version', () => {
     const html = renderToStaticMarkup(
       <SeasonView
@@ -85,5 +94,54 @@ describe('SeasonView', () => {
 
     expect(html).toContain('Season closing');
     expect(html).not.toContain('Season active');
+  });
+
+  it('[BM-020] lists four scheduled Nights and exposes Owner edit controls', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        nights={nights}
+        season={activeSeason}
+        timeZone="Asia/Kolkata"
+      />,
+    );
+
+    expect(html).toContain('Scheduled Between Moves Nights');
+    expect(html.match(/<h3>Night [1-4]<\/h3>/g)).toHaveLength(4);
+    expect(html).toContain('4 Sept 2026, 19:30');
+    expect(html).toContain('Reschedule');
+    expect(html).toContain('Cancel Night');
+  });
+
+  it('[BM-020] gives a Member the scheduled list without edit controls', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        nights={nights}
+        season={activeSeason}
+        timeZone="Asia/Kolkata"
+      />,
+    );
+
+    expect(html.match(/<h3>Night [1-4]<\/h3>/g)).toHaveLength(4);
+    expect(html).not.toContain('Reschedule');
+    expect(html).not.toContain('Cancel Night');
+  });
+
+  it('[BM-020] exposes the same Night edit controls to a Steward', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="steward"
+        nights={nights}
+        season={activeSeason}
+        timeZone="Asia/Kolkata"
+      />,
+    );
+
+    expect(html).toContain('Reschedule');
+    expect(html).toContain('Cancel Night');
   });
 });

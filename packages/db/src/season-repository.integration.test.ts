@@ -14,6 +14,18 @@ const firstSeasonId = '01941f29-7c00-7000-8000-000000000801';
 const secondSeasonId = '01941f29-7c00-7000-8000-000000000802';
 const firstCharterId = '01941f29-7c00-7000-8000-000000000811';
 const secondCharterId = '01941f29-7c00-7000-8000-000000000812';
+const nightIds = [
+  '01941f29-7c00-7000-8000-000000000821',
+  '01941f29-7c00-7000-8000-000000000822',
+  '01941f29-7c00-7000-8000-000000000823',
+  '01941f29-7c00-7000-8000-000000000824',
+] as const;
+const otherNightIds = [
+  '01941f29-7c00-7000-8000-000000000825',
+  '01941f29-7c00-7000-8000-000000000826',
+  '01941f29-7c00-7000-8000-000000000827',
+  '01941f29-7c00-7000-8000-000000000828',
+] as const;
 const createdAt = new Date('2026-09-01T12:00:00.000Z');
 const startsAt = new Date('2026-09-04T12:00:00.000Z');
 const endsAt = new Date('2026-10-02T12:00:00.000Z');
@@ -133,6 +145,7 @@ integration('PostgreSQL Season repository', () => {
         startsAt,
         endsAt,
         publishedAt: createdAt,
+        nightIds,
       }),
     ).resolves.toEqual({
       seasonId: firstSeasonId,
@@ -149,6 +162,7 @@ integration('PostgreSQL Season repository', () => {
         startsAt,
         endsAt,
         publishedAt: new Date('2026-09-01T12:01:00.000Z'),
+        nightIds,
       }),
     ).resolves.toEqual({
       seasonId: firstSeasonId,
@@ -193,6 +207,11 @@ integration('PostgreSQL Season repository', () => {
         points_recipe: pointsRecipe,
       },
     ]);
+    const nights = await database.query<{ count: number }>(
+      'select count(*)::integer as count from house_nights where season_id = $1',
+      [firstSeasonId],
+    );
+    expect(nights.rows).toEqual([{ count: 4 }]);
 
     await expect(repository.readCurrent(context)).resolves.toEqual({
       seasonId: firstSeasonId,
@@ -243,6 +262,7 @@ integration('PostgreSQL Season repository', () => {
       startsAt,
       endsAt,
       publishedAt: createdAt,
+      nightIds,
     });
 
     await expect(
@@ -252,6 +272,7 @@ integration('PostgreSQL Season repository', () => {
         startsAt,
         endsAt,
         publishedAt: createdAt,
+        nightIds: otherNightIds,
       }),
     ).rejects.toEqual(expect.objectContaining({ code: 'conflict' }));
   });
@@ -268,6 +289,7 @@ integration('PostgreSQL Season repository', () => {
         startsAt,
         endsAt,
         publishedAt: createdAt,
+        nightIds,
       }),
       repository.publish(context, {
         seasonId: secondSeasonId,
@@ -275,6 +297,7 @@ integration('PostgreSQL Season repository', () => {
         startsAt,
         endsAt,
         publishedAt: createdAt,
+        nightIds: otherNightIds,
       }),
     ]);
     expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
@@ -310,6 +333,7 @@ integration('PostgreSQL Season repository', () => {
         startsAt,
         endsAt,
         publishedAt: createdAt,
+        nightIds,
       }),
     ).rejects.toEqual(expect.objectContaining({ code: 'not_found' }));
 

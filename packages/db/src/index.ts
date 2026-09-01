@@ -20,4 +20,5 @@ export { PgHouseHomeRepository } from './pg-house-home-repository';
 export { PgInvitationRepository } from './pg-invitation-repository';
 export { PgInvitationRedemptionRepository } from './pg-invitation-redemption-repository';
 export { PgMembershipAdminRepository } from './pg-membership-admin-repository';
+export { PgNightRepository } from './pg-night-repository';
 export { PgSeasonRepository } from './pg-season-repository';

@@ -12,6 +12,12 @@ import { draftSeason, draftSeasonCharter, publishSeason } from './season-lifecyc
 
 const houseId = '01941f29-7c00-7000-8000-000000000201';
 const seasonId = '01941f29-7c00-7000-8000-000000000701';
+const nightIds = [
+  '01941f29-7c00-7000-8000-000000000721',
+  '01941f29-7c00-7000-8000-000000000722',
+  '01941f29-7c00-7000-8000-000000000723',
+  '01941f29-7c00-7000-8000-000000000724',
+] as const;
 const viewer: AuthenticatedViewer = {
   kind: 'authenticated',
   userId: '01941f29-7c00-7000-8000-000000000101',
@@ -136,6 +142,8 @@ describe('Season lifecycle commands', () => {
 
   it('[BM-018] [DR-SEASON-03..05] publishes an exact four-week Season and observes it', async () => {
     const deps = dependencies();
+    deps.ids.generate.mockReset();
+    for (const nightId of nightIds) deps.ids.generate.mockReturnValueOnce(nightId);
     const startsAt = new Date('2026-09-04T12:00:00.000Z');
     const endsAt = new Date('2026-10-02T12:00:00.000Z');
 
@@ -152,6 +160,7 @@ describe('Season lifecycle commands', () => {
       startsAt,
       endsAt,
       publishedAt: new Date('2026-09-01T12:00:00.000Z'),
+      nightIds,
     });
     expect(deps.transitions.record).toHaveBeenCalledWith({
       actorId: viewer.userId,
