@@ -49,24 +49,29 @@ test('[BM-017] every House write export and route has a parametric isolation cas
   assert.equal([...caseArray[1].matchAll(/\brun:\s*/g)].length, ids.length);
   assert.match(isolationSource, /it\.each\(cases\)/);
 
-  const houseIndex = await readFile(
-    resolve(repositoryRoot, 'packages/application/src/houses/index.ts'),
-    'utf8',
+  const moduleIndexes = await Promise.all(
+    ['houses', 'seasons'].map((moduleName) =>
+      readFile(resolve(repositoryRoot, `packages/application/src/${moduleName}/index.ts`), 'utf8'),
+    ),
   );
-  const runtimeExports = [...houseIndex.matchAll(/export\s*\{([^}]+)\}\s*from/g)]
+  const runtimeExports = moduleIndexes
+    .flatMap((source) => [...source.matchAll(/export\s*\{([^}]+)\}\s*from/g)])
     .flatMap((match) => match[1].split(','))
     .map((name) => name.trim())
     .filter(Boolean);
   assert.deepEqual(sorted(runtimeExports), sorted([...useCases, ...nonHouseWriteExports]));
 
-  const houseApplicationRoot = resolve(repositoryRoot, 'packages/application/src/houses');
   const implementedFunctions = [];
-  for (const path of await filesBelow(houseApplicationRoot)) {
-    if (!path.endsWith('.ts') || path.endsWith('.test.ts') || path.endsWith('/index.ts')) continue;
-    const source = await readFile(path, 'utf8');
-    implementedFunctions.push(
-      ...[...source.matchAll(applicationFunctionExport)].map((match) => match[1]),
-    );
+  for (const moduleName of ['houses', 'seasons']) {
+    const moduleRoot = resolve(repositoryRoot, `packages/application/src/${moduleName}`);
+    for (const path of await filesBelow(moduleRoot)) {
+      if (!path.endsWith('.ts') || path.endsWith('.test.ts') || path.endsWith('/index.ts'))
+        continue;
+      const source = await readFile(path, 'utf8');
+      implementedFunctions.push(
+        ...[...source.matchAll(applicationFunctionExport)].map((match) => match[1]),
+      );
+    }
   }
   assert.deepEqual(sorted(implementedFunctions), sorted([...useCases, ...nonHouseWriteExports]));
 

@@ -95,4 +95,28 @@ describe('Charter validation', () => {
       ),
     ).toThrow(expect.objectContaining({ code: 'validation_failed' }));
   });
+
+  it.each([Number.NaN, 1.5, 2_147_483_648, Number.POSITIVE_INFINITY])(
+    '[BM-019] [DR-SEASON-02] rejects non-integer correspondence pace %s',
+    (correspondencePaceHours) => {
+      expect(() =>
+        validateCharter({
+          correspondencePaceHours,
+          nightRecurrence: { weekday: 5, localTime: '19:30', count: 4 },
+        }),
+      ).toThrow(expect.objectContaining({ code: 'validation_failed' }));
+    },
+  );
+
+  it.each(['7:30', '19:3', '19:30Z', ' 19:30 '])(
+    '[BM-019] [DR-SEASON-03] rejects non-canonical Night time %s',
+    (localTime) => {
+      expect(() =>
+        validateCharter({
+          correspondencePaceHours: 24,
+          nightRecurrence: { weekday: 5, localTime, count: 4 },
+        }),
+      ).toThrow(expect.objectContaining({ code: 'validation_failed' }));
+    },
+  );
 });

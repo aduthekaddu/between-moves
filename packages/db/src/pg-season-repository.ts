@@ -7,19 +7,32 @@ import {
   type SeasonDraftResult,
   type SeasonPublishInput,
   type SeasonPublishResult,
+  type SeasonReadRepository,
   type SeasonRepository,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
+import { parseHouseSeasonRow, type HouseSeasonRow } from './season-row-parser';
 
 interface SeasonRow extends QueryResultRow {
   readonly state: unknown;
   readonly published_charter_version: unknown;
+  readonly actor_membership_id: unknown;
+}
+
+interface ExistingDraftRow extends QueryResultRow {
+  readonly id: unknown;
+  readonly draft_idempotency_payload_digest: unknown;
 }
 
 function parseInteger(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value)) {
     throw new Error(`Invalid Season ${field}`);
   }
+  return value;
+}
+
+function parseString(value: unknown, field: string): string {
+  if (typeof value !== 'string') throw new Error(`Invalid Season ${field}`);
   return value;
 }
 
@@ -56,7 +69,8 @@ async function authorizedSeason(
   seasonId: string,
 ): Promise<SeasonRow> {
   const result = await client.query<SeasonRow>(
-    `select s.state, s.published_charter_version
+    `select s.state, s.published_charter_version,
+            m.id::text as actor_membership_id
        from seasons s
        join memberships m
          on m.house_id = s.house_id
@@ -93,12 +107,76 @@ async function inTransaction<T>(database: Pool, operation: (client: PoolClient) 
 }
 
 /** [BM-018] [DR-SEASON-01..05] PostgreSQL Season and Charter transaction authority. */
-export class PgSeasonRepository implements SeasonRepository {
+export class PgSeasonRepository implements SeasonRepository, SeasonReadRepository {
   constructor(private readonly database: Pool) {}
+
+  async readCurrent(context: AuthorizationContext) {
+    const result = await this.database.query<HouseSeasonRow & QueryResultRow>(
+      `select s.id, s.title, s.state, s.starts_at, s.ends_at,
+              c.version as charter_version,
+              c.correspondence_pace_hours,
+              c.night_recurrence,
+              c.points_recipe
+         from seasons s
+         join houses h on h.id = s.house_id and h.status = 'active'
+         join memberships m
+           on m.house_id = s.house_id
+          and m.user_id = $2
+          and m.status = 'active'
+         left join lateral (
+           select version, correspondence_pace_hours, night_recurrence, points_recipe
+             from season_charters
+            where season_id = s.id
+            order by case when version = s.published_charter_version then 0 else 1 end,
+                     version desc
+            limit 1
+         ) c on true
+        where s.house_id = $1 and s.state in ('active', 'closing', 'draft')
+        order by case s.state when 'active' then 0 when 'closing' then 1 else 2 end,
+                 s.created_at desc
+        limit 1`,
+      [context.houseId, context.viewerId],
+    );
+    const row = result.rows[0];
+    return row === undefined ? null : parseHouseSeasonRow(row);
+  }
 
   async draft(context: AuthorizationContext, input: SeasonDraftInput): Promise<SeasonDraftResult> {
     return inTransaction(this.database, async (client) => {
       await authorizedHouse(client, context);
+      if (input.idempotencyKey !== null) {
+        const existing = await client.query<ExistingDraftRow>(
+          `select id::text, draft_idempotency_payload_digest
+             from seasons
+            where house_id = $1
+              and draft_idempotency_digest = encode(digest($2, 'sha256'), 'hex')
+            limit 1`,
+          [context.houseId, input.idempotencyKey],
+        );
+        const row = existing.rows[0];
+        if (row !== undefined) {
+          const payloadDigest = parseString(
+            row.draft_idempotency_payload_digest,
+            'draft idempotency payload digest',
+          );
+          const expectedPayload = await client.query<{ digest: string }>(
+            `select encode(digest($1, 'sha256'), 'hex') as digest`,
+            [input.title],
+          );
+          if (expectedPayload.rows[0]?.digest !== payloadDigest) {
+            throw new DomainError(
+              'idempotency_conflict',
+              'Idempotency key was reused for another Season draft',
+            );
+          }
+          return {
+            seasonId: parseString(row.id, 'id'),
+            houseId: context.houseId,
+            state: 'draft',
+            createdNow: false,
+          };
+        }
+      }
       const current = await client.query(
         `select 1 from seasons
           where house_id = $1 and state in ('active', 'closing')
@@ -110,11 +188,20 @@ export class PgSeasonRepository implements SeasonRepository {
       }
       await client.query(
         `insert into seasons
-          (id, house_id, title, state, created_at, updated_at)
-         values ($1, $2, $3, 'draft', $4, $4)`,
-        [input.seasonId, context.houseId, input.title, input.createdAt],
+          (id, house_id, title, draft_idempotency_digest, draft_idempotency_payload_digest,
+           state, created_at, updated_at)
+         values ($1, $2, $3,
+                 case when $5::text is null then null else encode(digest($5, 'sha256'), 'hex') end,
+                 case when $5::text is null then null else encode(digest($3, 'sha256'), 'hex') end,
+                 'draft', $4, $4)`,
+        [input.seasonId, context.houseId, input.title, input.createdAt, input.idempotencyKey],
       );
-      return { seasonId: input.seasonId, houseId: context.houseId, state: 'draft' };
+      return {
+        seasonId: input.seasonId,
+        houseId: context.houseId,
+        state: 'draft',
+        createdNow: true,
+      };
     });
   }
 
@@ -170,6 +257,7 @@ export class PgSeasonRepository implements SeasonRepository {
             'published Charter version',
           ),
           activatedNow: false,
+          actorMembershipId: parseString(season.actor_membership_id, 'actor membership id'),
         };
       }
       if (season.state !== 'draft') {
@@ -224,6 +312,7 @@ export class PgSeasonRepository implements SeasonRepository {
         state: 'active',
         publishedCharterVersion: version,
         activatedNow: true,
+        actorMembershipId: parseString(season.actor_membership_id, 'actor membership id'),
       };
     });
   }
