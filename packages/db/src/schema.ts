@@ -1,3 +1,4 @@
+import type { ClockPolicy } from '@between-moves/domain';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -385,6 +386,275 @@ export const nightAudit = pgTable(
       sql`${table.previousScheduledEnd} > ${table.previousScheduledStart}`,
     ),
     check('night_audit_interval_check', sql`${table.scheduledEnd} > ${table.scheduledStart}`),
+  ],
+);
+
+const standardFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+/** [BM-021] [DR-GAME-01..04] Current, server-authoritative Game snapshot. */
+export const games = pgTable(
+  'games',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    seasonId: uuid('season_id').notNull(),
+    nightId: uuid('night_id'),
+    mode: text('mode').notNull(),
+    state: text('state').default('waiting').notNull(),
+    whiteMembershipId: uuid('white_membership_id'),
+    blackMembershipId: uuid('black_membership_id'),
+    initialFen: text('initial_fen').default(standardFen).notNull(),
+    currentFen: text('current_fen').default(standardFen).notNull(),
+    currentPly: integer('current_ply').default(0).notNull(),
+    sideToMove: text('side_to_move').default('white').notNull(),
+    result: text('result'),
+    resultReason: text('result_reason'),
+    version: integer('version').default(0).notNull(),
+    clockPolicy: jsonb('clock_policy').$type<ClockPolicy>().notNull(),
+    whiteClockMs: integer('white_clock_ms'),
+    blackClockMs: integer('black_clock_ms'),
+    turnStartedAt: timestamp('turn_started_at', { withTimezone: true }),
+    moveDueAt: timestamp('move_due_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (table) => [
+    unique('games_id_house_unique').on(table.id, table.houseId),
+    foreignKey({
+      columns: [table.seasonId, table.houseId],
+      foreignColumns: [seasons.id, seasons.houseId],
+      name: 'games_season_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.nightId, table.houseId],
+      foreignColumns: [houseNights.id, houseNights.houseId],
+      name: 'games_night_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.whiteMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'games_white_membership_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.blackMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'games_black_membership_house_fk',
+    }).onDelete('restrict'),
+    index('games_house_season_state_idx').on(table.houseId, table.seasonId, table.state),
+    index('games_night_state_idx')
+      .on(table.nightId, table.state)
+      .where(sql`${table.nightId} is not null`),
+    index('games_white_move_shelf_idx')
+      .on(table.whiteMembershipId, table.state, table.moveDueAt)
+      .where(sql`${table.state} = 'active' and ${table.mode} = 'correspondence'`),
+    index('games_black_move_shelf_idx')
+      .on(table.blackMembershipId, table.state, table.moveDueAt)
+      .where(sql`${table.state} = 'active' and ${table.mode} = 'correspondence'`),
+    check('games_mode_check', sql`${table.mode} in ('correspondence', 'live')`),
+    check(
+      'games_state_check',
+      sql`${table.state} in ('waiting', 'active', 'completed', 'cancelled')`,
+    ),
+    check('games_side_to_move_check', sql`${table.sideToMove} in ('white', 'black')`),
+    check(
+      'games_result_check',
+      sql`${table.result} is null or ${table.result} in ('white_win', 'black_win', 'draw', 'aborted')`,
+    ),
+    check(
+      'games_result_reason_check',
+      sql`${table.resultReason} is null or ${table.resultReason} in ('checkmate', 'stalemate', 'insufficient_material', 'repetition', 'fifty_move', 'flag', 'resign', 'agreement', 'timeout', 'abort')`,
+    ),
+    check(
+      'games_distinct_memberships_check',
+      sql`${table.whiteMembershipId} is null or ${table.blackMembershipId} is null or ${table.whiteMembershipId} <> ${table.blackMembershipId}`,
+    ),
+    check(
+      'games_active_seats_check',
+      sql`${table.state} <> 'active' or (${table.whiteMembershipId} is not null and ${table.blackMembershipId} is not null)`,
+    ),
+    check('games_position_counters_check', sql`${table.currentPly} >= 0 and ${table.version} >= 0`),
+    check('games_night_mode_check', sql`${table.nightId} is null or ${table.mode} = 'live'`),
+    check(
+      'games_clock_policy_shape_check',
+      sql`(case
+        when ${table.mode} = 'correspondence' then
+          jsonb_typeof(${table.clockPolicy}) = 'object'
+          and ${table.clockPolicy}->>'kind' = 'correspondence'
+          and (${table.clockPolicy} - 'kind' - 'perMoveHours') = '{}'::jsonb
+          and case when jsonb_typeof(${table.clockPolicy}->'perMoveHours') = 'number'
+            then (${table.clockPolicy}->>'perMoveHours')::numeric > 0
+              and mod((${table.clockPolicy}->>'perMoveHours')::numeric, 1) = 0
+            else false end
+        when ${table.mode} = 'live' then
+          jsonb_typeof(${table.clockPolicy}) = 'object'
+          and ${table.clockPolicy}->>'kind' = 'live'
+          and (${table.clockPolicy} - 'kind' - 'initialMs' - 'incrementMs') = '{}'::jsonb
+          and case when jsonb_typeof(${table.clockPolicy}->'initialMs') = 'number'
+            then (${table.clockPolicy}->>'initialMs')::numeric >= 180000
+              and mod((${table.clockPolicy}->>'initialMs')::numeric, 1) = 0
+            else false end
+          and case when jsonb_typeof(${table.clockPolicy}->'incrementMs') = 'number'
+            then (${table.clockPolicy}->>'incrementMs')::numeric >= 0
+              and mod((${table.clockPolicy}->>'incrementMs')::numeric, 1) = 0
+            else false end
+        else false
+      end) is true`,
+    ),
+    check(
+      'games_clock_columns_check',
+      sql`(${table.mode} = 'correspondence' and ${table.whiteClockMs} is null and ${table.blackClockMs} is null and ${table.turnStartedAt} is null)
+        or (${table.mode} = 'live' and ${table.whiteClockMs} is not null and ${table.whiteClockMs} >= 0
+          and ${table.blackClockMs} is not null and ${table.blackClockMs} >= 0 and ${table.moveDueAt} is null)`,
+    ),
+  ],
+);
+
+/** [BM-021] [DR-SEAT-01..03] One House-scoped invitation to occupy a Game side. */
+export const openSeats = pgTable(
+  'open_seats',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    offeredColor: text('offered_color').notNull(),
+    creatorMembershipId: uuid('creator_membership_id').notNull(),
+    intendedMembershipId: uuid('intended_membership_id'),
+    state: text('state').default('open').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'open_seats_game_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.creatorMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'open_seats_creator_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.intendedMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'open_seats_intended_house_fk',
+    }).onDelete('restrict'),
+    uniqueIndex('open_seats_one_open_per_game')
+      .on(table.gameId)
+      .where(sql`${table.state} = 'open'`),
+    index('open_seats_house_state_expiry_idx').on(table.houseId, table.state, table.expiresAt),
+    check('open_seats_color_check', sql`${table.offeredColor} in ('white', 'black', 'any')`),
+    check(
+      'open_seats_state_check',
+      sql`${table.state} in ('open', 'accepted', 'expired', 'cancelled')`,
+    ),
+    check('open_seats_expiry_check', sql`${table.expiresAt} > ${table.createdAt}`),
+  ],
+);
+
+/** [BM-021] [DR-MOVE-03] Immutable canonical Move record. */
+export const moves = pgTable(
+  'moves',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    ply: integer('ply').notNull(),
+    actorMembershipId: uuid('actor_membership_id').notNull(),
+    uci: text('uci').notNull(),
+    san: text('san').notNull(),
+    fenAfter: text('fen_after').notNull(),
+    clientCommandId: uuid('client_command_id').notNull(),
+    serverReceivedAt: timestamp('server_received_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    clockSnapshot: jsonb('clock_snapshot').$type<{ whiteMs: number; blackMs: number }>(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'moves_game_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.actorMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'moves_actor_house_fk',
+    }).onDelete('restrict'),
+    uniqueIndex('moves_game_ply_unique').on(table.gameId, table.ply),
+    uniqueIndex('moves_game_command_unique').on(table.gameId, table.clientCommandId),
+    check('moves_ply_check', sql`${table.ply} > 0`),
+    check('moves_client_command_uuid_v7_check', sql`is_uuid_v7(${table.clientCommandId})`),
+    check('moves_uci_check', sql`${table.uci} ~ '^[a-h][1-8][a-h][1-8][qrbn]?$'`),
+    check('moves_san_check', sql`char_length(${table.san}) between 1 and 32`),
+  ],
+);
+
+/** [BM-021] [DR-REACT-01] One current Reaction per Member and completed Game. */
+export const gameReactions = pgTable(
+  'game_reactions',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    membershipId: uuid('membership_id').notNull(),
+    reaction: text('reaction').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'game_reactions_game_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.membershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'game_reactions_membership_house_fk',
+    }).onDelete('restrict'),
+    uniqueIndex('game_reactions_game_membership_unique').on(table.gameId, table.membershipId),
+    check(
+      'game_reactions_value_check',
+      sql`${table.reaction} in ('well_played', 'brilliant', 'dramatic', 'funny')`,
+    ),
+  ],
+);
+
+/** [BM-021] [DR-NOTE-01] One bounded, plain-text Game note per Member. */
+export const gameNotes = pgTable(
+  'game_notes',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    membershipId: uuid('membership_id').notNull(),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    editedAt: timestamp('edited_at', { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'game_notes_game_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.membershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'game_notes_membership_house_fk',
+    }).onDelete('restrict'),
+    uniqueIndex('game_notes_game_membership_unique').on(table.gameId, table.membershipId),
+    check('game_notes_body_check', sql`char_length(${table.body}) between 1 and 2000`),
   ],
 );
 

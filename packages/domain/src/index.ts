@@ -148,7 +148,20 @@ export type {
   SeasonTransitionObservation,
   SeasonTransitionRecorder,
 } from './seasons';
-export type { GamesPorts } from './games';
+export type {
+  AppliedMove,
+  ChessMoveProposal,
+  ChessSquare,
+  ClockPolicy,
+  CorrespondenceClockPolicy,
+  GamesPorts,
+  IllegalMove,
+  LiveClockPolicy,
+  MoveTerminalState,
+  RulesAdapter,
+  RulesAdapterResult,
+  SideToMove,
+} from './games';
 export {
   DEFAULT_NIGHT_DURATION_MS,
   houseLocalDateTimeToInstant,
