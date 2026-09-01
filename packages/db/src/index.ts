@@ -15,6 +15,7 @@ export { PgMagicLinkOutboxWriter } from './magic-link-outbox-writer';
 export { PgIdentityRecoveryRepository } from './identity-recovery-repository';
 
 export { PgHouseCreationRepository } from './pg-house-creation-repository';
+export { PgGameSeatRepository } from './pg-game-seat-repository';
 export { PgHouseAuthorizationMembershipRepository } from './pg-house-authorization-membership-repository';
 export { PgHouseHomeRepository } from './pg-house-home-repository';
 export { PgInvitationRepository } from './pg-invitation-repository';

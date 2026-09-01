@@ -162,6 +162,17 @@ export type {
   RulesAdapterResult,
   SideToMove,
 } from './games';
+export { creatorColorForOffer, OPEN_SEAT_LIFETIME_MS } from './games';
+export type {
+  CreateGameSeatRequest,
+  GameColor,
+  GameSeatColorChooser,
+  GameSeatCreationDependencies,
+  GameSeatCreationInput,
+  GameSeatCreationRepository,
+  GameSeatCreationResult,
+  OfferedGameColor,
+} from './games';
 export {
   DEFAULT_NIGHT_DURATION_MS,
   houseLocalDateTimeToInstant,
