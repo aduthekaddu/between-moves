@@ -2,9 +2,12 @@ import {
   changeMembershipRole,
   createAuthorizeHouseAction,
   createInvitation,
+  draftSeason,
+  draftSeasonCharter,
   leaveHouse,
   redeemInvitation,
   removeHouseMember,
+  publishSeason,
   revokeInvitation,
   transferHouseOwnership,
 } from '@between-moves/application';
@@ -15,6 +18,7 @@ import {
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
+  PgSeasonRepository,
 } from '@between-moves/db';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from '@between-moves/db/testing';
 import type {
@@ -28,6 +32,8 @@ import type {
   InvitationTokenDigester,
   InvitationTokenIssuer,
   MembershipAdminRepository,
+  SeasonRepository,
+  SeasonTransitionRecorder,
 } from '@between-moves/domain';
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { fileURLToPath } from 'node:url';
@@ -42,6 +48,8 @@ const migrationsDirectory = fileURLToPath(
 const invitationId = '01941f29-7c00-7000-8000-000000000901';
 const invitationDigest = 'c'.repeat(64);
 const invitationToken = 'bm-017-first-house-invitation-token';
+const seasonId = '01941f29-7c00-7000-8000-000000000971';
+const charterId = '01941f29-7c00-7000-8000-000000000972';
 
 interface IsolationHarness {
   readonly world: TwoHousesWithMembers;
@@ -52,6 +60,8 @@ interface IsolationHarness {
   readonly invitations: InvitationCreationRepository & InvitationRevocationRepository;
   readonly redemptions: InvitationRedemptionRepository;
   readonly memberships: MembershipAdminRepository;
+  readonly seasons: SeasonRepository;
+  readonly transitions: SeasonTransitionRecorder;
 }
 
 interface IsolationCase {
@@ -178,6 +188,61 @@ const cases: readonly IsolationCase[] = [
         harness,
       ),
   },
+  {
+    id: 'season.draft',
+    name: 'Season draft creation',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      draftSeason(
+        {
+          houseId: harness.world.second.houseId,
+          title: 'Crossed table',
+          idempotencyKey: 'bm-019-cross-house-draft',
+          viewer: viewer(harness.world.first.member),
+        },
+        harness,
+      ),
+  },
+  {
+    id: 'season.charter',
+    name: 'Charter version creation',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      draftSeasonCharter(
+        {
+          houseId: harness.world.second.houseId,
+          seasonId,
+          correspondencePaceHours: 48,
+          nightRecurrence: { weekday: 4, localTime: '20:00', count: 4 },
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
+  {
+    id: 'season.publish',
+    name: 'Season publication',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      publishSeason(
+        {
+          houseId: harness.world.second.houseId,
+          seasonId,
+          title: 'Crossed table',
+          startsAt: new Date('2026-09-04T00:00:00.000Z'),
+          endsAt: new Date('2026-10-02T00:00:00.000Z'),
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -220,6 +285,13 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
            'id', a.id::text, 'action', a.action, 'target', a.target_membership_id::text
          ) order by a.id)
          from membership_audit a where a.house_id = h.id
+       ), '[]'::jsonb),
+       'seasons', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'id', s.id::text, 'state', s.state, 'version', s.published_charter_version,
+           'charters', (select count(*) from season_charters c where c.season_id = s.id)
+         ) order by s.id)
+         from seasons s where s.house_id = h.id
        ), '[]'::jsonb)
      ) as state
      from houses h where h.id = $1`,
@@ -248,6 +320,40 @@ integration('BM-017 current House write-path isolation', () => {
       nightHosts: { isAssignedNightHost: async () => false },
       denials: { record: () => undefined },
     });
+    const seasons = new PgSeasonRepository(database);
+    await seasons.draft(
+      fakeAuthorizationContext({
+        viewerId: world.first.member.userId,
+        houseId: world.first.houseId,
+      }),
+      {
+        seasonId,
+        title: 'First House Season',
+        idempotencyKey: null,
+        createdAt: clock.now(),
+      },
+    );
+    await seasons.draftCharter(
+      fakeAuthorizationContext({
+        viewerId: world.first.member.userId,
+        houseId: world.first.houseId,
+      }),
+      {
+        charterId,
+        seasonId,
+        correspondencePaceHours: 24,
+        nightRecurrence: { weekday: 5, localTime: '19:30', count: 4 },
+        pointsRecipe: {
+          completedGame: 1,
+          win: 2,
+          draw: 1,
+          nightAttendance: 1,
+          publishedPuzzle: 1,
+          caps: { games: 8, nights: 4, puzzles: 2 },
+        },
+        createdAt: clock.now(),
+      },
+    );
     await invitations.create(
       fakeAuthorizationContext({
         viewerId: world.first.member.userId,
@@ -270,6 +376,8 @@ integration('BM-017 current House write-path isolation', () => {
       invitations,
       redemptions: new PgInvitationRedemptionRepository(database),
       memberships: new PgMembershipAdminRepository(database),
+      seasons,
+      transitions: { record: () => undefined },
     };
   });
 

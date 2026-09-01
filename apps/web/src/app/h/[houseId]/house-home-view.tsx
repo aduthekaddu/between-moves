@@ -64,6 +64,12 @@ export function HouseHomeView({ home }: { readonly home: HouseHome }) {
               <dd>{home.timeZone}</dd>
             </div>
           </dl>
+          <a
+            className="house-status__action"
+            href={`/h/${encodeURIComponent(home.houseId)}/season`}
+          >
+            Open the Season table
+          </a>
         </aside>
       </main>
     </div>

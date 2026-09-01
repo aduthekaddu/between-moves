@@ -91,11 +91,13 @@ export async function draftSeason(
     from: null,
     to,
     dependencies,
+    recordSuccess: (result) => result.createdNow,
     operation: () => {
       const title = validateSeasonTitle(request.title);
       return dependencies.seasons.draft(context, {
         seasonId,
         title,
+        idempotencyKey: request.idempotencyKey,
         createdAt,
       });
     },

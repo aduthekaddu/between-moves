@@ -233,6 +233,8 @@ export const seasons = pgTable(
       .notNull()
       .references(() => houses.id, { onDelete: 'restrict' }),
     title: text('title').notNull(),
+    draftIdempotencyDigest: text('draft_idempotency_digest'),
+    draftIdempotencyPayloadDigest: text('draft_idempotency_payload_digest'),
     state: text('state').default('draft').notNull(),
     startsAt: timestamp('starts_at', { withTimezone: true }),
     endsAt: timestamp('ends_at', { withTimezone: true }),
@@ -246,8 +248,23 @@ export const seasons = pgTable(
       .on(table.houseId)
       .where(sql`${table.state} in ('active', 'closing')`),
     index('seasons_house_state_idx').on(table.houseId, table.state),
+    uniqueIndex('seasons_house_draft_idempotency_unique')
+      .on(table.houseId, table.draftIdempotencyDigest)
+      .where(sql`${table.draftIdempotencyDigest} is not null`),
     check('seasons_title_check', sql`char_length(${table.title}) between 1 and 80`),
     check('seasons_state_check', sql`${table.state} in ('draft', 'active', 'closing', 'closed')`),
+    check(
+      'seasons_draft_idempotency_digest_check',
+      sql`${table.draftIdempotencyDigest} is null or ${table.draftIdempotencyDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      'seasons_draft_idempotency_payload_digest_check',
+      sql`${table.draftIdempotencyPayloadDigest} is null or ${table.draftIdempotencyPayloadDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      'seasons_draft_idempotency_pair_check',
+      sql`(${table.draftIdempotencyDigest} is null) = (${table.draftIdempotencyPayloadDigest} is null)`,
+    ),
     check(
       'seasons_lifecycle_fields_check',
       sql`(${table.state} = 'draft' and ${table.startsAt} is null and ${table.endsAt} is null and ${table.publishedCharterVersion} is null and ${table.closedAt} is null)

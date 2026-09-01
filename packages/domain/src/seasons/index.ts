@@ -1,4 +1,4 @@
-import type { AuthenticatedViewer } from '../identity';
+import type { AuthenticatedViewer, Viewer } from '../identity';
 import type { AuthorizationContext } from '../shared/authorization-context';
 import type { Clock } from '../shared/clock';
 import { DomainError } from '../shared/errors';
@@ -16,15 +16,15 @@ export interface NightRecurrence {
 }
 
 export interface PointsRecipe {
-  readonly completedGame: 1;
-  readonly win: 2;
-  readonly draw: 1;
-  readonly nightAttendance: 1;
-  readonly publishedPuzzle: 1;
+  readonly completedGame: number;
+  readonly win: number;
+  readonly draw: number;
+  readonly nightAttendance: number;
+  readonly publishedPuzzle: number;
   readonly caps: {
-    readonly games: 8;
-    readonly nights: 4;
-    readonly puzzles: 2;
+    readonly games: number;
+    readonly nights: number;
+    readonly puzzles: number;
   };
 }
 
@@ -40,6 +40,7 @@ export const FIXED_MVP_POINTS_RECIPE: PointsRecipe = {
 export interface SeasonDraftInput {
   readonly seasonId: string;
   readonly title: string;
+  readonly idempotencyKey: string | null;
   readonly createdAt: Date;
 }
 
@@ -47,6 +48,7 @@ export interface SeasonDraftResult {
   readonly seasonId: string;
   readonly houseId: string;
   readonly state: 'draft';
+  readonly createdNow: boolean;
 }
 
 export interface CharterDraftInput {
@@ -77,6 +79,7 @@ export interface SeasonPublishResult {
   readonly state: 'active';
   readonly publishedCharterVersion: number;
   readonly activatedNow: boolean;
+  readonly actorMembershipId: string;
 }
 
 export interface SeasonRepository {
@@ -86,6 +89,37 @@ export interface SeasonRepository {
     input: CharterDraftInput,
   ): Promise<CharterDraftResult>;
   publish(context: AuthorizationContext, input: SeasonPublishInput): Promise<SeasonPublishResult>;
+}
+
+export interface HouseSeasonCharterView {
+  readonly version: number;
+  readonly correspondencePaceHours: number;
+  readonly nightRecurrence: NightRecurrence;
+  readonly pointsRecipe: PointsRecipe;
+}
+
+/** The current draft or active House Season shown on the Charter surface. */
+export interface HouseSeasonView {
+  readonly seasonId: string;
+  readonly title: string;
+  readonly state: SeasonState;
+  readonly startsAt: Date | null;
+  readonly endsAt: Date | null;
+  readonly charter: HouseSeasonCharterView | null;
+}
+
+export interface SeasonReadRepository {
+  readCurrent(context: AuthorizationContext): Promise<HouseSeasonView | null>;
+}
+
+export interface ReadHouseSeasonRequest {
+  readonly houseId: string;
+  readonly viewer: Viewer;
+}
+
+export interface ReadHouseSeasonDependencies {
+  readonly authorizeHouseAction: AuthorizeHouseAction;
+  readonly seasons: SeasonReadRepository;
 }
 
 export interface SeasonTransitionObservation {
@@ -105,6 +139,7 @@ export interface SeasonTransitionRecorder {
 export interface DraftSeasonRequest {
   readonly houseId: string;
   readonly title: string;
+  readonly idempotencyKey: string;
   readonly viewer: AuthenticatedViewer;
 }
 
@@ -168,7 +203,11 @@ export function validateCharter(input: {
   readonly correspondencePaceHours: number;
   readonly nightRecurrence: NightRecurrence;
 }): void {
-  if (!Number.isInteger(input.correspondencePaceHours) || input.correspondencePaceHours <= 0) {
+  if (
+    !Number.isInteger(input.correspondencePaceHours) ||
+    input.correspondencePaceHours <= 0 ||
+    input.correspondencePaceHours > 2_147_483_647
+  ) {
     throw new DomainError('validation_failed', 'Correspondence pace must be a positive hour count');
   }
   const { weekday, localTime, count } = input.nightRecurrence;
