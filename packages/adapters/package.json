@@ -16,7 +16,8 @@
     "@between-moves/domain": "workspace:*",
     "@between-moves/observability": "workspace:*",
     "@upstash/ratelimit": "2.0.8",
-    "@upstash/redis": "1.38.3"
+    "@upstash/redis": "1.38.3",
+    "chess.js": "1.4.0"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
