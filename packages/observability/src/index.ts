@@ -30,3 +30,5 @@ export type {
 } from './invitation-metrics';
 export { createSeasonTransitionRecorder } from './season-transition-logger';
 export type { SeasonTransitionRecorderOptions } from './season-transition-logger';
+export { createNightScheduleChangeRecorder } from './night-schedule-change-logger';
+export type { NightScheduleChangeRecorderOptions } from './night-schedule-change-logger';

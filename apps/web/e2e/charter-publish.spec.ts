@@ -81,6 +81,22 @@ test.describe('Charter authoring and publication', () => {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
 
+    const firstNight = page.locator('.night-card').nth(0);
+    await firstNight.getByLabel('New start for Night 1 (Asia/Kolkata)').fill('2026-09-05T19:30');
+    await firstNight.getByLabel('New end for Night 1 (Asia/Kolkata)').fill('2026-09-05T21:30');
+    await firstNight.getByRole('button', { name: 'Reschedule' }).click();
+    await expect(firstNight.getByText('5 Sept 2026, 19:30', { exact: false })).toBeVisible();
+
+    const secondNight = page.locator('.night-card').nth(1);
+    await secondNight.getByRole('button', { name: 'Cancel Night' }).click();
+    const cancellation = secondNight.getByRole('group', {
+      name: 'Confirm cancellation for Night 2',
+    });
+    await expect(cancellation).toBeVisible();
+    await cancellation.getByRole('button', { name: 'Confirm cancellation' }).click();
+    await expect(secondNight.getByText('Asia/Kolkata · Cancelled')).toBeVisible();
+    await expectNoBlockingAxeViolations(page);
+
     await page.getByLabel('Season title').fill('Autumn tables');
     await page.getByLabel('Season starts').fill('2026-09-04');
     await page.getByLabel('Season ends').fill('2026-10-02');
@@ -97,6 +113,11 @@ test.describe('Charter authoring and publication', () => {
     await page.reload();
     await expect(page.getByText('Season active', { exact: true })).toBeVisible();
     await expect(page.getByText('Charter version 1', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Scheduled Between Moves Nights' }),
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: /^Night [1-4]$/ })).toHaveCount(4);
+    await expect(page.getByText('Asia/Kolkata · Scheduled')).toHaveCount(4);
     await expectNoBlockingAxeViolations(page);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -128,6 +149,38 @@ test.describe('Charter authoring and publication', () => {
       }),
     ]);
     const seasonId = String(persisted?.rows[0]?.id);
+    const scheduledNights = await database?.pool.query(
+      `select scheduled_start, scheduled_end, state
+         from house_nights where house_id = $1 order by scheduled_start`,
+      [seeded.first.houseId],
+    );
+    expect(scheduledNights?.rows).toEqual([
+      expect.objectContaining({
+        scheduled_start: new Date('2026-09-05T14:00:00.000Z'),
+        state: 'scheduled',
+      }),
+      expect.objectContaining({
+        scheduled_start: new Date('2026-09-11T14:00:00.000Z'),
+        state: 'cancelled',
+      }),
+      expect.objectContaining({
+        scheduled_start: new Date('2026-09-18T14:00:00.000Z'),
+        state: 'scheduled',
+      }),
+      expect.objectContaining({
+        scheduled_start: new Date('2026-09-25T14:00:00.000Z'),
+        state: 'scheduled',
+      }),
+    ]);
+    const nightAudit = await database?.pool.query(
+      `select action, actor_membership_id
+         from night_audit where house_id = $1 order by created_at, id`,
+      [seeded.first.houseId],
+    );
+    expect(nightAudit?.rows).toEqual([
+      { action: 'rescheduled', actor_membership_id: seeded.first.member.membershipId },
+      { action: 'cancelled', actor_membership_id: seeded.first.member.membershipId },
+    ]);
 
     const invalid = await request.post(
       `/api/houses/${seeded.first.houseId}/seasons/${seasonId}/charter`,

@@ -4,12 +4,14 @@ import {
   boolean,
   check,
   customType,
+  foreignKey,
   index,
   integer,
   jsonb,
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -213,6 +215,7 @@ export const memberships = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    unique('memberships_id_house_unique').on(table.id, table.houseId),
     uniqueIndex('memberships_house_user_unique').on(table.houseId, table.userId),
     uniqueIndex('memberships_one_active_owner_per_house')
       .on(table.houseId)
@@ -244,6 +247,7 @@ export const seasons = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    unique('seasons_id_house_unique').on(table.id, table.houseId),
     uniqueIndex('seasons_one_active_or_closing_per_house')
       .on(table.houseId)
       .where(sql`${table.state} in ('active', 'closing')`),
@@ -301,6 +305,86 @@ export const seasonCharters = pgTable(
       'season_charters_points_recipe_check',
       sql`jsonb_typeof(${table.pointsRecipe}) = 'object'`,
     ),
+  ],
+);
+
+/** [BM-020] [DR-NIGHT-01/03] Materialized weekly Between Moves Night schedule. */
+export const houseNights = pgTable(
+  'house_nights',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    seasonId: uuid('season_id').notNull(),
+    scheduledStart: timestamp('scheduled_start', { withTimezone: true }).notNull(),
+    scheduledEnd: timestamp('scheduled_end', { withTimezone: true }).notNull(),
+    state: text('state').default('scheduled').notNull(),
+    hostMembershipId: uuid('host_membership_id'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('house_nights_id_house_unique').on(table.id, table.houseId),
+    uniqueIndex('house_nights_season_start_unique').on(table.seasonId, table.scheduledStart),
+    foreignKey({
+      columns: [table.seasonId, table.houseId],
+      foreignColumns: [seasons.id, seasons.houseId],
+      name: 'house_nights_season_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.hostMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'house_nights_host_house_fk',
+    }).onDelete('restrict'),
+    index('house_nights_house_schedule_idx').on(table.houseId, table.scheduledStart),
+    index('house_nights_season_state_idx').on(table.seasonId, table.state),
+    check('house_nights_interval_check', sql`${table.scheduledEnd} > ${table.scheduledStart}`),
+    check(
+      'house_nights_state_check',
+      sql`${table.state} in ('scheduled', 'live', 'ended', 'cancelled')`,
+    ),
+  ],
+);
+
+/** [BM-020] Append-only audit history for privileged Night schedule edits. */
+export const nightAudit = pgTable(
+  'night_audit',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    nightId: uuid('night_id').notNull(),
+    actorMembershipId: uuid('actor_membership_id').notNull(),
+    action: text('action').notNull(),
+    previousScheduledStart: timestamp('previous_scheduled_start', { withTimezone: true }).notNull(),
+    previousScheduledEnd: timestamp('previous_scheduled_end', { withTimezone: true }).notNull(),
+    scheduledStart: timestamp('scheduled_start', { withTimezone: true }).notNull(),
+    scheduledEnd: timestamp('scheduled_end', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.nightId, table.houseId],
+      foreignColumns: [houseNights.id, houseNights.houseId],
+      name: 'night_audit_night_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.actorMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'night_audit_actor_house_fk',
+    }).onDelete('restrict'),
+    index('night_audit_house_created_idx').on(table.houseId, table.createdAt),
+    index('night_audit_night_created_idx').on(table.nightId, table.createdAt),
+    check('night_audit_action_check', sql`${table.action} in ('rescheduled', 'cancelled')`),
+    check(
+      'night_audit_previous_interval_check',
+      sql`${table.previousScheduledEnd} > ${table.previousScheduledStart}`,
+    ),
+    check('night_audit_interval_check', sql`${table.scheduledEnd} > ${table.scheduledStart}`),
   ],
 );
 

@@ -71,6 +71,7 @@ export interface SeasonPublishInput {
   readonly startsAt: Date;
   readonly endsAt: Date;
   readonly publishedAt: Date;
+  readonly nightIds: readonly [string, string, string, string];
 }
 
 export interface SeasonPublishResult {

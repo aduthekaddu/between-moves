@@ -149,7 +149,26 @@ export type {
   SeasonTransitionRecorder,
 } from './seasons';
 export type { GamesPorts } from './games';
-export type { NightsPorts } from './nights';
+export {
+  DEFAULT_NIGHT_DURATION_MS,
+  houseLocalDateTimeToInstant,
+  materializeNightSchedule,
+} from './nights';
+export type {
+  ChangeNightScheduleRequest,
+  HouseNightView,
+  MaterializedNight,
+  NightChangeInput,
+  NightChangeResult,
+  NightDependencies,
+  NightRepository,
+  NightScheduleChangeObservation,
+  NightScheduleChangeRecorder,
+  NightScheduleCommand,
+  NightState,
+  NightsPorts,
+  ReadScheduledNightsRequest,
+} from './nights';
 export type { StoriesPorts } from './stories';
 export { OUTBOX_MAX_ATTEMPTS } from './delivery';
 export type {

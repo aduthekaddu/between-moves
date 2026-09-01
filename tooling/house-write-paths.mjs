@@ -65,6 +65,12 @@ export const houseWritePaths = Object.freeze([
     route: 'apps/web/src/app/api/houses/[houseId]/seasons/[seasonId]/publish/route.ts',
     scope: 'house-id',
   },
+  {
+    id: 'night.schedule-change',
+    useCase: 'changeNightSchedule',
+    route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/route.ts',
+    scope: 'house-id',
+  },
 ]);
 
 /** Runtime House exports which do not mutate an existing House. */
@@ -74,6 +80,7 @@ export const nonHouseWriteExports = Object.freeze([
   'inspectInvitation',
   'readHouseSeason',
   'readHouseHome',
+  'readScheduledNights',
 ]);
 
 /** Mutating API routes which do not act on an existing House. */

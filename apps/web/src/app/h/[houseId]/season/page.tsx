@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getConfig } from '../../../../config';
 import { getHouseHome } from '../../../../server/house-home';
 import { getHouseSeason } from '../../../../server/seasons';
+import { getScheduledNights } from '../../../../server/nights';
 import { SeasonView } from './season-view';
 
 export const dynamic = 'force-dynamic';
@@ -24,13 +25,20 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
   const home = await getHouseHome(request, houseId);
   if (home === null) notFound();
   const season = await getHouseSeason(request, houseId);
+  const nights = await getScheduledNights(request, houseId);
   return (
     <main className="season-shell">
       <nav className="season-nav" aria-label="House navigation">
         <a href={`/h/${encodeURIComponent(houseId)}`}>← {home.name}</a>
         <span>Season</span>
       </nav>
-      <SeasonView houseId={houseId} membershipRole={home.membershipRole} season={season} />
+      <SeasonView
+        houseId={houseId}
+        membershipRole={home.membershipRole}
+        nights={nights}
+        season={season}
+        timeZone={home.timeZone}
+      />
     </main>
   );
 }
