@@ -173,9 +173,10 @@ integration('PostgreSQL Game seat repository', () => {
       ),
     ).rejects.toMatchObject({ code: 'validation_failed' });
 
-    await database.query("update memberships set status = 'removed' where id = $1", [
-      world.first.nonOwner.membershipId,
-    ]);
+    await database.query(
+      "update memberships set status = 'removed', left_at = $2, updated_at = $2 where id = $1",
+      [world.first.nonOwner.membershipId, now],
+    );
     await expect(
       repository.create(context(world), input({ idempotencyKey: null })),
     ).rejects.toEqual(
