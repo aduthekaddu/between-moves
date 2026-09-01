@@ -47,6 +47,24 @@ export const houseWritePaths = Object.freeze([
     route: 'apps/web/src/app/api/houses/[houseId]/transfer/route.ts',
     scope: 'house-id',
   },
+  {
+    id: 'season.draft',
+    useCase: 'draftSeason',
+    route: 'apps/web/src/app/api/houses/[houseId]/seasons/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'season.charter',
+    useCase: 'draftSeasonCharter',
+    route: 'apps/web/src/app/api/houses/[houseId]/seasons/[seasonId]/charter/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'season.publish',
+    useCase: 'publishSeason',
+    route: 'apps/web/src/app/api/houses/[houseId]/seasons/[seasonId]/publish/route.ts',
+    scope: 'house-id',
+  },
 ]);
 
 /** Runtime House exports which do not mutate an existing House. */
@@ -54,6 +72,7 @@ export const nonHouseWriteExports = Object.freeze([
   'createAuthorizeHouseAction',
   'createHouse',
   'inspectInvitation',
+  'readHouseSeason',
   'readHouseHome',
 ]);
 
