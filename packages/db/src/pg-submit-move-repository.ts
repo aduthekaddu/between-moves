@@ -301,7 +301,7 @@ async function submitInTransaction(
         set current_fen=$3, current_ply=$4, side_to_move=$5, version=$6,
             state=$7, result=$8, result_reason=$9, completed_at=$10,
             move_due_at=$11,
-            turn_started_at=case when mode='live' and $7='active' then $12 else null end
+            turn_started_at=case when mode='live' and $7='active' then $12::timestamptz else null end
       where id=$1 and house_id=$2`,
     [
       input.gameId,
