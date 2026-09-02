@@ -4,3 +4,4 @@ import type { AuthorizedUseCase } from '../shared/use-case';
 export type GamesUseCase<Command, Result> = AuthorizedUseCase<Command, Result>;
 export { acceptGameSeat } from './accept';
 export { createGameSeat } from './seats';
+export { submitMove } from './submit-move';

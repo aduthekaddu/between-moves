@@ -3,6 +3,7 @@ export type {
   ChessMoveProposal,
   ChessSquare,
   IllegalMove,
+  MoveTerminalReason,
   MoveTerminalState,
   RulesAdapter,
   RulesAdapterResult,
@@ -27,6 +28,16 @@ export type {
   GameSeatCreationResult,
   OfferedGameColor,
 } from './seats';
+export { MoveConflictError } from './submit-move';
+export type {
+  AcceptedMoveClock,
+  MoveConflictSnapshot,
+  SubmitMoveDependencies,
+  SubmitMoveInput,
+  SubmitMoveRepository,
+  SubmitMoveRequest,
+  SubmitMoveResult,
+} from './submit-move';
 
 /** [BM-005] Logical Game module boundary; concrete ports are wired at composition roots. */
 export interface GamesPorts {

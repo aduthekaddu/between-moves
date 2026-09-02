@@ -1,5 +1,6 @@
 import type {
   ChessMoveProposal,
+  MoveTerminalReason,
   MoveTerminalState,
   RulesAdapter,
   RulesAdapterResult,
@@ -29,6 +30,7 @@ export class ChessJsRulesAdapter implements RulesAdapter {
     }
 
     const resultingFen = chess.fen();
+    const terminalReason = terminalReasonFor(chess, resultingFen, positionHistory);
     return {
       legal: true,
       uci: `${move.from}${move.to}${move.promotion ?? ''}`,
@@ -36,7 +38,8 @@ export class ChessJsRulesAdapter implements RulesAdapter {
       fen: resultingFen,
       sideToMove: sideToMove(chess),
       ply: plyFromFen(resultingFen),
-      terminalState: terminalState(chess, resultingFen, positionHistory),
+      terminalState: terminalState(terminalReason),
+      terminalReason,
     };
   }
 }
@@ -51,14 +54,24 @@ function sideToMove(chess: Chess): SideToMove {
   return chess.turn() === 'w' ? 'white' : 'black';
 }
 
-function terminalState(
+function terminalReasonFor(
   chess: Chess,
   resultingFen: string,
   positionHistory: readonly string[],
-): MoveTerminalState {
+): MoveTerminalReason | null {
   if (chess.isCheckmate()) return 'checkmate';
   if (chess.isStalemate()) return 'stalemate';
-  if (chess.isDraw() || occurrenceCount(resultingFen, positionHistory) >= 3) return 'draw';
+  if (occurrenceCount(resultingFen, positionHistory) >= 3 || chess.isThreefoldRepetition()) {
+    return 'repetition';
+  }
+  if (chess.isInsufficientMaterial()) return 'insufficient_material';
+  if (chess.isDrawByFiftyMoves()) return 'fifty_move';
+  return null;
+}
+
+function terminalState(reason: MoveTerminalReason | null): MoveTerminalState {
+  if (reason === 'checkmate' || reason === 'stalemate') return reason;
+  if (reason !== null) return 'draw';
   return 'ongoing';
 }
 

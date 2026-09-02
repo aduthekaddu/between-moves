@@ -155,8 +155,8 @@ integration('PostgreSQL Game records', () => {
       database.query(
         `insert into moves
           (id, game_id, house_id, ply, actor_membership_id, uci, san, fen_after,
-           client_command_id)
-         values ($1, $2, $3, 1, $4, 'e2e4', 'e4', $5, $6)`,
+           client_command_id, accepted_version)
+         values ($1, $2, $3, 1, $4, 'e2e4', 'e4', $5, $6, 1)`,
         [
           '01941f29-7c00-7000-8000-000000001044',
           gameId,
@@ -297,9 +297,10 @@ async function insertMove(
 ): Promise<void> {
   await database.query(
     `insert into moves
-      (id, game_id, house_id, ply, actor_membership_id, uci, san, fen_after, client_command_id)
+      (id, game_id, house_id, ply, actor_membership_id, uci, san, fen_after,
+       client_command_id, accepted_version)
      values ($1, $2, (select house_id from games where id = $2), $3,
-       (select white_membership_id from games where id = $2), 'e2e4', 'e4', $4, $5)`,
+       (select white_membership_id from games where id = $2), 'e2e4', 'e4', $4, $5, $3)`,
     [
       input.id,
       gameId,

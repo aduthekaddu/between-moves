@@ -588,6 +588,7 @@ export const moves = pgTable(
     san: text('san').notNull(),
     fenAfter: text('fen_after').notNull(),
     clientCommandId: uuid('client_command_id').notNull(),
+    acceptedVersion: integer('accepted_version').notNull(),
     serverReceivedAt: timestamp('server_received_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -606,7 +607,9 @@ export const moves = pgTable(
     }).onDelete('restrict'),
     uniqueIndex('moves_game_ply_unique').on(table.gameId, table.ply),
     uniqueIndex('moves_game_command_unique').on(table.gameId, table.clientCommandId),
+    uniqueIndex('moves_game_accepted_version_unique').on(table.gameId, table.acceptedVersion),
     check('moves_ply_check', sql`${table.ply} > 0`),
+    check('moves_accepted_version_check', sql`${table.acceptedVersion} > 0`),
     check('moves_client_command_uuid_v7_check', sql`is_uuid_v7(${table.clientCommandId})`),
     check('moves_uci_check', sql`${table.uci} ~ '^[a-h][1-8][a-h][1-8][qrbn]?$'`),
     check('moves_san_check', sql`char_length(${table.san}) between 1 and 32`),

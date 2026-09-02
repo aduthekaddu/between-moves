@@ -4,6 +4,8 @@ type ChessRank = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8';
 export type ChessSquare = `${ChessFile}${ChessRank}`;
 export type SideToMove = 'white' | 'black';
 export type MoveTerminalState = 'ongoing' | 'checkmate' | 'stalemate' | 'draw';
+export type MoveTerminalReason =
+  'checkmate' | 'stalemate' | 'insufficient_material' | 'repetition' | 'fifty_move';
 
 /** The only chess truth accepted from an untrusted client. */
 export interface ChessMoveProposal {
@@ -20,6 +22,7 @@ export interface AppliedMove {
   readonly sideToMove: SideToMove;
   readonly ply: number;
   readonly terminalState: MoveTerminalState;
+  readonly terminalReason: MoveTerminalReason | null;
 }
 
 export interface IllegalMove {

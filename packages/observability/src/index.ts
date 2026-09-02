@@ -28,6 +28,8 @@ export type {
   InvitationMetricStubs,
   InvitationRateLimitMetricSurface,
 } from './invitation-metrics';
+export { createMoveMetricStubs } from './move-metrics';
+export type { MoveMetricSnapshot, MoveMetricStubs } from './move-metrics';
 export { createSeasonTransitionRecorder } from './season-transition-logger';
 export type { SeasonTransitionRecorderOptions } from './season-transition-logger';
 export { createNightScheduleChangeRecorder } from './night-schedule-change-logger';

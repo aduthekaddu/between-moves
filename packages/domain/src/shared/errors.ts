@@ -2,6 +2,7 @@ export type DomainErrorCode =
   | 'unauthenticated'
   | 'authorization_denied'
   | 'conflict'
+  | 'move_conflict'
   | 'idempotency_conflict'
   | 'not_found'
   | 'validation_failed';
