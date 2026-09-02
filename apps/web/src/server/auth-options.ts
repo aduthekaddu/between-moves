@@ -25,6 +25,9 @@ export function createBetterAuthOptions({
   logger,
   queueMagicLink,
 }: BetterAuthOptionsDependencies) {
+  // Browsers discard Secure cookies over local HTTP; deployed environments remain secure.
+  const useSecureCookies = config.environment !== 'local' || config.appOrigin.protocol === 'https:';
+
   return {
     appName: 'Between Moves',
     baseURL: config.appOrigin.origin,
@@ -102,10 +105,10 @@ export function createBetterAuthOptions({
       }),
     ],
     advanced: {
-      useSecureCookies: true,
+      useSecureCookies,
       cookiePrefix: 'between-moves',
       defaultCookieAttributes: {
-        secure: true,
+        secure: useSecureCookies,
         httpOnly: true,
         sameSite: 'lax',
         path: '/',

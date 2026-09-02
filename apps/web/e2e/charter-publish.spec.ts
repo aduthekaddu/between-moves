@@ -19,7 +19,7 @@ function fixture(): TwoHousesWithMembers {
 }
 
 async function signedCookie(token: string): Promise<string> {
-  return `__Secure-between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
+  return `between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
 }
 
 async function expectNoBlockingAxeViolations(page: import('@playwright/test').Page): Promise<void> {
@@ -81,6 +81,23 @@ test.describe('Charter authoring and publication', () => {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
 
+    await page.getByLabel('Season title').fill('Autumn tables');
+    await page.getByLabel('Season starts').fill('2026-09-04');
+    await page.getByLabel('Season ends').fill('2026-10-02');
+    await page.getByLabel('Correspondence pace').fill('24');
+    await page.getByLabel('Weekday').selectOption('5');
+    await page.getByLabel('Local time').fill('19:30');
+    await page.getByRole('button', { name: 'Publish Charter' }).click();
+
+    await expect(page.getByText('Season active', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Autumn tables');
+    await expect(page.getByText('Charter version 1 is published.')).toBeVisible();
+    await expectNoBlockingAxeViolations(page);
+
+    await page.reload();
+    await expect(page.getByText('Season active', { exact: true })).toBeVisible();
+    await expect(page.getByText('Charter version 1', { exact: true })).toBeVisible();
+
     const firstNight = page.locator('.night-card').nth(0);
     await firstNight.getByLabel('New start for Night 1 (Asia/Kolkata)').fill('2026-09-05T19:30');
     await firstNight.getByLabel('New end for Night 1 (Asia/Kolkata)').fill('2026-09-05T21:30');
@@ -95,19 +112,6 @@ test.describe('Charter authoring and publication', () => {
     await expect(cancellation).toBeVisible();
     await cancellation.getByRole('button', { name: 'Confirm cancellation' }).click();
     await expect(secondNight.getByText('Asia/Kolkata · Cancelled')).toBeVisible();
-    await expectNoBlockingAxeViolations(page);
-
-    await page.getByLabel('Season title').fill('Autumn tables');
-    await page.getByLabel('Season starts').fill('2026-09-04');
-    await page.getByLabel('Season ends').fill('2026-10-02');
-    await page.getByLabel('Correspondence pace').fill('24');
-    await page.getByLabel('Weekday').selectOption('5');
-    await page.getByLabel('Local time').fill('19:30');
-    await page.getByRole('button', { name: 'Publish Charter' }).click();
-
-    await expect(page.getByText('Season active', { exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Autumn tables');
-    await expect(page.getByText('Charter version 1 is published.')).toBeVisible();
     await expectNoBlockingAxeViolations(page);
 
     await page.reload();

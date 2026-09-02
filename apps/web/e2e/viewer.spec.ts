@@ -7,7 +7,7 @@ const authenticated = testDatabaseUrl ? test : test.skip;
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 
 async function signedCookie(token: string): Promise<string> {
-  return `__Secure-between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
+  return `between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
 }
 
 test('[BM-007] anonymous protected-route access returns 401', async ({ request }) => {

@@ -20,7 +20,7 @@ function fixture(): TwoHousesWithMembers {
 }
 
 async function signedCookie(token: string): Promise<string> {
-  return `__Secure-between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
+  return `between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
 }
 
 test.describe('Open-seat acceptance', () => {

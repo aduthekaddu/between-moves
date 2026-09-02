@@ -4,10 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../config';
 import { createBetterAuthOptions } from './auth-options';
 
-const config = loadConfig({
+const validEnvironment = {
   DATABASE_URL: 'postgresql://app:test@db.example.test/app?sslmode=require',
   BETTER_AUTH_SECRET: 'better-auth-secret-with-at-least-32-characters',
-  APP_ORIGIN: 'https://preview.example.test',
   RESEND_API_KEY: 're_test_key',
   RESEND_WEBHOOK_SECRET: 'whsec_test_secret',
   REALTIME_APP_ID: 'realtime-test-app',
@@ -17,7 +16,18 @@ const config = loadConfig({
   ANALYSIS_WORKER_SECRET: 'analysis-test-secret',
   UPSTASH_REDIS_REST_URL: 'https://rate-limit.example.test',
   UPSTASH_REDIS_REST_TOKEN: 'upstash-test-token',
+} as const;
+
+const config = loadConfig({
+  ...validEnvironment,
+  APP_ORIGIN: 'https://preview.example.test',
   APP_ENV: 'preview',
+});
+
+const localHttpConfig = loadConfig({
+  ...validEnvironment,
+  APP_ORIGIN: 'http://127.0.0.1:3100',
+  APP_ENV: 'local',
 });
 
 describe('Better Auth configuration', () => {
@@ -82,6 +92,35 @@ describe('Better Auth configuration', () => {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',
+    });
+  });
+
+  it('[BM-007] keeps local HTTP sessions usable without weakening deployed cookies', () => {
+    const options = createBetterAuthOptions({
+      config: localHttpConfig,
+      database: {} as never,
+      logger: { log: vi.fn() },
+      queueMagicLink: vi.fn(),
+    });
+
+    expect(options.advanced).toMatchObject({
+      useSecureCookies: false,
+      defaultCookieAttributes: {
+        secure: false,
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+      },
+    });
+
+    expect(getCookies(options).sessionToken).toMatchObject({
+      name: 'between-moves.session_token',
+      attributes: {
+        secure: false,
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+      },
     });
   });
 
