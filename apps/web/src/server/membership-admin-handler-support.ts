@@ -113,6 +113,7 @@ export function commandError(request: Request, error: unknown): Response | null 
       return problem(request, 409, error.code, 'Idempotency conflict', error.message);
     case 'unauthenticated':
     case 'conflict':
+    case 'move_conflict':
       return null;
     default: {
       const _exhaustive: never = error.code;

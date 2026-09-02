@@ -18,6 +18,7 @@ describe('ChessJsRulesAdapter contract', () => {
         sideToMove: 'black',
         ply: 1,
         terminalState: 'ongoing',
+        terminalReason: null,
       },
     },
     {
@@ -32,6 +33,7 @@ describe('ChessJsRulesAdapter contract', () => {
         sideToMove: 'white',
         ply: 4,
         terminalState: 'checkmate',
+        terminalReason: 'checkmate',
       },
     },
     {
@@ -46,6 +48,7 @@ describe('ChessJsRulesAdapter contract', () => {
         sideToMove: 'black',
         ply: 1,
         terminalState: 'stalemate',
+        terminalReason: 'stalemate',
       },
     },
     {
@@ -60,6 +63,7 @@ describe('ChessJsRulesAdapter contract', () => {
         sideToMove: 'white',
         ply: 2,
         terminalState: 'draw',
+        terminalReason: 'insufficient_material',
       },
     },
   ])('[BM-021] [DR-GAME-04] returns canonical truth for $name', ({ fen, move, expected }) => {
@@ -85,6 +89,7 @@ describe('ChessJsRulesAdapter contract', () => {
       sideToMove: 'white',
       ply: 8,
       terminalState: 'draw',
+      terminalReason: 'repetition',
     });
   });
 

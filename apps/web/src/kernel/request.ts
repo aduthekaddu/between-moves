@@ -6,6 +6,7 @@ export type JsonBodyReadResult =
 export interface ProblemResponseOptions {
   readonly headers?: Readonly<Record<string, string>>;
   readonly instance?: string;
+  readonly meta?: Readonly<Record<string, unknown>>;
 }
 
 /** RFC 9457 response with private, non-cacheable defaults. */
@@ -25,6 +26,7 @@ export function problemResponse(
       code,
       detail,
       instance: options.instance ?? new URL(request.url).pathname,
+      ...(options.meta === undefined ? {} : { meta: options.meta }),
     },
     {
       status,

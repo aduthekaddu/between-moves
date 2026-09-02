@@ -157,12 +157,20 @@ export type {
   GamesPorts,
   IllegalMove,
   LiveClockPolicy,
+  MoveTerminalReason,
   MoveTerminalState,
+  AcceptedMoveClock,
+  MoveConflictSnapshot,
   RulesAdapter,
   RulesAdapterResult,
   SideToMove,
+  SubmitMoveDependencies,
+  SubmitMoveInput,
+  SubmitMoveRepository,
+  SubmitMoveRequest,
+  SubmitMoveResult,
 } from './games';
-export { creatorColorForOffer, OPEN_SEAT_LIFETIME_MS } from './games';
+export { creatorColorForOffer, MoveConflictError, OPEN_SEAT_LIFETIME_MS } from './games';
 export type {
   AcceptGameSeatRequest,
   CreateGameSeatRequest,

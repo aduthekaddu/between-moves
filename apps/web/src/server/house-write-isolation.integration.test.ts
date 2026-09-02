@@ -12,6 +12,7 @@ import {
   removeHouseMember,
   publishSeason,
   revokeInvitation,
+  submitMove,
   transferHouseOwnership,
 } from '@between-moves/application';
 import {
@@ -25,6 +26,7 @@ import {
   PgMembershipAdminRepository,
   PgNightRepository,
   PgSeasonRepository,
+  PgSubmitMoveRepository,
 } from '@between-moves/db';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from '@between-moves/db/testing';
 import type {
@@ -44,6 +46,8 @@ import type {
   NightScheduleChangeRecorder,
   SeasonRepository,
   SeasonTransitionRecorder,
+  SubmitMoveRepository,
+  RulesAdapter,
 } from '@between-moves/domain';
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { fileURLToPath } from 'node:url';
@@ -63,6 +67,7 @@ const charterId = '01941f29-7c00-7000-8000-000000000972';
 const nightId = '01941f29-7c00-7000-8000-000000000973';
 const waitingGameId = '01941f29-7c00-7000-8000-000000000974';
 const waitingSeatId = '01941f29-7c00-7000-8000-000000000975';
+const activeGameId = '01941f29-7c00-7000-8000-000000000976';
 
 interface IsolationHarness {
   readonly world: TwoHousesWithMembers;
@@ -79,6 +84,8 @@ interface IsolationHarness {
   readonly changes: NightScheduleChangeRecorder;
   readonly seasons: SeasonRepository;
   readonly transitions: SeasonTransitionRecorder;
+  readonly moves: SubmitMoveRepository;
+  readonly rules: RulesAdapter;
 }
 
 interface IsolationCase {
@@ -314,6 +321,24 @@ const cases: readonly IsolationCase[] = [
         harness,
       ),
   },
+  {
+    id: 'game.move-submit',
+    name: 'Move submission',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      submitMove(
+        {
+          houseId: harness.world.second.houseId,
+          gameId: activeGameId,
+          expectedPly: 0,
+          clientCommandId: '01941f29-7c00-7000-8000-000000000977',
+          move: { from: 'e2', to: 'e4' },
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -375,7 +400,10 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
          from night_audit a where a.house_id = h.id
        ), '[]'::jsonb),
        'games', coalesce((
-         select jsonb_agg(jsonb_build_object('id', g.id::text, 'state', g.state) order by g.id)
+         select jsonb_agg(jsonb_build_object(
+           'id', g.id::text, 'state', g.state, 'ply', g.current_ply, 'version', g.version,
+           'moves', (select count(*) from moves m where m.game_id = g.id)
+         ) order by g.id)
          from games g where g.house_id = h.id
        ), '[]'::jsonb)
      ) as state
@@ -491,6 +519,21 @@ integration('BM-017 current House write-path isolation', () => {
         clock.now(),
       ],
     );
+    await database.query(
+      `insert into games
+        (id, house_id, season_id, mode, state, white_membership_id, black_membership_id,
+         clock_policy, move_due_at, created_at)
+       values ($1, $2, $3, 'correspondence', 'active', $4, $5,
+               '{"kind":"correspondence","perMoveHours":24}', $6, $6)`,
+      [
+        activeGameId,
+        world.first.houseId,
+        seasonId,
+        world.first.member.membershipId,
+        world.first.nonOwner.membershipId,
+        clock.now(),
+      ],
+    );
     harness = {
       world,
       authorizeHouseAction,
@@ -506,6 +549,12 @@ integration('BM-017 current House write-path isolation', () => {
       changes: { record: () => undefined },
       seasons,
       transitions: { record: () => undefined },
+      moves: new PgSubmitMoveRepository(database),
+      rules: {
+        applyMove: () => {
+          throw new Error('Cross-House Move must not reach the rules adapter');
+        },
+      },
     };
   });
 

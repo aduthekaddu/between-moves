@@ -1,6 +1,7 @@
 import { UpstashRateLimiter } from '@between-moves/adapters';
 import type { RateLimitResult } from '@between-moves/domain';
 import { createInvitationMetricStubs } from '@between-moves/observability';
+import { createMoveMetricStubs } from '@between-moves/observability';
 import { getConfig } from '../config';
 import {
   createRecoveryRateLimit,
@@ -11,6 +12,7 @@ import {
   createInvitationRateLimit,
   type InvitationRateLimit,
 } from '../kernel/invitation-rate-limit';
+import { createMoveRateLimit, type MoveRateLimit } from '../kernel/move-rate-limit';
 import { getIdentityMetrics } from './identity-metrics';
 import { getLogger } from './logger';
 
@@ -18,6 +20,8 @@ const globalRateLimit = globalThis as typeof globalThis & {
   betweenMovesSignInRateLimit?: (request: Request, email: string) => Promise<RateLimitResult>;
   betweenMovesRecoveryRateLimit?: (request: Request, email: string) => Promise<RateLimitResult>;
   betweenMovesInvitationRateLimit?: InvitationRateLimit;
+  betweenMovesMoveRateLimit?: MoveRateLimit;
+  betweenMovesMoveMetrics?: ReturnType<typeof createMoveMetricStubs>;
 };
 
 const invitationMetrics = createInvitationMetricStubs();
@@ -115,4 +119,39 @@ export function getInvitationRateLimit(): InvitationRateLimit {
     });
   }
   return globalRateLimit.betweenMovesInvitationRateLimit;
+}
+
+export function getMoveMetrics(): ReturnType<typeof createMoveMetricStubs> {
+  globalRateLimit.betweenMovesMoveMetrics ??= createMoveMetricStubs();
+  return globalRateLimit.betweenMovesMoveMetrics;
+}
+
+/** [BM-024] Composition root for fail-open per-account and per-IP Move limits. */
+export function getMoveRateLimit(): MoveRateLimit {
+  if (!globalRateLimit.betweenMovesMoveRateLimit) {
+    const config = getConfig();
+    globalRateLimit.betweenMovesMoveRateLimit = createMoveRateLimit({
+      primary: new UpstashRateLimiter({
+        url: config.upstashRedisRestUrl.href,
+        token: config.upstashRedisRestToken,
+      }),
+      fallback: new InMemoryRateLimiter(),
+      incrementRateLimitHit: () => getMoveMetrics().incrementRateLimitHit(),
+      onStoreError() {
+        getLogger().log({
+          level: 'warn',
+          requestId: 'rate-limit-store',
+          actorId: 'anonymous',
+          houseId: null,
+          gameId: null,
+          commandId: null,
+          event: 'rate-limit.store-unavailable',
+          outcome: 'error',
+          durationMs: 0,
+          data: { surface: 'move', fallback: 'in-process' },
+        });
+      },
+    });
+  }
+  return globalRateLimit.betweenMovesMoveRateLimit;
 }
