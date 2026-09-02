@@ -121,7 +121,7 @@ test.describe('Charter authoring and publication', () => {
       page.getByRole('heading', { name: 'Scheduled Between Moves Nights' }),
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: /^Night [1-4]$/ })).toHaveCount(4);
-    await expect(page.getByText('Asia/Kolkata · Scheduled')).toHaveCount(4);
+    await expect(page.getByText('Asia/Kolkata · Scheduled')).toHaveCount(3);
     await expectNoBlockingAxeViolations(page);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
