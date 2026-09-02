@@ -1,4 +1,5 @@
 import {
+  acceptGameSeat,
   changeMembershipRole,
   createAuthorizeHouseAction,
   createGameSeat,
@@ -17,6 +18,7 @@ import {
   migrateDown,
   migrateUp,
   PgHouseAuthorizationMembershipRepository,
+  PgGameSeatAcceptanceRepository,
   PgGameSeatRepository,
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
@@ -29,6 +31,7 @@ import type {
   AuthenticatedViewer,
   AuthorizeHouseAction,
   Clock,
+  GameSeatAcceptanceRepository,
   GameSeatCreationRepository,
   IdGenerator,
   InvitationCreationRepository,
@@ -58,6 +61,8 @@ const invitationToken = 'bm-017-first-house-invitation-token';
 const seasonId = '01941f29-7c00-7000-8000-000000000971';
 const charterId = '01941f29-7c00-7000-8000-000000000972';
 const nightId = '01941f29-7c00-7000-8000-000000000973';
+const waitingGameId = '01941f29-7c00-7000-8000-000000000974';
+const waitingSeatId = '01941f29-7c00-7000-8000-000000000975';
 
 interface IsolationHarness {
   readonly world: TwoHousesWithMembers;
@@ -69,6 +74,7 @@ interface IsolationHarness {
   readonly redemptions: InvitationRedemptionRepository;
   readonly memberships: MembershipAdminRepository;
   readonly nights: NightRepository;
+  readonly acceptances: GameSeatAcceptanceRepository;
   readonly seats: GameSeatCreationRepository;
   readonly changes: NightScheduleChangeRecorder;
   readonly seasons: SeasonRepository;
@@ -293,6 +299,21 @@ const cases: readonly IsolationCase[] = [
         { ...harness, colors: { choose: () => 'white' } },
       ),
   },
+  {
+    id: 'game.seat-accept',
+    name: 'Game seat acceptance',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      acceptGameSeat(
+        {
+          houseId: harness.world.second.houseId,
+          gameId: waitingGameId,
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -444,6 +465,32 @@ integration('BM-017 current House write-path isolation', () => {
         createdAt: clock.now(),
       },
     );
+    await database.query(
+      `insert into games
+        (id, house_id, season_id, mode, state, black_membership_id, clock_policy, created_at)
+       values ($1, $2, $3, 'correspondence', 'waiting', $4,
+               '{"kind":"correspondence","perMoveHours":24}', $5)`,
+      [
+        waitingGameId,
+        world.first.houseId,
+        seasonId,
+        world.first.nonOwner.membershipId,
+        clock.now(),
+      ],
+    );
+    await database.query(
+      `insert into open_seats
+        (id, game_id, house_id, offered_color, creator_membership_id, state, expires_at, created_at)
+       values ($1, $2, $3, 'white', $4, 'open', $5, $6)`,
+      [
+        waitingSeatId,
+        waitingGameId,
+        world.first.houseId,
+        world.first.nonOwner.membershipId,
+        new Date('2026-09-08T10:00:00.000Z'),
+        clock.now(),
+      ],
+    );
     harness = {
       world,
       authorizeHouseAction,
@@ -454,6 +501,7 @@ integration('BM-017 current House write-path isolation', () => {
       redemptions: new PgInvitationRedemptionRepository(database),
       memberships: new PgMembershipAdminRepository(database),
       nights: new PgNightRepository(database),
+      acceptances: new PgGameSeatAcceptanceRepository(database),
       seats: new PgGameSeatRepository(database),
       changes: { record: () => undefined },
       seasons,

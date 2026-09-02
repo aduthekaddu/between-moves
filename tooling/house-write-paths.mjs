@@ -77,6 +77,12 @@ export const houseWritePaths = Object.freeze([
     route: 'apps/web/src/app/api/houses/[houseId]/games/route.ts',
     scope: 'house-id',
   },
+  {
+    id: 'game.seat-accept',
+    useCase: 'acceptGameSeat',
+    route: 'apps/web/src/app/api/houses/[houseId]/games/[gameId]/accept/route.ts',
+    scope: 'house-id',
+  },
 ]);
 
 /** Runtime House exports which do not mutate an existing House. */
