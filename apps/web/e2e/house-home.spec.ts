@@ -24,7 +24,7 @@ function fixture(): TwoHousesWithMembers {
 }
 
 async function signedCookie(token: string): Promise<string> {
-  return `__Secure-between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
+  return `between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
 }
 
 async function openMemberHome(page: Page, seeded: TwoHousesWithMembers, width: number) {

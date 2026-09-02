@@ -164,8 +164,13 @@ export type {
 } from './games';
 export { creatorColorForOffer, OPEN_SEAT_LIFETIME_MS } from './games';
 export type {
+  AcceptGameSeatRequest,
   CreateGameSeatRequest,
   GameColor,
+  GameSeatAcceptanceDependencies,
+  GameSeatAcceptanceInput,
+  GameSeatAcceptanceRepository,
+  GameSeatAcceptanceResult,
   GameSeatColorChooser,
   GameSeatCreationDependencies,
   GameSeatCreationInput,

@@ -19,7 +19,7 @@ function fixture(): TwoHousesWithMembers {
 }
 
 async function signedCookie(token: string): Promise<string> {
-  return `__Secure-between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
+  return `between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
 }
 
 async function expectNoBlockingAxeViolations(page: import('@playwright/test').Page): Promise<void> {
@@ -81,22 +81,6 @@ test.describe('Charter authoring and publication', () => {
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
 
-    const firstNight = page.locator('.night-card').nth(0);
-    await firstNight.getByLabel('New start for Night 1 (Asia/Kolkata)').fill('2026-09-05T19:30');
-    await firstNight.getByLabel('New end for Night 1 (Asia/Kolkata)').fill('2026-09-05T21:30');
-    await firstNight.getByRole('button', { name: 'Reschedule' }).click();
-    await expect(firstNight.getByText('5 Sept 2026, 19:30', { exact: false })).toBeVisible();
-
-    const secondNight = page.locator('.night-card').nth(1);
-    await secondNight.getByRole('button', { name: 'Cancel Night' }).click();
-    const cancellation = secondNight.getByRole('group', {
-      name: 'Confirm cancellation for Night 2',
-    });
-    await expect(cancellation).toBeVisible();
-    await cancellation.getByRole('button', { name: 'Confirm cancellation' }).click();
-    await expect(secondNight.getByText('Asia/Kolkata · Cancelled')).toBeVisible();
-    await expectNoBlockingAxeViolations(page);
-
     await page.getByLabel('Season title').fill('Autumn tables');
     await page.getByLabel('Season starts').fill('2026-09-04');
     await page.getByLabel('Season ends').fill('2026-10-02');
@@ -113,11 +97,31 @@ test.describe('Charter authoring and publication', () => {
     await page.reload();
     await expect(page.getByText('Season active', { exact: true })).toBeVisible();
     await expect(page.getByText('Charter version 1', { exact: true })).toBeVisible();
+
+    const firstNight = page.locator('.night-card').nth(0);
+    await firstNight.getByLabel('New start for Night 1 (Asia/Kolkata)').fill('2026-09-05T19:30');
+    await firstNight.getByLabel('New end for Night 1 (Asia/Kolkata)').fill('2026-09-05T21:30');
+    await firstNight.getByRole('button', { name: 'Reschedule' }).click();
+    await expect(firstNight.getByText('5 Sept 2026, 19:30', { exact: false })).toBeVisible();
+
+    const secondNight = page.locator('.night-card').nth(1);
+    await secondNight.getByRole('button', { name: 'Cancel Night' }).click();
+    const cancellation = secondNight.getByRole('group', {
+      name: 'Confirm cancellation for Night 2',
+    });
+    await expect(cancellation).toBeVisible();
+    await cancellation.getByRole('button', { name: 'Confirm cancellation' }).click();
+    await expect(secondNight.getByText('Asia/Kolkata · Cancelled')).toBeVisible();
+    await expectNoBlockingAxeViolations(page);
+
+    await page.reload();
+    await expect(page.getByText('Season active', { exact: true })).toBeVisible();
+    await expect(page.getByText('Charter version 1', { exact: true })).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Scheduled Between Moves Nights' }),
     ).toBeVisible();
     await expect(page.getByRole('heading', { name: /^Night [1-4]$/ })).toHaveCount(4);
-    await expect(page.getByText('Asia/Kolkata · Scheduled')).toHaveCount(4);
+    await expect(page.getByText('Asia/Kolkata · Scheduled')).toHaveCount(3);
     await expectNoBlockingAxeViolations(page);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

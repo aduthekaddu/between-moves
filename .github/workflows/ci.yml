@@ -128,6 +128,9 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d between_moves_test -v ON_ERROR_STOP=1 \
             -c "grant select, insert, update, delete on all tables in schema public to between_moves_app"
 
+      - name: Install Playwright Chromium
+        run: pnpm --filter @between-moves/web exec playwright install --with-deps chromium
+
       - name: End-to-end test with database readiness
         env:
           DATABASE_URL: postgresql://between_moves_app:runtime-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
