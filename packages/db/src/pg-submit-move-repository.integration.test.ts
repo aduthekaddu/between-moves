@@ -18,6 +18,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const integration = testDatabaseUrl ? describe : describe.skip;
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const seasonId = '01941f29-7c00-7000-8000-000000000701';
+const charterId = '01941f29-7c00-7000-8000-000000000702';
 const gameId = '01941f29-7c00-7000-8000-000000000703';
 const standardFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const receivedAt = new Date('2026-09-02T09:00:00.000Z');
@@ -143,8 +144,22 @@ function input(
 async function createActiveGame(database: Pool, world: TwoHousesWithMembers): Promise<void> {
   await database.query(
     `insert into seasons (id, house_id, title, state, created_at, updated_at)
-     values ($1, $2, 'Autumn tables', 'active', $3, $3)`,
+     values ($1, $2, 'Autumn tables', 'draft', $3, $3)`,
     [seasonId, world.first.houseId, receivedAt],
+  );
+  await database.query(
+    `insert into season_charters
+      (id, season_id, version, correspondence_pace_hours, night_recurrence, points_recipe,
+       published_at, created_at)
+     values ($1, $2, 1, 48, '{"weekday":5,"localTime":"19:30","count":4}', '{}', $3, $3)`,
+    [charterId, seasonId, receivedAt],
+  );
+  await database.query(
+    `update seasons
+        set state = 'active', starts_at = $2, ends_at = $3,
+            published_charter_version = 1, updated_at = $2
+      where id = $1`,
+    [seasonId, receivedAt, new Date('2026-09-30T09:00:00.000Z')],
   );
   await database.query(
     `insert into games
