@@ -10,6 +10,7 @@ export type {
   SideToMove,
 } from './rules-adapter';
 export type { ClockPolicy, CorrespondenceClockPolicy, LiveClockPolicy } from './clock-policy';
+export { nextMoveDueAt } from './deadlines';
 export type {
   AcceptGameSeatRequest,
   GameSeatAcceptanceDependencies,

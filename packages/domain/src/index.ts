@@ -170,7 +170,12 @@ export type {
   SubmitMoveRequest,
   SubmitMoveResult,
 } from './games';
-export { creatorColorForOffer, MoveConflictError, OPEN_SEAT_LIFETIME_MS } from './games';
+export {
+  creatorColorForOffer,
+  MoveConflictError,
+  nextMoveDueAt,
+  OPEN_SEAT_LIFETIME_MS,
+} from './games';
 export type {
   AcceptGameSeatRequest,
   CreateGameSeatRequest,
