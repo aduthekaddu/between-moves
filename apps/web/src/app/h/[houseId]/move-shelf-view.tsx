@@ -52,7 +52,7 @@ function ActiveGameCard({
       <article className={`move-card${overdue ? ' move-card--overdue' : ''}`}>
         <span className={`move-card__status${overdue ? ' move-card__status--overdue' : ''}`}>
           <span aria-hidden="true">{overdue ? '!' : kind === 'your-move' ? '●' : '◷'}</span>
-          {status}
+          <span>{status}</span>
         </span>
         <strong>Against {game.opponentName}</strong>
         <span className="move-card__time">
