@@ -39,6 +39,16 @@ export type {
   SubmitMoveRequest,
   SubmitMoveResult,
 } from './submit-move';
+export type {
+  MoveShelf,
+  MoveShelfActiveGame,
+  MoveShelfCompletedGame,
+  MoveShelfReadRepository,
+  MoveShelfResult,
+  MoveShelfYourMoveGame,
+  ReadMoveShelfDependencies,
+  ReadMoveShelfQuery,
+} from './move-shelf';
 
 /** [BM-005] Logical Game module boundary; concrete ports are wired at composition roots. */
 export interface GamesPorts {

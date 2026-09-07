@@ -18,7 +18,7 @@ export type { HousesUseCase } from './houses';
 export type { SeasonsUseCase } from './seasons';
 export { draftSeason, draftSeasonCharter, publishSeason, readHouseSeason } from './seasons';
 export type { GamesUseCase } from './games';
-export { acceptGameSeat, createGameSeat, submitMove } from './games';
+export { acceptGameSeat, createGameSeat, readMoveShelf, submitMove } from './games';
 export type { NightsUseCase } from './nights';
 export { changeNightSchedule, readScheduledNights } from './nights';
 export type { StoriesUseCase } from './stories';
