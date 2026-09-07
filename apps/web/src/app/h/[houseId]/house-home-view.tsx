@@ -1,4 +1,5 @@
-import type { HouseHome, MembershipRole } from '@between-moves/domain';
+import type { HouseHome, MembershipRole, MoveShelf } from '@between-moves/domain';
+import { MoveShelfView } from './move-shelf-view';
 
 function roleLabel(role: MembershipRole): string {
   switch (role) {
@@ -22,7 +23,15 @@ function emblemGlyph(seed: string): string {
 }
 
 /** [BM-013] [UX-IA-01] Member-visible, narrow-first House home shell. */
-export function HouseHomeView({ home }: { readonly home: HouseHome }) {
+export function HouseHomeView({
+  home,
+  shelf,
+  viewedAt,
+}: {
+  readonly home: HouseHome;
+  readonly shelf: MoveShelf;
+  readonly viewedAt: Date;
+}) {
   return (
     <div className="house-shell">
       <header className="house-masthead">
@@ -45,6 +54,8 @@ export function HouseHomeView({ home }: { readonly home: HouseHome }) {
             </p>
           </div>
         </section>
+
+        <MoveShelfView shelf={shelf} viewedAt={viewedAt} />
 
         <aside className="house-status" aria-labelledby="house-status-title">
           <p className="house-home__eyebrow">House status</p>

@@ -11,10 +11,14 @@ const home: HouseHome = {
   timeZone: 'Asia/Kolkata',
   membershipRole: 'owner',
 };
+const shelf = { yourMove: [], waiting: [], recent: [] } as const;
+const viewedAt = new Date('2026-09-07T12:00:00.000Z');
 
 describe('House home view', () => {
   it('[BM-013] [UX-IA-01] renders the member-visible House details', () => {
-    const html = renderToStaticMarkup(<HouseHomeView home={home} />);
+    const html = renderToStaticMarkup(
+      <HouseHomeView home={home} shelf={shelf} viewedAt={viewedAt} />,
+    );
 
     expect(html).toContain('<h1');
     expect(html).toContain('Knights at Dusk');
@@ -24,14 +28,18 @@ describe('House home view', () => {
   });
 
   it('[BM-013] [UX-IMG-01] gives the deterministic emblem the House name', () => {
-    const html = renderToStaticMarkup(<HouseHomeView home={home} />);
+    const html = renderToStaticMarkup(
+      <HouseHomeView home={home} shelf={shelf} viewedAt={viewedAt} />,
+    );
 
     expect(html).toContain('role="img"');
     expect(html).toContain('aria-label="Knights at Dusk emblem"');
   });
 
   it('[BM-013] [PR-DEF-02] gives a House without a description an on-voice prompt', () => {
-    const html = renderToStaticMarkup(<HouseHomeView home={{ ...home, description: null }} />);
+    const html = renderToStaticMarkup(
+      <HouseHomeView home={{ ...home, description: null }} shelf={shelf} viewedAt={viewedAt} />,
+    );
 
     expect(html).toContain('A quiet table, ready for the first game.');
   });

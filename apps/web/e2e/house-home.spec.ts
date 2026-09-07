@@ -12,6 +12,11 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 let database: Database | undefined;
 let world: TwoHousesWithMembers | undefined;
+const shelfSeasonId = '01941f29-7c00-7000-8000-000000000741';
+
+function shelfGameId(suffix: number): string {
+  return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
+}
 
 function requiredDatabaseUrl(): string {
   if (testDatabaseUrl === undefined) throw new Error('TEST_DATABASE_URL is required');
@@ -46,6 +51,100 @@ async function expectNoBlockingAxeViolations(page: Page): Promise<void> {
   ).toEqual([]);
 }
 
+async function seedMoveShelf(db: Database, seeded: TwoHousesWithMembers): Promise<void> {
+  await db.pool.query(
+    `insert into seasons (id, house_id, title, state, created_at, updated_at)
+     values ($1, $2, 'Shelf season', 'draft', '2026-09-01T00:00:00.000Z', '2026-09-01T00:00:00.000Z')`,
+    [shelfSeasonId, seeded.first.houseId],
+  );
+  const games = [
+    [
+      751,
+      seeded.first.member.membershipId,
+      seeded.first.nonOwner.membershipId,
+      'active',
+      'white',
+      null,
+      '2020-09-08T09:00:00.000Z',
+      null,
+    ],
+    [
+      752,
+      seeded.first.member.membershipId,
+      seeded.switchingMember.firstMembershipId,
+      'active',
+      'white',
+      null,
+      '2026-09-10T09:00:00.000Z',
+      null,
+    ],
+    [
+      753,
+      seeded.first.member.membershipId,
+      seeded.first.nonOwner.membershipId,
+      'active',
+      'black',
+      null,
+      '2026-09-09T09:00:00.000Z',
+      null,
+    ],
+    [
+      754,
+      seeded.switchingMember.firstMembershipId,
+      seeded.first.member.membershipId,
+      'active',
+      'white',
+      null,
+      '2026-09-12T09:00:00.000Z',
+      null,
+    ],
+    [
+      755,
+      seeded.first.member.membershipId,
+      seeded.first.nonOwner.membershipId,
+      'completed',
+      'black',
+      'draw',
+      null,
+      '2026-09-06T09:00:00.000Z',
+    ],
+    [
+      756,
+      seeded.switchingMember.firstMembershipId,
+      seeded.first.member.membershipId,
+      'completed',
+      'white',
+      'black_win',
+      null,
+      '2026-09-02T09:00:00.000Z',
+    ],
+  ] as const;
+
+  for (const [suffix, whiteId, blackId, state, sideToMove, result, dueAt, completedAt] of games) {
+    await db.pool.query(
+      `insert into games
+        (id, house_id, season_id, mode, state, white_membership_id, black_membership_id,
+         side_to_move, result, result_reason, clock_policy, move_due_at, completed_at, created_at)
+       values ($1, $2, $3, 'correspondence', $4, $5, $6, $7, $8,
+               case when $4 = 'completed' then 'agreement' else null end,
+               '{"kind":"correspondence","perMoveHours":48}', $9, $10,
+               '2026-09-01T00:00:00.000Z')`,
+      [
+        shelfGameId(suffix),
+        seeded.first.houseId,
+        shelfSeasonId,
+        state,
+        whiteId,
+        blackId,
+        sideToMove,
+        result,
+        dueAt,
+        completedAt,
+      ],
+    );
+  }
+}
+
 test.describe('member-scoped House home', () => {
   test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required for House E2E');
 
@@ -71,6 +170,7 @@ test.describe('member-scoped House home', () => {
         seeded.switchingMember.sessionToken,
       ],
     );
+    await seedMoveShelf(database, seeded);
   });
 
   test.afterAll(async () => {
@@ -111,6 +211,29 @@ test.describe('member-scoped House home', () => {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
+  });
+
+  test('[BM-026] [DR-SHELF-01] orders an accessible Move Shelf at 360 px', async ({ page }) => {
+    const seeded = fixture();
+    await openMemberHome(page, seeded, 360);
+
+    await expect(page.getByRole('heading', { name: 'Your move (2)' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Waiting (2)' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recently completed (2)' })).toBeVisible();
+    await expect(page.getByText('Move overdue', { exact: true }).first()).toBeVisible();
+    await expect(
+      page.locator('[data-shelf-group="your-move"] [data-game-id]').first(),
+    ).toHaveAttribute('data-game-id', shelfGameId(751));
+    await expect(
+      page.locator('[data-shelf-group="waiting"] [data-game-id]').first(),
+    ).toHaveAttribute('data-game-id', shelfGameId(753));
+    await expect(
+      page.locator('[data-shelf-group="recent"] [data-game-id]').first(),
+    ).toHaveAttribute('data-game-id', shelfGameId(755));
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await expectNoBlockingAxeViolations(page);
   });
 
   test('[BM-013] [PR-PLAT-05] non-Member receives 404 without other-House content', async ({
