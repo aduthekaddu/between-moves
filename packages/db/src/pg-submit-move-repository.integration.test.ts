@@ -6,7 +6,7 @@ import {
   type RulesAdapterResult,
   type SubmitMoveInput,
 } from '@between-moves/domain';
-import { fakeAuthorizationContext } from '@between-moves/domain/testing';
+import { FakeClock, fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -238,6 +238,43 @@ integration('PostgreSQL durable Move repository', () => {
         payload: expect.objectContaining({ ply: 1, uci: 'e2e4', sideToMove: 'black' }),
       }),
     ]);
+  });
+
+  it('[BM-025] [DR-CORR-01/03] advances each deadline by the snapshotted Game pace after a Charter change', async () => {
+    const clock = new FakeClock(receivedAt);
+
+    const firstMove = { ...input(30, 0, { from: 'e2', to: 'e4' }), receivedAt: clock.now() };
+    await expect(repository.submit(context(world, 'white'), firstMove)).resolves.toMatchObject({
+      clock: { kind: 'correspondence', moveDueAt: new Date('2026-09-04T09:00:00.000Z') },
+    });
+
+    await database.query(
+      'update season_charters set correspondence_pace_hours = 24 where id = $1',
+      [charterId],
+    );
+    clock.advance(6 * 60 * 60 * 1_000);
+
+    const secondMove = { ...input(31, 1, { from: 'e7', to: 'e5' }), receivedAt: clock.now() };
+    await expect(repository.submit(context(world, 'black'), secondMove)).resolves.toMatchObject({
+      clock: { kind: 'correspondence', moveDueAt: new Date('2026-09-04T15:00:00.000Z') },
+    });
+    await expect(
+      database.query(
+        `select g.clock_policy, g.move_due_at, c.correspondence_pace_hours
+           from games g
+           join season_charters c on c.id = $2
+          where g.id = $1`,
+        [gameId, charterId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          clock_policy: { kind: 'correspondence', perMoveHours: 48 },
+          move_due_at: new Date('2026-09-04T15:00:00.000Z'),
+          correspondence_pace_hours: 24,
+        },
+      ],
+    });
   });
 
   it('[BM-024] [DR-MOVE-04] concurrent duplicate command IDs return one canonical Move', async () => {

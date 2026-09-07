@@ -3,6 +3,7 @@ import {
   DomainError,
   MoveConflictError,
   RetryableTransactionError,
+  nextMoveDueAt,
   type AcceptedMoveClock,
   type AuthorizationContext,
   type ClockPolicy,
@@ -116,7 +117,7 @@ function clockAfterMove(row: LockedGameRow, clockPolicy: ClockPolicy, at: Date):
   if (clockPolicy.kind === 'correspondence') {
     return {
       kind: 'correspondence',
-      moveDueAt: new Date(at.getTime() + clockPolicy.perMoveHours * 60 * 60 * 1_000),
+      moveDueAt: nextMoveDueAt(at, clockPolicy),
     };
   }
   if (!(row.turn_started_at instanceof Date)) {
