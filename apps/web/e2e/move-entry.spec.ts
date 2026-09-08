@@ -215,7 +215,8 @@ test.describe('correspondence Move entry', () => {
     );
     await expect(page.getByTestId('turn-status')).toHaveText('Black to move');
     await expect(page.getByText('Move list (1)')).toBeVisible();
-    await expect(page.getByText('e4', { exact: true })).toBeVisible();
+    await page.getByText('Move list (1)').click();
+    await expect(page.locator('.move-list li')).toContainText('e4');
     await expect(page.getByRole('grid', { name: /Last move e2e4/ })).toBeVisible();
     await expect(page.locator('[role="gridcell"][aria-disabled="true"]')).toHaveCount(64);
     await expectNoBlockingAxeViolations(page);
