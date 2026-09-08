@@ -171,6 +171,7 @@ integration('PostgreSQL Game records', () => {
 
   it('[BM-021] [DR-SEAT-03] enforces one open Open seat per waiting Game', async () => {
     const waitingGameId = '01941f29-7c00-7000-8000-000000001051';
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await insertWaitingGame(database, world, {
       id: waitingGameId,
       mode: 'correspondence',
@@ -185,7 +186,7 @@ integration('PostgreSQL Game records', () => {
         waitingGameId,
         world.first.houseId,
         world.first.member.membershipId,
-        new Date('2026-09-08T00:00:00.000Z'),
+        expiresAt,
       ],
     );
 
@@ -199,7 +200,7 @@ integration('PostgreSQL Game records', () => {
           waitingGameId,
           world.first.houseId,
           world.first.member.membershipId,
-          new Date('2026-09-08T00:00:00.000Z'),
+          expiresAt,
         ],
       ),
     ).rejects.toMatchObject({ code: '23505', constraint: 'open_seats_one_open_per_game' });

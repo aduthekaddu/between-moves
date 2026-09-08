@@ -114,13 +114,13 @@ integration('PostgreSQL Game position query', () => {
     ).resolves.toBeNull();
 
     await database.query(`update memberships set status = 'left', left_at = now() where id = $1`, [
-      world.first.member.membershipId,
+      world.first.nonOwner.membershipId,
     ]);
     await expect(
       repository.readGamePosition(
         fakeAuthorizationContext({
           houseId: world.first.houseId,
-          viewerId: world.first.member.userId,
+          viewerId: world.first.nonOwner.userId,
         }),
         gameId,
       ),
