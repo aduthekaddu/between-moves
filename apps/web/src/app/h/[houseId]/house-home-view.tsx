@@ -55,7 +55,7 @@ export function HouseHomeView({
           </div>
         </section>
 
-        <MoveShelfView shelf={shelf} viewedAt={viewedAt} />
+        <MoveShelfView houseId={home.houseId} shelf={shelf} viewedAt={viewedAt} />
 
         <aside className="house-status" aria-labelledby="house-status-title">
           <p className="house-home__eyebrow">House status</p>

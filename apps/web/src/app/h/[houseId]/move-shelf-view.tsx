@@ -35,10 +35,12 @@ function Deadline({ dueAt, viewedAt }: { readonly dueAt: Date; readonly viewedAt
 }
 
 function ActiveGameCard({
+  houseId,
   game,
   viewedAt,
   kind,
 }: {
+  readonly houseId: string;
   readonly game: MoveShelfActiveGame;
   readonly viewedAt: Date;
   readonly kind: 'your-move' | 'waiting';
@@ -49,7 +51,10 @@ function ActiveGameCard({
 
   return (
     <li data-game-id={game.gameId}>
-      <article className={`move-card${overdue ? ' move-card--overdue' : ''}`}>
+      <a
+        className={`move-card${overdue ? ' move-card--overdue' : ''}`}
+        href={`/h/${encodeURIComponent(houseId)}/games/${encodeURIComponent(game.gameId)}`}
+      >
         <span className={`move-card__status${overdue ? ' move-card__status--overdue' : ''}`}>
           <span aria-hidden="true">{overdue ? '!' : kind === 'your-move' ? '●' : '◷'}</span>
           <span>{status}</span>
@@ -59,7 +64,7 @@ function ActiveGameCard({
           {kind === 'waiting' && overdue ? 'Move overdue · ' : ''}
           <Deadline dueAt={game.moveDueAt} viewedAt={viewedAt} />
         </span>
-      </article>
+      </a>
     </li>
   );
 }
@@ -106,9 +111,11 @@ function CompletedGameCard({
 
 /** [BM-026] [UX-CMP-02] Narrow-first, text-labelled Move Shelf. */
 export function MoveShelfView({
+  houseId,
   shelf,
   viewedAt,
 }: {
+  readonly houseId: string;
   readonly shelf: MoveShelf;
   readonly viewedAt: Date;
 }) {
@@ -136,6 +143,7 @@ export function MoveShelfView({
                 {shelf.yourMove.map((game) => (
                   <ActiveGameCard
                     key={game.gameId}
+                    houseId={houseId}
                     game={game}
                     viewedAt={viewedAt}
                     kind="your-move"
@@ -154,6 +162,7 @@ export function MoveShelfView({
                 {shelf.waiting.map((game) => (
                   <ActiveGameCard
                     key={game.gameId}
+                    houseId={houseId}
                     game={game}
                     viewedAt={viewedAt}
                     kind="waiting"

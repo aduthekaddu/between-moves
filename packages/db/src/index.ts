@@ -19,6 +19,7 @@ export { PgGameSeatRepository } from './pg-game-seat-repository';
 export { PgGameSeatAcceptanceRepository } from './pg-game-seat-acceptance-repository';
 export { PgSubmitMoveRepository } from './pg-submit-move-repository';
 export { PgMoveShelfRepository } from './pg-move-shelf-repository';
+export { PgGamePositionRepository } from './pg-game-position-repository';
 export { PgHouseAuthorizationMembershipRepository } from './pg-house-authorization-membership-repository';
 export { PgHouseHomeRepository } from './pg-house-home-repository';
 export { PgInvitationRepository } from './pg-invitation-repository';
