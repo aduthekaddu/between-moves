@@ -49,6 +49,16 @@ export type {
   ReadMoveShelfDependencies,
   ReadMoveShelfQuery,
 } from './move-shelf';
+export type {
+  GamePosition,
+  GamePositionMember,
+  GamePositionMove,
+  GamePositionReadRepository,
+  GamePositionResult,
+  GamePositionState,
+  ReadGamePositionDependencies,
+  ReadGamePositionQuery,
+} from './game-position';
 
 /** [BM-005] Logical Game module boundary; concrete ports are wired at composition roots. */
 export interface GamesPorts {

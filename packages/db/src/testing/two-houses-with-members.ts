@@ -222,6 +222,7 @@ export async function resetTwoHousesWithMembers(database: Pool): Promise<void> {
   try {
     await client.query('begin');
     await client.query('delete from invitations where house_id = any($1::uuid[])', [houseIds]);
+    await client.query('delete from outbox_events where house_id = any($1::uuid[])', [houseIds]);
     await client.query('delete from moves where house_id = any($1::uuid[])', [houseIds]);
     await client.query('delete from games where house_id = any($1::uuid[])', [houseIds]);
     await client.query('delete from seasons where house_id = any($1::uuid[])', [houseIds]);

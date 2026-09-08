@@ -39,7 +39,9 @@ const shelf: MoveShelf = {
 
 describe('Move Shelf view', () => {
   it('[BM-026] [DR-SHELF-01] renders ordered, labelled shelf sections and Games', () => {
-    const html = renderToStaticMarkup(<MoveShelfView shelf={shelf} viewedAt={viewedAt} />);
+    const html = renderToStaticMarkup(
+      <MoveShelfView houseId={houseId} shelf={shelf} viewedAt={viewedAt} />,
+    );
 
     expect(html.indexOf('Your move (2)')).toBeLessThan(html.indexOf('Waiting (1)'));
     expect(html.indexOf('Waiting (1)')).toBeLessThan(html.indexOf('Recently completed (1)'));
@@ -48,13 +50,17 @@ describe('Move Shelf view', () => {
     expect(html).toContain('Your move');
     expect(html).toContain('Waiting on Grace');
     expect(html).toContain('Draw');
-    expect(html).not.toContain(`/h/${houseId}/games/needs-overdue`);
+    expect(html).toContain(`/h/${houseId}/games/needs-overdue`);
     expect(html).toContain('<time');
   });
 
   it('[BM-026] [PR-COPY-03] renders the empty shelf prompt without dead controls', () => {
     const html = renderToStaticMarkup(
-      <MoveShelfView shelf={{ yourMove: [], waiting: [], recent: [] }} viewedAt={viewedAt} />,
+      <MoveShelfView
+        houseId={houseId}
+        shelf={{ yourMove: [], waiting: [], recent: [] }}
+        viewedAt={viewedAt}
+      />,
     );
 
     expect(html).toContain('No games yet. Challenge a member or take an open seat.');

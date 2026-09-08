@@ -98,6 +98,7 @@ export const nonHouseWriteExports = Object.freeze([
   'inspectInvitation',
   'readHouseSeason',
   'readHouseHome',
+  'readGamePosition',
   'readMoveShelf',
   'readScheduledNights',
 ]);
