@@ -1,17 +1,27 @@
 import {
   AesGcmMagicLinkDeliveryCodec,
+  generateUuidV7,
   IdempotentLoggingConsumer,
   ResendMagicLinkEmailSender,
+  ResendNudgeEmailSender,
   SystemClock,
 } from '@between-moves/adapters';
 import {
   createMagicLinkEmailConsumer,
+  createNudgeDispatcher,
+  createNudgeEmailConsumer,
   createOutboxDispatcher,
   MAGIC_LINK_EMAIL_TOPIC,
   type DispatchSummary,
+  type NudgeDispatchSummary,
 } from '@between-moves/application';
-import { createDatabase, PgOutboxRepository } from '@between-moves/db';
-import type { OutboxConsumer } from '@between-moves/domain';
+import {
+  createDatabase,
+  PgNudgeEmailReader,
+  PgNudgeRepository,
+  PgOutboxRepository,
+} from '@between-moves/db';
+import { NUDGE_DUE_TOPIC, type OutboxConsumer } from '@between-moves/domain';
 import {
   createDeliveryMetricStubs,
   createIdentityMetricStubs,
@@ -42,11 +52,22 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
         metrics: identityMetrics,
       }),
     });
+    const nudge = createNudgeEmailConsumer({
+      clock,
+      reader: new PgNudgeEmailReader(database.pool),
+      sender: new ResendNudgeEmailSender({
+        apiKey: requiredEnvironment('RESEND_API_KEY'),
+        from: 'Between Moves <nudges@betweenmoves.app>',
+      }),
+      metrics,
+    });
     const consumer: OutboxConsumer = {
       consume: (event) =>
         event.topic === MAGIC_LINK_EMAIL_TOPIC
           ? magicLink.consume(event)
-          : fallback.consume(event),
+          : event.topic === NUDGE_DUE_TOPIC
+            ? nudge.consume(event)
+            : fallback.consume(event),
     };
     const dispatcher = createOutboxDispatcher({
       clock,
@@ -66,6 +87,38 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       outcome: 'success',
       durationMs: 0,
       data: { ...summary, ...metrics.snapshot(), ...identityMetrics.snapshot() },
+    });
+    return summary;
+  } finally {
+    await database.close();
+  }
+}
+
+/** [BM-029] Scheduled, bounded Nudge scan composed only at the worker edge. */
+export async function runNudgeDispatcher(): Promise<NudgeDispatchSummary> {
+  const clock = new SystemClock();
+  const logger = createStructuredLogger({ clock, sink: (line) => console.log(line) });
+  const metrics = createDeliveryMetricStubs();
+  const database = createDatabase(requiredEnvironment('DATABASE_URL'));
+
+  try {
+    const summary = await createNudgeDispatcher({
+      clock,
+      generateId: () => generateUuidV7(clock.now().getTime()),
+      repository: new PgNudgeRepository(database.pool),
+      metrics,
+    }).dispatch();
+    logger.log({
+      level: 'info',
+      requestId: 'worker',
+      actorId: 'anonymous',
+      houseId: null,
+      gameId: null,
+      commandId: null,
+      event: 'delivery.nudge-dispatch-complete',
+      outcome: 'success',
+      durationMs: 0,
+      data: { ...summary, ...metrics.snapshot() },
     });
     return summary;
   } finally {

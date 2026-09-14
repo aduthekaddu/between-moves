@@ -33,11 +33,17 @@ function dependencies(repository: Partial<SubmitMoveRepository> = {}) {
       sideToMove: 'black' as const,
       version: 1,
       clock: { kind: 'correspondence' as const, moveDueAt: new Date('2026-09-04T08:00:00Z') },
+      completedNow: false,
       replayed: false,
     })),
     ...repository,
   };
-  const ids = ['01941f29-7c00-7000-8000-000000000501', '01941f29-7c00-7000-8000-000000000502'];
+  const ids = [
+    '01941f29-7c00-7000-8000-000000000501',
+    '01941f29-7c00-7000-8000-000000000502',
+    '01941f29-7c00-7000-8000-000000000503',
+    '01941f29-7c00-7000-8000-000000000504',
+  ];
   return {
     authorizeHouseAction: vi.fn(async () => context),
     clock: { now: vi.fn(() => receivedAt) },
@@ -72,6 +78,8 @@ describe('BM-024 durable Move command', () => {
       move: request.move,
       moveId: '01941f29-7c00-7000-8000-000000000501',
       outboxEventId: '01941f29-7c00-7000-8000-000000000502',
+      completedEventId: '01941f29-7c00-7000-8000-000000000503',
+      analysisEventId: '01941f29-7c00-7000-8000-000000000504',
       receivedAt,
       rules: deps.rules,
     });
@@ -111,6 +119,7 @@ describe('BM-024 durable Move command', () => {
       sideToMove: 'black' as const,
       version: 1,
       clock: { kind: 'correspondence' as const, moveDueAt: new Date('2026-09-04T08:00:00Z') },
+      completedNow: false,
       replayed: false,
     };
     vi.mocked(deps.moves.submit)

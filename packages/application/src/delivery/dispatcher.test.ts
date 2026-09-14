@@ -1,8 +1,9 @@
-import type {
-  ClaimedOutboxEvent,
-  OutboxConsumer,
-  OutboxMetrics,
-  OutboxRepository,
+import {
+  PermanentOutboxError,
+  type ClaimedOutboxEvent,
+  type OutboxConsumer,
+  type OutboxMetrics,
+  type OutboxRepository,
 } from '@between-moves/domain';
 import { FakeClock } from '@between-moves/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
@@ -92,6 +93,21 @@ describe('outbox dispatcher', () => {
   it('[BM-006] DR-DELIV-03 parks an event after its eighth failed attempt', async () => {
     const { dispatcher, repository } = harness(event(8), async () => {
       throw new Error('poison event');
+    });
+
+    await expect(dispatcher.dispatchBatch()).resolves.toEqual({
+      claimed: 1,
+      sent: 0,
+      retried: 0,
+      failed: 1,
+    });
+    expect(repository.markFailed).toHaveBeenCalledWith('01941f29-7c00-7000-8000-000000000101', NOW);
+    expect(repository.releaseForRetry).not.toHaveBeenCalled();
+  });
+
+  it('[BM-029] parks a permanent provider failure without retrying', async () => {
+    const { dispatcher, repository } = harness(event(1), async () => {
+      throw new PermanentOutboxError('provider dedupe window expired');
     });
 
     await expect(dispatcher.dispatchBatch()).resolves.toEqual({

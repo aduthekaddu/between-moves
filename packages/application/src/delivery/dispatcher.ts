@@ -1,5 +1,6 @@
 import {
   OUTBOX_MAX_ATTEMPTS,
+  PermanentOutboxError,
   type ClaimedOutboxEvent,
   type DeliveryPorts,
   type OutboxConsumer,
@@ -73,8 +74,8 @@ async function dispatchOne(
     await config.consumer.consume(event);
     await config.repository.markSent(event.id, now);
     return { claimed: 1, sent: 1, retried: 0, failed: 0 };
-  } catch {
-    if (event.attempts >= config.maxAttempts) {
+  } catch (error) {
+    if (error instanceof PermanentOutboxError || event.attempts >= config.maxAttempts) {
       await config.repository.markFailed(event.id, now);
       return { claimed: 1, sent: 0, retried: 0, failed: 1 };
     }

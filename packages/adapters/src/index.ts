@@ -4,6 +4,12 @@ export { CryptoGameSeatColorChooser } from './game-seat-color';
 export { SecureInvitationTokenIssuer } from './invitation-token';
 export { generateUuidV7 } from './uuid-v7';
 export { ChessJsRulesAdapter } from './chess-js-rules-adapter';
+export {
+  ResendNudgeEmailSender,
+  TestNudgeEmailSender,
+  type ResendNudgeEmailSenderOptions,
+  type TestNudgeDelivery,
+} from './nudge-email';
 
 export {
   AesGcmMagicLinkDeliveryCodec,

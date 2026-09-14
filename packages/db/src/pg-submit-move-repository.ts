@@ -15,6 +15,7 @@ import {
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { enqueueOutboxEvent } from './enqueue-outbox-event';
+import { enqueueGameCompletionEvents } from './game-completion-events';
 
 interface LockedGameRow extends QueryResultRow {
   readonly actor_membership_id: unknown;
@@ -27,6 +28,7 @@ interface LockedGameRow extends QueryResultRow {
   readonly current_ply: unknown;
   readonly side_to_move: unknown;
   readonly version: unknown;
+  readonly outbox_sequence: unknown;
   readonly clock_policy: unknown;
   readonly white_clock_ms: unknown;
   readonly black_clock_ms: unknown;
@@ -57,6 +59,11 @@ function integer(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value))
     throw new Error(`Invalid Move ${field}`);
   return value;
+}
+
+function bigInteger(value: unknown, field: string): bigint {
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) throw new Error(`Invalid Move ${field}`);
+  return BigInt(value);
 }
 
 function side(value: unknown): SideToMove {
@@ -100,6 +107,7 @@ async function loadGame(
     `select actor.id::text as actor_membership_id, g.state, g.mode,
             g.white_membership_id::text, g.black_membership_id::text,
             g.initial_fen, g.current_fen, g.current_ply, g.side_to_move, g.version,
+            g.outbox_sequence::text,
             g.clock_policy, g.white_clock_ms, g.black_clock_ms, g.turn_started_at
        from games g
        join memberships actor
@@ -191,6 +199,7 @@ async function replay(
     sideToMove: sideFromFen(fenAfter),
     version: integer(row.accepted_version, 'accepted version'),
     clock,
+    completedNow: false,
     replayed: true,
   };
 }
@@ -264,6 +273,9 @@ async function submitInTransaction(
   );
   if (!applied.legal) throw new DomainError('validation_failed', 'Move is not legal');
   if (applied.ply !== currentPly + 1) throw new Error('Rules adapter returned an invalid ply');
+  if ((applied.terminalState === 'ongoing') !== (applied.terminalReason === null)) {
+    throw new Error('Rules adapter returned inconsistent terminal state');
+  }
 
   const acceptedClock = clockAfterMove(game, clockPolicy, input.receivedAt);
   const terminal = completion(applied.terminalReason, applied.sideToMove);
@@ -276,6 +288,8 @@ async function submitInTransaction(
       ? { whiteMs: acceptedClock.whiteMs, blackMs: acceptedClock.blackMs }
       : null;
   const nextVersion = version + 1;
+  const firstEventSequence = bigInteger(game.outbox_sequence, 'outbox sequence') + 1n;
+  const lastEventSequence = firstEventSequence + (terminal.state === 'completed' ? 2n : 0n);
 
   await client.query(
     `insert into moves
@@ -302,7 +316,9 @@ async function submitInTransaction(
         set current_fen=$3, current_ply=$4, side_to_move=$5, version=$6,
             state=$7, result=$8, result_reason=$9, completed_at=$10,
             move_due_at=$11,
-            turn_started_at=case when mode='live' and $7='active' then $12::timestamptz else null end
+            draw_offer_membership_id=null, draw_offer_ply=null,
+            turn_started_at=case when mode='live' and $7='active' then $12::timestamptz else null end,
+            outbox_sequence=$13
       where id=$1 and house_id=$2`,
     [
       input.gameId,
@@ -317,6 +333,7 @@ async function submitInTransaction(
       terminal.state === 'completed' ? input.receivedAt : null,
       moveDueAt,
       input.receivedAt,
+      lastEventSequence.toString(),
     ],
   );
   const payload = {
@@ -336,7 +353,7 @@ async function submitInTransaction(
       id: input.outboxEventId,
       topic: 'game.move-accepted',
       aggregateId: input.gameId,
-      sequence: BigInt(nextVersion),
+      sequence: firstEventSequence,
       houseId: context.houseId,
       payload,
       availableAt: input.receivedAt,
@@ -344,6 +361,21 @@ async function submitInTransaction(
     },
     client,
   );
+  if (terminal.state === 'completed') {
+    await enqueueGameCompletionEvents(
+      context,
+      {
+        gameId: input.gameId,
+        completedEventId: input.completedEventId,
+        analysisEventId: input.analysisEventId,
+        result: terminal.result,
+        resultReason: terminal.resultReason,
+        completedAt: input.receivedAt,
+        firstSequence: firstEventSequence + 1n,
+      },
+      client,
+    );
+  }
   return {
     gameId: input.gameId,
     houseId: context.houseId,
@@ -357,6 +389,7 @@ async function submitInTransaction(
       acceptedClock.kind === 'correspondence'
         ? { kind: 'correspondence', moveDueAt }
         : acceptedClock,
+    completedNow: terminal.state === 'completed',
     replayed: false,
   };
 }

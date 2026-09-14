@@ -10,6 +10,18 @@ export type {
   SideToMove,
 } from './rules-adapter';
 export type { ClockPolicy, CorrespondenceClockPolicy, LiveClockPolicy } from './clock-policy';
+export type {
+  CompletedGameResult,
+  DrawGameInput,
+  DrawGameRequest,
+  GameCompletionDependencies,
+  GameCompletionInput,
+  GameCompletionReason,
+  GameCompletionRepository,
+  GameLifecycleResult,
+  PendingDrawOffer,
+  ResignGameRequest,
+} from './complete';
 export { nextMoveDueAt } from './deadlines';
 export type {
   AcceptGameSeatRequest,

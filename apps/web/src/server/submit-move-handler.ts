@@ -183,6 +183,24 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
       } catch {
         // A committed Move remains successful when diagnostics are unavailable.
       }
+      if (result.completedNow) {
+        try {
+          dependencies.logger.log({
+            level: 'info',
+            requestId: requestId(request),
+            actorId: viewer.userId,
+            houseId: result.houseId,
+            gameId: result.gameId,
+            commandId: command.clientCommandId,
+            event: 'game.completed',
+            outcome: 'success',
+            durationMs,
+            data: { source: 'move' },
+          });
+        } catch {
+          // A committed completion remains successful when diagnostics are unavailable.
+        }
+      }
       return Response.json(
         {
           ply: result.ply,

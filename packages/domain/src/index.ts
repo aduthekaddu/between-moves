@@ -154,6 +154,14 @@ export type {
   ChessSquare,
   ClockPolicy,
   CorrespondenceClockPolicy,
+  CompletedGameResult,
+  DrawGameInput,
+  DrawGameRequest,
+  GameCompletionDependencies,
+  GameCompletionInput,
+  GameCompletionReason,
+  GameCompletionRepository,
+  GameLifecycleResult,
   GamesPorts,
   GamePosition,
   GamePositionMember,
@@ -171,6 +179,7 @@ export type {
   MoveShelfYourMoveGame,
   MoveTerminalReason,
   MoveTerminalState,
+  PendingDrawOffer,
   AcceptedMoveClock,
   MoveConflictSnapshot,
   RulesAdapter,
@@ -185,6 +194,7 @@ export type {
   SubmitMoveRepository,
   SubmitMoveRequest,
   SubmitMoveResult,
+  ResignGameRequest,
 } from './games';
 export {
   creatorColorForOffer,
@@ -228,12 +238,24 @@ export type {
   ReadScheduledNightsRequest,
 } from './nights';
 export type { StoriesPorts } from './stories';
-export { OUTBOX_MAX_ATTEMPTS } from './delivery';
+export { NUDGE_DUE_TOPIC, OUTBOX_MAX_ATTEMPTS, PermanentOutboxError } from './delivery';
 export type {
   ClaimedOutboxEvent,
   ClaimOutboxBatch,
   DeliveryPorts,
+  DueNudge,
+  FindDueNudges,
   NewOutboxEvent,
+  NudgeEmail,
+  NudgeEmailReader,
+  NudgeEmailSender,
+  NudgeEmailSendResult,
+  NudgeEnqueueOutcome,
+  NudgeMetrics,
+  NudgeOutboxEvent,
+  NudgeRepository,
+  NudgeSendOutcome,
+  NudgeStage,
   OutboxConsumer,
   OutboxConsumeResult,
   OutboxMetrics,

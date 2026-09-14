@@ -21,16 +21,25 @@ export type { GamesUseCase } from './games';
 export {
   acceptGameSeat,
   createGameSeat,
+  handleDraw,
   readGamePosition,
   readMoveShelf,
+  resignGame,
   submitMove,
 } from './games';
 export type { NightsUseCase } from './nights';
 export { changeNightSchedule, readScheduledNights } from './nights';
 export type { StoriesUseCase } from './stories';
 export {
+  createNudgeDispatcher,
+  createNudgeEmailConsumer,
   createOutboxDispatcher,
+  DEFAULT_NUDGE_ADVANCE_WINDOW_MS,
+  NUDGE_PROVIDER_RETRY_WINDOW_MS,
   type DispatchSummary,
+  type NudgeDispatcher,
+  type NudgeDispatcherOptions,
+  type NudgeDispatchSummary,
   type OutboxDispatcher,
   type OutboxDispatcherOptions,
 } from './delivery';

@@ -36,6 +36,25 @@ function validBody() {
   return { expectedPly: 0, clientCommandId, move: { from: 'e2', to: 'e4' } };
 }
 
+function acceptedResult(completedNow = false) {
+  return {
+    gameId,
+    houseId,
+    ply: 1,
+    uci: 'e2e4',
+    san: 'e4',
+    fenAfter: 'canonical-fen',
+    sideToMove: 'black' as const,
+    version: 1,
+    clock: {
+      kind: 'correspondence' as const,
+      moveDueAt: new Date('2026-09-04T08:00:00.000Z'),
+    },
+    completedNow,
+    replayed: false,
+  };
+}
+
 function dependencies(
   overrides: Partial<SubmitMoveHandlerDependencies> = {},
 ): SubmitMoveHandlerDependencies {
@@ -53,21 +72,7 @@ function dependencies(
     expectedOrigin: 'https://app.example.test',
     requireViewer: vi.fn(async () => viewer),
     limitMove: vi.fn(async () => ({ allowed: true, retryAfterSeconds: 0 })),
-    submitMove: vi.fn(async () => ({
-      gameId,
-      houseId,
-      ply: 1,
-      uci: 'e2e4',
-      san: 'e4',
-      fenAfter: 'canonical-fen',
-      sideToMove: 'black' as const,
-      version: 1,
-      clock: {
-        kind: 'correspondence' as const,
-        moveDueAt: new Date('2026-09-04T08:00:00.000Z'),
-      },
-      replayed: false,
-    })),
+    submitMove: vi.fn(async () => acceptedResult()),
     logger: { log: vi.fn() } satisfies StructuredLogger,
     metrics,
     clock: {
@@ -133,6 +138,21 @@ describe('BM-024 submit Move HTTP boundary', () => {
       meta: { version: 4, currentPly: 3, fen: 'current-fen' },
     });
     expect(deps.metrics.incrementMoveConflict).toHaveBeenCalledOnce();
+  });
+
+  it('[BM-028] logs game.completed when the accepted Move is terminal', async () => {
+    const deps = dependencies();
+    vi.mocked(deps.submitMove).mockResolvedValue(acceptedResult(true));
+
+    await createSubmitMoveHandler(deps)(request(), houseId, gameId);
+
+    expect(deps.logger.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'game.completed',
+        commandId: clientCommandId,
+        data: { source: 'move' },
+      }),
+    );
   });
 
   it('[BM-024] maps seat/turn denial, illegal Moves, and rate limits safely', async () => {

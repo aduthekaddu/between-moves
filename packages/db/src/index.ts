@@ -9,6 +9,8 @@ export { DrizzleHouseReferenceRepository } from './house-reference-repository';
 export { enqueueOutboxEvent } from './enqueue-outbox-event';
 export type { OutboxTransaction } from './enqueue-outbox-event';
 export { PgOutboxRepository } from './outbox-repository';
+export { PgNudgeEmailReader } from './pg-nudge-email-reader';
+export { PgNudgeRepository } from './pg-nudge-repository';
 
 export { PgMagicLinkOutboxWriter } from './magic-link-outbox-writer';
 
@@ -18,6 +20,7 @@ export { PgHouseCreationRepository } from './pg-house-creation-repository';
 export { PgGameSeatRepository } from './pg-game-seat-repository';
 export { PgGameSeatAcceptanceRepository } from './pg-game-seat-acceptance-repository';
 export { PgSubmitMoveRepository } from './pg-submit-move-repository';
+export { PgGameCompletionRepository } from './pg-game-completion-repository';
 export { PgMoveShelfRepository } from './pg-move-shelf-repository';
 export { PgGamePositionRepository } from './pg-game-position-repository';
 export { PgHouseAuthorizationMembershipRepository } from './pg-house-authorization-membership-repository';

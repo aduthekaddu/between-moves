@@ -10,6 +10,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -412,6 +413,7 @@ export const games = pgTable(
     result: text('result'),
     resultReason: text('result_reason'),
     version: integer('version').default(0).notNull(),
+    outboxSequence: bigint('outbox_sequence', { mode: 'bigint' }).default(0n).notNull(),
     clockPolicy: jsonb('clock_policy').$type<ClockPolicy>().notNull(),
     whiteClockMs: integer('white_clock_ms'),
     blackClockMs: integer('black_clock_ms'),
@@ -419,6 +421,8 @@ export const games = pgTable(
     moveDueAt: timestamp('move_due_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    drawOfferMembershipId: uuid('draw_offer_membership_id'),
+    drawOfferPly: integer('draw_offer_ply'),
   },
   (table) => [
     unique('games_id_house_unique').on(table.id, table.houseId),
@@ -442,6 +446,11 @@ export const games = pgTable(
       foreignColumns: [memberships.id, memberships.houseId],
       name: 'games_black_membership_house_fk',
     }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.drawOfferMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'games_draw_offer_membership_house_fk',
+    }).onDelete('restrict'),
     index('games_house_season_state_idx').on(table.houseId, table.seasonId, table.state),
     index('games_night_state_idx')
       .on(table.nightId, table.state)
@@ -458,6 +467,7 @@ export const games = pgTable(
       sql`${table.state} in ('waiting', 'active', 'completed', 'cancelled')`,
     ),
     check('games_side_to_move_check', sql`${table.sideToMove} in ('white', 'black')`),
+    check('games_outbox_sequence_check', sql`${table.outboxSequence} >= 0`),
     check(
       'games_result_check',
       sql`${table.result} is null or ${table.result} in ('white_win', 'black_win', 'draw', 'aborted')`,
@@ -475,6 +485,13 @@ export const games = pgTable(
       sql`${table.state} <> 'active' or (${table.whiteMembershipId} is not null and ${table.blackMembershipId} is not null)`,
     ),
     check('games_position_counters_check', sql`${table.currentPly} >= 0 and ${table.version} >= 0`),
+    check(
+      'games_draw_offer_shape_check',
+      sql`(${table.drawOfferMembershipId} is null and ${table.drawOfferPly} is null)
+        or (${table.state} = 'active' and ${table.drawOfferMembershipId} is not null
+          and ${table.drawOfferMembershipId} in (${table.whiteMembershipId}, ${table.blackMembershipId})
+          and ${table.drawOfferPly} = ${table.currentPly} and ${table.drawOfferPly} >= 0)`,
+    ),
     check('games_night_mode_check', sql`${table.nightId} is null or ${table.mode} = 'live'`),
     check(
       'games_clock_policy_shape_check',
@@ -507,6 +524,82 @@ export const games = pgTable(
       sql`(${table.mode} = 'correspondence' and ${table.whiteClockMs} is null and ${table.blackClockMs} is null and ${table.turnStartedAt} is null)
         or (${table.mode} = 'live' and ${table.whiteClockMs} is not null and ${table.whiteClockMs} >= 0
           and ${table.blackClockMs} is not null and ${table.blackClockMs} >= 0 and ${table.moveDueAt} is null)`,
+    ),
+  ],
+);
+
+/** [BM-029] [DR-CORR-04] One durable delivery record per Nudge natural key. */
+export const nudgeDeliveries = pgTable(
+  'nudge_deliveries',
+  {
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    ply: integer('ply').notNull(),
+    recipientMembershipId: uuid('recipient_membership_id').notNull(),
+    stage: text('stage').notNull(),
+    moveDueAt: timestamp('move_due_at', { withTimezone: true }).notNull(),
+    outboxEventId: uuid('outbox_event_id').notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.gameId, table.ply, table.recipientMembershipId, table.stage],
+    }),
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'nudge_deliveries_game_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.recipientMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'nudge_deliveries_recipient_house_fk',
+    }).onDelete('restrict'),
+    index('nudge_deliveries_house_created_idx').on(table.houseId, table.createdAt),
+    check('nudge_deliveries_ply_check', sql`${table.ply} >= 0`),
+    check('nudge_deliveries_stage_check', sql`${table.stage} in ('advance', 'overdue')`),
+    check('nudge_deliveries_outbox_event_uuid_v7_check', sql`is_uuid_v7(${table.outboxEventId})`),
+  ],
+);
+
+/** [BM-028] [DR-DRAW-02] Durable idempotency ledger for resignation and draw commands. */
+export const gameLifecycleCommands = pgTable(
+  'game_lifecycle_commands',
+  {
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    actorMembershipId: uuid('actor_membership_id').notNull(),
+    clientCommandId: uuid('client_command_id').notNull(),
+    action: text('action').notNull(),
+    commandPly: integer('command_ply').notNull(),
+    outcome: jsonb('outcome').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.gameId, table.clientCommandId] }),
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'game_lifecycle_commands_game_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.actorMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'game_lifecycle_commands_actor_house_fk',
+    }).onDelete('restrict'),
+    index('game_lifecycle_commands_house_game_idx').on(table.houseId, table.gameId),
+    check(
+      'game_lifecycle_commands_action_check',
+      sql`${table.action} in ('resign', 'draw_offer', 'draw_accept')`,
+    ),
+    check('game_lifecycle_commands_ply_check', sql`${table.commandPly} >= 0`),
+    check(
+      'game_lifecycle_commands_client_command_uuid_v7_check',
+      sql`is_uuid_v7(${table.clientCommandId})`,
     ),
   ],
 );
