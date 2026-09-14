@@ -21,6 +21,8 @@ export interface SubmitMoveInput {
   readonly move: ChessMoveProposal;
   readonly moveId: string;
   readonly outboxEventId: string;
+  readonly completedEventId: string;
+  readonly analysisEventId: string;
   readonly receivedAt: Date;
   readonly rules: RulesAdapter;
 }
@@ -44,6 +46,7 @@ export interface SubmitMoveResult {
   readonly sideToMove: SideToMove;
   readonly version: number;
   readonly clock: AcceptedMoveClock;
+  readonly completedNow: boolean;
   readonly replayed: boolean;
 }
 

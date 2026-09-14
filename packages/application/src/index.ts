@@ -21,8 +21,10 @@ export type { GamesUseCase } from './games';
 export {
   acceptGameSeat,
   createGameSeat,
+  handleDraw,
   readGamePosition,
   readMoveShelf,
+  resignGame,
   submitMove,
 } from './games';
 export type { NightsUseCase } from './nights';
