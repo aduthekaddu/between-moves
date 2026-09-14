@@ -14,6 +14,7 @@ const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
 const seasonId = '01941f29-7c00-7000-8000-000000000701';
+const charterId = '01941f29-7c00-7000-8000-000000000702';
 const occurredAt = new Date('2026-09-10T09:00:00.000Z');
 const standardFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -124,8 +125,22 @@ function actorContext(world: TwoHousesWithMembers, fen: string) {
 async function seedSeason(database: Pool, world: TwoHousesWithMembers): Promise<void> {
   await database.query(
     `insert into seasons (id, house_id, title, state, created_at, updated_at)
-     values ($1,$2,'Terminal replay','active',$3,$3)`,
+     values ($1,$2,'Terminal replay','draft',$3,$3)`,
     [seasonId, world.first.houseId, occurredAt],
+  );
+  await database.query(
+    `insert into season_charters
+      (id, season_id, version, correspondence_pace_hours, night_recurrence, points_recipe,
+       published_at, created_at)
+     values ($1, $2, 1, 48, '{"weekday":5,"localTime":"19:30","count":4}', '{}', $3, $3)`,
+    [charterId, seasonId, occurredAt],
+  );
+  await database.query(
+    `update seasons
+        set state = 'active', starts_at = $2, ends_at = $3,
+            published_charter_version = 1, updated_at = $2
+      where id = $1`,
+    [seasonId, occurredAt, new Date('2026-10-08T09:00:00.000Z')],
   );
 }
 
