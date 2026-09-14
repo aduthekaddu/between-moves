@@ -8,10 +8,12 @@ import {
   draftSeason,
   draftSeasonCharter,
   leaveHouse,
+  handleDraw,
   redeemInvitation,
   removeHouseMember,
   publishSeason,
   revokeInvitation,
+  resignGame,
   submitMove,
   transferHouseOwnership,
 } from '@between-moves/application';
@@ -21,6 +23,7 @@ import {
   PgHouseAuthorizationMembershipRepository,
   PgGameSeatAcceptanceRepository,
   PgGameSeatRepository,
+  PgGameCompletionRepository,
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
@@ -35,6 +38,7 @@ import type {
   Clock,
   GameSeatAcceptanceRepository,
   GameSeatCreationRepository,
+  GameCompletionRepository,
   IdGenerator,
   InvitationCreationRepository,
   InvitationRedemptionRepository,
@@ -85,6 +89,7 @@ interface IsolationHarness {
   readonly seasons: SeasonRepository;
   readonly transitions: SeasonTransitionRecorder;
   readonly moves: SubmitMoveRepository;
+  readonly completions: GameCompletionRepository;
   readonly rules: RulesAdapter;
 }
 
@@ -339,6 +344,39 @@ const cases: readonly IsolationCase[] = [
         harness,
       ),
   },
+  {
+    id: 'game.resign',
+    name: 'Game resignation',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      resignGame(
+        {
+          houseId: harness.world.second.houseId,
+          gameId: activeGameId,
+          clientCommandId: '01941f29-7c00-7000-8000-000000000978',
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
+  {
+    id: 'game.draw',
+    name: 'Game draw offer',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      handleDraw(
+        {
+          houseId: harness.world.second.houseId,
+          gameId: activeGameId,
+          action: 'offer',
+          clientCommandId: '01941f29-7c00-7000-8000-000000000979',
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -550,6 +588,7 @@ integration('BM-017 current House write-path isolation', () => {
       seasons,
       transitions: { record: () => undefined },
       moves: new PgSubmitMoveRepository(database),
+      completions: new PgGameCompletionRepository(database),
       rules: {
         applyMove: () => {
           throw new Error('Cross-House Move must not reach the rules adapter');

@@ -83,6 +83,38 @@ const transitions: readonly Transition[] = [
   },
 ];
 
+const terminalCases = [
+  {
+    name: 'checkmate',
+    reason: 'checkmate' as const,
+    result: 'white_win' as const,
+    sideToMove: 'black' as const,
+    terminalState: 'checkmate' as const,
+  },
+  {
+    name: 'stalemate',
+    reason: 'stalemate' as const,
+    result: 'draw' as const,
+    sideToMove: 'black' as const,
+    terminalState: 'stalemate' as const,
+  },
+] as const;
+
+function terminalRules(terminal: (typeof terminalCases)[number]): RulesAdapter {
+  return {
+    applyMove: () => ({
+      legal: true,
+      uci: 'e2e4',
+      san: terminal.reason === 'checkmate' ? 'e4#' : 'e4',
+      fen: positions.e4,
+      sideToMove: terminal.sideToMove,
+      ply: 1,
+      terminalState: terminal.terminalState,
+      terminalReason: terminal.reason,
+    }),
+  };
+}
+
 class SequenceRulesAdapter implements RulesAdapter {
   applyMove(fen: string, move: ChessMoveProposal): RulesAdapterResult {
     const uci = `${move.from}${move.to}${move.promotion ?? ''}`;
@@ -136,6 +168,8 @@ function input(
     move,
     moveId: id(900 + sequence),
     outboxEventId: id(1_000 + sequence),
+    completedEventId: id(1_100 + sequence),
+    analysisEventId: id(1_200 + sequence),
     receivedAt: new Date(receivedAt.getTime() + sequence * 1_000),
     rules: adapter,
   };
@@ -211,6 +245,7 @@ integration('PostgreSQL durable Move repository', () => {
       sideToMove: 'black',
       version: 1,
       clock: { kind: 'correspondence', moveDueAt: new Date('2026-09-04T09:00:01.000Z') },
+      completedNow: false,
       replayed: false,
     });
     const persisted = await database.query(
@@ -409,6 +444,88 @@ integration('PostgreSQL durable Move repository', () => {
         [gameId],
       ),
     ).resolves.toMatchObject({ rows: [{ current_ply: 0, version: 0, moves: 0, events: 0 }] });
+  });
+
+  it.each(terminalCases)(
+    '[BM-028] completes a terminal $name Move with scoring and analysis events',
+    async (terminal) => {
+      await expect(
+        repository.submit(
+          context(world, 'white'),
+          input(40, 0, { from: 'e2', to: 'e4' }, id(870), terminalRules(terminal)),
+        ),
+      ).resolves.toMatchObject({ completedNow: true, clock: { moveDueAt: null } });
+      const persisted = await database.query(
+        `select g.state, g.result, g.result_reason, g.completed_at,
+              o.topic, o.sequence::text, o.payload
+         from games g join outbox_events o on o.aggregate_id=g.id
+        where g.id=$1 order by o.sequence`,
+        [gameId],
+      );
+      expect(persisted.rows).toEqual([
+        expect.objectContaining({ topic: 'game.move-accepted', sequence: '1' }),
+        expect.objectContaining({
+          state: 'completed',
+          result: terminal.result,
+          result_reason: terminal.reason,
+          topic: 'game.completed',
+          sequence: '2',
+          payload: expect.objectContaining({
+            result: terminal.result,
+            resultReason: terminal.reason,
+          }),
+        }),
+        expect.objectContaining({ topic: 'game.analysis-requested', sequence: '3' }),
+      ]);
+    },
+  );
+
+  it("[BM-028] [DR-DRAW-02] clears a pending draw offer on the opponent's legal Move", async () => {
+    await database.query(
+      'update games set draw_offer_membership_id=$2, draw_offer_ply=0 where id=$1',
+      [gameId, world.first.nonOwner.membershipId],
+    );
+
+    await repository.submit(context(world, 'white'), input(41, 0, { from: 'e2', to: 'e4' }));
+
+    await expect(
+      database.query('select draw_offer_membership_id, draw_offer_ply from games where id=$1', [
+        gameId,
+      ]),
+    ).resolves.toMatchObject({
+      rows: [{ draw_offer_membership_id: null, draw_offer_ply: null }],
+    });
+  });
+
+  it('[BM-028] rolls back a terminal Move when either completion event cannot be appended', async () => {
+    const command = input(
+      42,
+      0,
+      { from: 'e2', to: 'e4' },
+      id(1_500),
+      terminalRules(terminalCases[0]),
+    );
+    await database.query(
+      `insert into outbox_events
+        (id, topic, aggregate_id, sequence, house_id, payload, available_at, created_at)
+       values ($1,'seed.event',$2,1,null,'{}',$3,$3)`,
+      [command.completedEventId, id(1_901), command.receivedAt],
+    );
+
+    await expect(repository.submit(context(world, 'white'), command)).rejects.toMatchObject({
+      code: '23505',
+    });
+    await expect(
+      database.query(
+        `select g.state, g.result, g.current_ply,
+                (select count(*)::int from moves m where m.game_id=g.id) moves,
+                (select count(*)::int from outbox_events o where o.aggregate_id=g.id) events
+           from games g where g.id=$1`,
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [{ state: 'active', result: null, current_ply: 0, moves: 0, events: 0 }],
+    });
   });
 
   it('[BM-024] [DR-GAME-03] replaying durable Moves reproduces the Game snapshot', async () => {

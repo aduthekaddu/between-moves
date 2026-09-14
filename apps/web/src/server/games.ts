@@ -8,17 +8,21 @@ import {
   acceptGameSeat,
   createAuthorizeHouseAction,
   createGameSeat,
+  handleDraw,
+  resignGame,
   submitMove,
 } from '@between-moves/application';
 import {
   PgGameSeatAcceptanceRepository,
   PgGameSeatRepository,
+  PgGameCompletionRepository,
   PgHouseAuthorizationMembershipRepository,
   PgSubmitMoveRepository,
 } from '@between-moves/db';
 import type {
   GameSeatAcceptanceDependencies,
   GameSeatCreationDependencies,
+  GameCompletionDependencies,
   SubmitMoveDependencies,
 } from '@between-moves/domain';
 import { createHouseAuthorizationMetricStubs } from '@between-moves/observability';
@@ -26,6 +30,7 @@ import { getConfig } from '../config';
 import { getDatabase } from './database';
 import type { GameSeatCommandHandlerDependencies } from './game-seat-command-handler';
 import type { GameSeatAcceptanceHandlerDependencies } from './game-seat-acceptance-handler';
+import type { GameCompletionHandlerDependencies } from './game-completion-handler';
 import { createHouseAuthorizationDenialRecorder } from './house-authorization-observability';
 import { getLogger } from './logger';
 import { getMoveMetrics, getMoveRateLimit } from './rate-limit';
@@ -97,6 +102,24 @@ function moveDependencies(request: Request): SubmitMoveDependencies {
   };
 }
 
+function completionDependencies(request: Request): GameCompletionDependencies {
+  const database = getDatabase().pool;
+  return {
+    authorizeHouseAction: createAuthorizeHouseAction({
+      memberships: new PgHouseAuthorizationMembershipRepository(database),
+      nightHosts: { isAssignedNightHost: async () => false },
+      denials: createHouseAuthorizationDenialRecorder({
+        logger: getLogger(),
+        metrics: authorizationMetrics,
+        requestId: requestId(request),
+      }),
+    }),
+    clock,
+    ids: { generate: () => generateUuidV7() },
+    completions: new PgGameCompletionRepository(database),
+  };
+}
+
 /** [BM-022] Web composition for correspondence seat creation. */
 export function gameSeatCommandHandlerDependencies(
   request: Request,
@@ -135,6 +158,21 @@ export function submitMoveHandlerDependencies(request: Request): SubmitMoveHandl
     submitMove: (command) => submitMove(command, dependencies),
     logger: getLogger(),
     metrics: getMoveMetrics(),
+    clock,
+  };
+}
+
+/** [BM-028] Web composition for resignation and draw completion commands. */
+export function gameCompletionHandlerDependencies(
+  request: Request,
+): GameCompletionHandlerDependencies {
+  const dependencies = completionDependencies(request);
+  return {
+    expectedOrigin: getConfig().appOrigin.origin,
+    requireViewer,
+    resignGame: (command) => resignGame(command, dependencies),
+    handleDraw: (command) => handleDraw(command, dependencies),
+    logger: getLogger(),
     clock,
   };
 }

@@ -15,6 +15,7 @@ import {
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { enqueueOutboxEvent } from './enqueue-outbox-event';
+import { enqueueGameCompletionEvents } from './game-completion-events';
 
 interface LockedGameRow extends QueryResultRow {
   readonly actor_membership_id: unknown;
@@ -191,6 +192,7 @@ async function replay(
     sideToMove: sideFromFen(fenAfter),
     version: integer(row.accepted_version, 'accepted version'),
     clock,
+    completedNow: false,
     replayed: true,
   };
 }
@@ -264,6 +266,9 @@ async function submitInTransaction(
   );
   if (!applied.legal) throw new DomainError('validation_failed', 'Move is not legal');
   if (applied.ply !== currentPly + 1) throw new Error('Rules adapter returned an invalid ply');
+  if ((applied.terminalState === 'ongoing') !== (applied.terminalReason === null)) {
+    throw new Error('Rules adapter returned inconsistent terminal state');
+  }
 
   const acceptedClock = clockAfterMove(game, clockPolicy, input.receivedAt);
   const terminal = completion(applied.terminalReason, applied.sideToMove);
@@ -302,6 +307,7 @@ async function submitInTransaction(
         set current_fen=$3, current_ply=$4, side_to_move=$5, version=$6,
             state=$7, result=$8, result_reason=$9, completed_at=$10,
             move_due_at=$11,
+            draw_offer_membership_id=null, draw_offer_ply=null,
             turn_started_at=case when mode='live' and $7='active' then $12::timestamptz else null end
       where id=$1 and house_id=$2`,
     [
@@ -344,6 +350,21 @@ async function submitInTransaction(
     },
     client,
   );
+  if (terminal.state === 'completed') {
+    await enqueueGameCompletionEvents(
+      context,
+      {
+        gameId: input.gameId,
+        completedEventId: input.completedEventId,
+        analysisEventId: input.analysisEventId,
+        result: terminal.result,
+        resultReason: terminal.resultReason,
+        completedAt: input.receivedAt,
+        firstSequence: nextVersion + 1,
+      },
+      client,
+    );
+  }
   return {
     gameId: input.gameId,
     houseId: context.houseId,
@@ -357,6 +378,7 @@ async function submitInTransaction(
       acceptedClock.kind === 'correspondence'
         ? { kind: 'correspondence', moveDueAt }
         : acceptedClock,
+    completedNow: terminal.state === 'completed',
     replayed: false,
   };
 }

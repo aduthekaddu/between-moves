@@ -1,26 +1,9 @@
 import {
-  RetryableTransactionError,
   type SubmitMoveDependencies,
   type SubmitMoveRequest,
   type SubmitMoveResult,
 } from '@between-moves/domain';
-
-const MAXIMUM_TRANSACTION_ATTEMPTS = 3;
-
-async function retryTransaction<T>(operation: () => Promise<T>): Promise<T> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (
-        !(error instanceof RetryableTransactionError) ||
-        attempt >= MAXIMUM_TRANSACTION_ATTEMPTS
-      ) {
-        throw error;
-      }
-    }
-  }
-}
+import { retryTransaction } from './retry-transaction';
 
 /** [BM-024] [DR-MOVE-01/02] The sole durable Move application path for both Game modes. */
 export async function submitMove(
@@ -39,6 +22,8 @@ export async function submitMove(
     move: request.move,
     moveId: dependencies.ids.generate(),
     outboxEventId: dependencies.ids.generate(),
+    completedEventId: dependencies.ids.generate(),
+    analysisEventId: dependencies.ids.generate(),
     receivedAt: dependencies.clock.now(),
     rules: dependencies.rules,
   };
