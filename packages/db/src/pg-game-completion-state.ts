@@ -21,6 +21,7 @@ export interface LockedGameRow extends QueryResultRow {
   readonly current_ply: unknown;
   readonly side_to_move: unknown;
   readonly version: unknown;
+  readonly outbox_sequence: unknown;
   readonly result: unknown;
   readonly result_reason: unknown;
   readonly completed_at: unknown;
@@ -48,6 +49,13 @@ export function integer(value: unknown, field: string): number {
     throw new Error(`Invalid Game ${field}`);
   }
   return value;
+}
+
+export function bigInteger(value: unknown, field: string): bigint {
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    throw new Error(`Invalid Game ${field}`);
+  }
+  return BigInt(value);
 }
 
 export function side(value: unknown): SideToMove {
@@ -178,6 +186,7 @@ export async function loadGame(
     `select actor.id::text as actor_membership_id, g.state,
             g.white_membership_id::text, g.black_membership_id::text,
             g.current_fen, g.current_ply, g.side_to_move, g.version,
+            g.outbox_sequence::text,
             g.result, g.result_reason, g.completed_at,
             g.draw_offer_membership_id::text, g.draw_offer_ply
        from games g

@@ -1,0 +1,123 @@
+import { TestNudgeEmailSender } from '@between-moves/adapters';
+import {
+  createNudgeDispatcher,
+  createNudgeEmailConsumer,
+  createOutboxDispatcher,
+} from '@between-moves/application';
+import {
+  migrateDown,
+  migrateUp,
+  PgNudgeEmailReader,
+  PgNudgeRepository,
+  PgOutboxRepository,
+} from '@between-moves/db';
+import { twoHousesWithMembers, type TwoHousesWithMembers } from '@between-moves/db/testing';
+import type { NudgeEmailSender } from '@between-moves/domain';
+import { FakeClock } from '@between-moves/domain/testing';
+import { createDeliveryMetricStubs } from '@between-moves/observability';
+import { fileURLToPath } from 'node:url';
+import { Pool } from 'pg';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const integration = testDatabaseUrl ? describe : describe.skip;
+const migrationsDirectory = fileURLToPath(
+  new URL('../../../../packages/db/migrations', import.meta.url),
+);
+const NOW = new Date('2026-09-15T12:00:00.000Z');
+
+function id(suffix: number): string {
+  return `01941f29-7c00-7000-8000-${String(suffix).padStart(12, '0')}`;
+}
+
+async function createUpcomingGame(database: Pool, world: TwoHousesWithMembers): Promise<void> {
+  await database.query(
+    `insert into seasons (id, house_id, title, state, created_at, updated_at)
+     values ($1, $2, 'Nudge flow', 'draft', $3, $3)`,
+    [id(701), world.first.houseId, NOW],
+  );
+  await database.query(
+    `insert into games
+      (id, house_id, season_id, mode, state, white_membership_id, black_membership_id,
+       current_ply, side_to_move, version, clock_policy, move_due_at, created_at)
+     values ($1,$2,$3,'correspondence','active',$4,$5,7,'white',7,
+             '{"kind":"correspondence","perMoveHours":48}',$6,$7)`,
+    [
+      id(711),
+      world.first.houseId,
+      id(701),
+      world.first.member.membershipId,
+      world.first.nonOwner.membershipId,
+      new Date('2026-09-16T00:00:00.000Z'),
+      NOW,
+    ],
+  );
+}
+
+integration('Nudge scheduling and delivery flow', () => {
+  const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
+  let world: TwoHousesWithMembers;
+
+  beforeEach(async () => {
+    await migrateDown(database, { migrationsDirectory, all: true });
+    await migrateUp(database, { migrationsDirectory });
+    world = await twoHousesWithMembers(database);
+    await createUpcomingGame(database, world);
+  });
+
+  afterAll(async () => {
+    await migrateDown(database, { migrationsDirectory, all: true });
+    await database.end();
+  });
+
+  it('[BM-029] [DR-DELIV-03] retains a failed email and delivers it once after retry', async () => {
+    const clock = new FakeClock(NOW);
+    const metrics = createDeliveryMetricStubs();
+    const nudgeRepository = new PgNudgeRepository(database);
+    const schedule = createNudgeDispatcher({
+      clock,
+      generateId: () => id(801),
+      repository: nudgeRepository,
+      metrics,
+    });
+    await expect(schedule.dispatch()).resolves.toEqual({ scanned: 1, enqueued: 1, duplicate: 0 });
+
+    const successfulSender = new TestNudgeEmailSender();
+    const sendNudge = vi.fn<NudgeEmailSender['sendNudge']>(async (message, options) => {
+      if (sendNudge.mock.calls.length === 1) throw new Error('email provider unavailable');
+      return successfulSender.sendNudge(message, options);
+    });
+    const outbox = createOutboxDispatcher({
+      clock,
+      repository: new PgOutboxRepository(database),
+      consumer: createNudgeEmailConsumer({
+        clock,
+        reader: new PgNudgeEmailReader(database),
+        sender: { sendNudge },
+        metrics,
+      }),
+      metrics,
+      retryBaseDelayMs: 1_000,
+    });
+
+    await expect(outbox.dispatchBatch()).resolves.toMatchObject({ retried: 1, sent: 0 });
+    await expect(schedule.dispatch()).resolves.toEqual({ scanned: 0, enqueued: 0, duplicate: 0 });
+    const retained = await database.query<{
+      attempts: number;
+      sent_at: Date | null;
+      failed_at: Date | null;
+    }>("select attempts, sent_at, failed_at from outbox_events where topic = 'nudge.due'");
+    expect(retained.rows).toEqual([{ attempts: 1, sent_at: null, failed_at: null }]);
+
+    clock.advance(1_000);
+    await expect(outbox.dispatchBatch()).resolves.toMatchObject({ retried: 0, sent: 1 });
+    await expect(outbox.dispatchBatch()).resolves.toMatchObject({ claimed: 0, sent: 0 });
+    expect(successfulSender.deliveries()).toHaveLength(1);
+    expect(sendNudge).toHaveBeenCalledTimes(2);
+    const counts = await database.query<{ nudges: number; events: number }>(
+      `select (select count(*)::int from nudge_deliveries) nudges,
+              (select count(*)::int from outbox_events where topic = 'nudge.due') events`,
+    );
+    expect(counts.rows).toEqual([{ nudges: 1, events: 1 }]);
+  });
+});

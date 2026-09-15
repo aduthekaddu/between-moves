@@ -413,6 +413,7 @@ export const games = pgTable(
     result: text('result'),
     resultReason: text('result_reason'),
     version: integer('version').default(0).notNull(),
+    outboxSequence: bigint('outbox_sequence', { mode: 'bigint' }).default(0n).notNull(),
     clockPolicy: jsonb('clock_policy').$type<ClockPolicy>().notNull(),
     whiteClockMs: integer('white_clock_ms'),
     blackClockMs: integer('black_clock_ms'),
@@ -466,6 +467,7 @@ export const games = pgTable(
       sql`${table.state} in ('waiting', 'active', 'completed', 'cancelled')`,
     ),
     check('games_side_to_move_check', sql`${table.sideToMove} in ('white', 'black')`),
+    check('games_outbox_sequence_check', sql`${table.outboxSequence} >= 0`),
     check(
       'games_result_check',
       sql`${table.result} is null or ${table.result} in ('white_win', 'black_win', 'draw', 'aborted')`,
@@ -523,6 +525,42 @@ export const games = pgTable(
         or (${table.mode} = 'live' and ${table.whiteClockMs} is not null and ${table.whiteClockMs} >= 0
           and ${table.blackClockMs} is not null and ${table.blackClockMs} >= 0 and ${table.moveDueAt} is null)`,
     ),
+  ],
+);
+
+/** [BM-029] [DR-CORR-04] One durable delivery record per Nudge natural key. */
+export const nudgeDeliveries = pgTable(
+  'nudge_deliveries',
+  {
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    ply: integer('ply').notNull(),
+    recipientMembershipId: uuid('recipient_membership_id').notNull(),
+    stage: text('stage').notNull(),
+    moveDueAt: timestamp('move_due_at', { withTimezone: true }).notNull(),
+    outboxEventId: uuid('outbox_event_id').notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.gameId, table.ply, table.recipientMembershipId, table.stage],
+    }),
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'nudge_deliveries_game_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.recipientMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'nudge_deliveries_recipient_house_fk',
+    }).onDelete('restrict'),
+    index('nudge_deliveries_house_created_idx').on(table.houseId, table.createdAt),
+    check('nudge_deliveries_ply_check', sql`${table.ply} >= 0`),
+    check('nudge_deliveries_stage_check', sql`${table.stage} in ('advance', 'overdue')`),
+    check('nudge_deliveries_outbox_event_uuid_v7_check', sql`is_uuid_v7(${table.outboxEventId})`),
   ],
 );
 

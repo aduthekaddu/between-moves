@@ -12,7 +12,7 @@ export interface CompletionEventInput {
   readonly result: CompletedGameResult;
   readonly resultReason: GameCompletionReason;
   readonly completedAt: Date;
-  readonly firstSequence: number;
+  readonly firstSequence: bigint;
 }
 
 /** [BM-028] Completion, scoring, and optional analysis signals share the state transaction. */
@@ -31,7 +31,7 @@ export async function enqueueGameCompletionEvents(
       id: input.completedEventId,
       topic: 'game.completed',
       aggregateId: input.gameId,
-      sequence: BigInt(input.firstSequence),
+      sequence: input.firstSequence,
       houseId: context.houseId,
       payload,
       availableAt: input.completedAt,
@@ -44,7 +44,7 @@ export async function enqueueGameCompletionEvents(
       id: input.analysisEventId,
       topic: 'game.analysis-requested',
       aggregateId: input.gameId,
-      sequence: BigInt(input.firstSequence + 1),
+      sequence: input.firstSequence + 1n,
       houseId: context.houseId,
       payload,
       availableAt: input.completedAt,

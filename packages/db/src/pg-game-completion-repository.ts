@@ -13,6 +13,7 @@ import {
 import type { Pool, PoolClient } from 'pg';
 import { enqueueGameCompletionEvents } from './game-completion-events';
 import {
+  bigInteger,
   integer,
   loadGame,
   nullableText,
@@ -34,12 +35,22 @@ async function finish(
   reason: 'resign' | 'agreement',
 ): Promise<GameLifecycleResult> {
   const nextVersion = integer(game.version, 'version') + 1;
+  const firstEventSequence = bigInteger(game.outbox_sequence, 'outbox sequence') + 1n;
   await client.query(
     `update games set state='completed', result=$3, result_reason=$4, completed_at=$5,
                       version=$6, move_due_at=null, turn_started_at=null,
-                      draw_offer_membership_id=null, draw_offer_ply=null
+                      draw_offer_membership_id=null, draw_offer_ply=null,
+                      outbox_sequence=$7
       where id=$1 and house_id=$2`,
-    [input.gameId, context.houseId, result, reason, input.completedAt, nextVersion],
+    [
+      input.gameId,
+      context.houseId,
+      result,
+      reason,
+      input.completedAt,
+      nextVersion,
+      (firstEventSequence + 1n).toString(),
+    ],
   );
   await enqueueGameCompletionEvents(
     context,
@@ -50,7 +61,7 @@ async function finish(
       result,
       resultReason: reason,
       completedAt: input.completedAt,
-      firstSequence: nextVersion,
+      firstSequence: firstEventSequence,
     },
     client,
   );
