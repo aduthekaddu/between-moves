@@ -13,6 +13,7 @@
     "lint:boundaries": "eslint apps/worker/src packages/domain/src packages/application/src packages/db/src packages/adapters/src packages/observability/src --max-warnings=0",
     "typecheck": "turbo run typecheck",
     "test": "pnpm test:boundaries && pnpm test:isolation-coverage && turbo run test",
+    "test:coverage": "pnpm test:boundaries && pnpm test:isolation-coverage && turbo run test -- --coverage",
     "test:boundaries": "node --test tooling/import-boundaries.test.mjs",
     "test:isolation-coverage": "node --test tooling/house-write-isolation-coverage.test.mjs",
     "test:e2e": "turbo run test:e2e",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@typescript-eslint/parser": "8.68.0",
+    "@vitest/coverage-v8": "4.1.11",
     "eslint": "9.39.5",
     "prettier": "3.9.6",
     "turbo": "2.10.12"
