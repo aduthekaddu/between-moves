@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDeliveryMetricStubs } from './delivery-metrics';
 
 describe('delivery metric stubs', () => {
-  it('[BM-006] [BM-029] exposes outbox and Nudge delivery metric values', () => {
+  it('[BM-006] [BM-029] [BM-030] exposes delivery metric values and email failure rate', () => {
     const metrics = createDeliveryMetricStubs();
 
     metrics.setOutboxAgeSeconds(42);
@@ -15,10 +15,15 @@ describe('delivery metric stubs', () => {
     metrics.incrementNudgeSend('overdue', 'failure');
     metrics.incrementNudgeSend('overdue', 'duplicate');
     metrics.incrementNudgeSend('overdue', 'skipped');
+    metrics.incrementEmailSend('success');
+    metrics.incrementEmailSend('success');
+    metrics.incrementEmailSend('failure');
 
     expect(metrics.snapshot()).toEqual({
       outbox_age_seconds: 42,
       realtime_publish_retry_total: 2,
+      email_send_total: { success: 2, failure: 1 },
+      email_failure_rate: 1 / 3,
       nudge_enqueue_total: {
         advance: { enqueued: 1, duplicate: 1 },
         overdue: { enqueued: 1, duplicate: 0 },

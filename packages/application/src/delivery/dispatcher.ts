@@ -1,6 +1,7 @@
 import {
   OUTBOX_MAX_ATTEMPTS,
   PermanentOutboxError,
+  RetriableOutboxError,
   type ClaimedOutboxEvent,
   type DeliveryPorts,
   type OutboxConsumer,
@@ -59,6 +60,15 @@ function retryAt(event: ClaimedOutboxEvent, now: Date, config: DispatcherConfig)
   return new Date(now.getTime() + Math.min(exponential, config.retryMaxDelayMs));
 }
 
+function retainedError(error: unknown): string {
+  if (error instanceof PermanentOutboxError || error instanceof RetriableOutboxError) {
+    const message = error.message.trim();
+    return (message.length > 0 ? message : error.name).slice(0, 2_000);
+  }
+  if (error instanceof Error) return error.name.trim() || 'Error';
+  return 'UnknownError';
+}
+
 async function recordOutboxAge(config: DispatcherConfig, now: Date): Promise<void> {
   const oldest = await config.repository.oldestUnsentCreatedAt();
   const age = oldest ? Math.max(0, (now.getTime() - oldest.getTime()) / 1_000) : 0;
@@ -75,12 +85,13 @@ async function dispatchOne(
     await config.repository.markSent(event.id, now);
     return { claimed: 1, sent: 1, retried: 0, failed: 0 };
   } catch (error) {
+    const failure = retainedError(error);
     if (error instanceof PermanentOutboxError || event.attempts >= config.maxAttempts) {
-      await config.repository.markFailed(event.id, now);
+      await config.repository.markFailed(event.id, now, failure);
       return { claimed: 1, sent: 0, retried: 0, failed: 1 };
     }
     config.metrics.incrementRealtimePublishRetry();
-    await config.repository.releaseForRetry(event.id, retryAt(event, now, config));
+    await config.repository.releaseForRetry(event.id, retryAt(event, now, config), failure);
     return { claimed: 1, sent: 0, retried: 1, failed: 0 };
   }
 }

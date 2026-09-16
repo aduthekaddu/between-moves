@@ -1,4 +1,9 @@
-import { SecureInvitationTokenIssuer, SystemClock, generateUuidV7 } from '@between-moves/adapters';
+import {
+  AesGcmInvitationEmailDeliveryCodec,
+  SecureInvitationTokenIssuer,
+  SystemClock,
+  generateUuidV7,
+} from '@between-moves/adapters';
 import {
   createAuthorizeHouseAction,
   createInvitation as createInvitationUseCase,
@@ -36,6 +41,7 @@ function invitationTokens(): SecureInvitationTokenIssuer {
 
 function invitationDependencies(requestId: string) {
   const database = getDatabase().pool;
+  const config = getConfig();
   return {
     authorizeHouseAction: createAuthorizeHouseAction({
       memberships: new PgHouseAuthorizationMembershipRepository(database),
@@ -50,6 +56,11 @@ function invitationDependencies(requestId: string) {
     ids: { generate: () => generateUuidV7() },
     tokens: invitationTokens(),
     invitations: new PgInvitationRepository(database),
+    invitationEmail: {
+      codec: new AesGcmInvitationEmailDeliveryCodec(config.betterAuthSecret),
+      buildUrl: (rawToken: string) =>
+        new URL(`/invitations/${encodeURIComponent(rawToken)}`, config.appOrigin).toString(),
+    },
   };
 }
 

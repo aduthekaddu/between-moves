@@ -1,6 +1,8 @@
 export interface DeliveryMetricSnapshot {
   readonly outbox_age_seconds: number;
   readonly realtime_publish_retry_total: number;
+  readonly email_send_total: Readonly<Record<'success' | 'failure', number>>;
+  readonly email_failure_rate: number;
   readonly nudge_enqueue_total: Readonly<
     Record<'advance' | 'overdue', Readonly<Record<'enqueued' | 'duplicate', number>>>
   >;
@@ -15,6 +17,7 @@ export interface DeliveryMetricSnapshot {
 export interface DeliveryMetricStubs {
   setOutboxAgeSeconds(ageSeconds: number): void;
   incrementRealtimePublishRetry(): void;
+  incrementEmailSend(outcome: 'success' | 'failure'): void;
   incrementNudgeEnqueue(stage: 'advance' | 'overdue', outcome: 'enqueued' | 'duplicate'): void;
   incrementNudgeSend(
     stage: 'advance' | 'overdue',
@@ -27,6 +30,7 @@ export interface DeliveryMetricStubs {
 export function createDeliveryMetricStubs(): DeliveryMetricStubs {
   let outboxAgeSeconds = 0;
   let realtimePublishRetryTotal = 0;
+  const emailSend = { success: 0, failure: 0 };
   const nudgeEnqueue = {
     advance: { enqueued: 0, duplicate: 0 },
     overdue: { enqueued: 0, duplicate: 0 },
@@ -43,6 +47,9 @@ export function createDeliveryMetricStubs(): DeliveryMetricStubs {
     incrementRealtimePublishRetry() {
       realtimePublishRetryTotal += 1;
     },
+    incrementEmailSend(outcome) {
+      emailSend[outcome] += 1;
+    },
     incrementNudgeEnqueue(stage, outcome) {
       nudgeEnqueue[stage][outcome] += 1;
     },
@@ -50,9 +57,12 @@ export function createDeliveryMetricStubs(): DeliveryMetricStubs {
       nudgeSend[stage][outcome] += 1;
     },
     snapshot() {
+      const emailAttemptTotal = emailSend.success + emailSend.failure;
       return {
         outbox_age_seconds: outboxAgeSeconds,
         realtime_publish_retry_total: realtimePublishRetryTotal,
+        email_send_total: { ...emailSend },
+        email_failure_rate: emailAttemptTotal === 0 ? 0 : emailSend.failure / emailAttemptTotal,
         nudge_enqueue_total: {
           advance: { ...nudgeEnqueue.advance },
           overdue: { ...nudgeEnqueue.overdue },

@@ -41,6 +41,7 @@ import type {
   GameCompletionRepository,
   IdGenerator,
   InvitationCreationRepository,
+  InvitationEmailDeliveryCodec,
   InvitationRedemptionRepository,
   InvitationRevocationRepository,
   InvitationTokenDigester,
@@ -80,6 +81,10 @@ interface IsolationHarness {
   readonly ids: IdGenerator;
   readonly tokens: InvitationTokenIssuer & InvitationTokenDigester;
   readonly invitations: InvitationCreationRepository & InvitationRevocationRepository;
+  readonly invitationEmail: {
+    readonly codec: InvitationEmailDeliveryCodec;
+    readonly buildUrl: (rawToken: string) => string;
+  };
   readonly redemptions: InvitationRedemptionRepository;
   readonly memberships: MembershipAdminRepository;
   readonly nights: NightRepository;
@@ -529,6 +534,7 @@ integration('BM-017 current House write-path isolation', () => {
         command: { kind: 'shared' },
         tokenDigestHex: invitationDigest,
         createdAt: clock.now(),
+        deliveryEvent: null,
       },
     );
     await database.query(
@@ -579,6 +585,15 @@ integration('BM-017 current House write-path isolation', () => {
       ids,
       tokens,
       invitations,
+      invitationEmail: {
+        codec: {
+          seal: async () => 'sealed-invitation',
+          open: async () => {
+            throw new Error('Invitation delivery is not read in isolation tests');
+          },
+        },
+        buildUrl: (rawToken) => `https://betweenmoves.test/invitations/${rawToken}`,
+      },
       redemptions: new PgInvitationRedemptionRepository(database),
       memberships: new PgMembershipAdminRepository(database),
       nights: new PgNightRepository(database),

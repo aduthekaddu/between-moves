@@ -95,4 +95,25 @@ integration('PostgreSQL outbox', () => {
     expect(second).toHaveLength(1);
     expect(first[0]?.id).not.toBe(second[0]?.id);
   });
+
+  it('[BM-030] [DR-DELIV-03] retains a sanitized delivery error without parking gameplay state', async () => {
+    await enqueueOutboxEvent(event('01941f29-7c00-7000-8000-000000000331', 3n), database);
+    await repository.releaseForRetry(
+      '01941f29-7c00-7000-8000-000000000331',
+      new Date(NOW.getTime() + 1_000),
+      'Resend email request failed (503)',
+    );
+
+    const row = await database.query(
+      `select sent_at, failed_at, last_error from outbox_events where id = $1`,
+      ['01941f29-7c00-7000-8000-000000000331'],
+    );
+    expect(row.rows).toEqual([
+      {
+        sent_at: null,
+        failed_at: null,
+        last_error: 'Resend email request failed (503)',
+      },
+    ]);
+  });
 });

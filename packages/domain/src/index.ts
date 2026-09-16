@@ -238,14 +238,28 @@ export type {
   ReadScheduledNightsRequest,
 } from './nights';
 export type { StoriesPorts } from './stories';
-export { NUDGE_DUE_TOPIC, OUTBOX_MAX_ATTEMPTS, PermanentOutboxError } from './delivery';
+export {
+  INVITATION_EMAIL_TOPIC,
+  NUDGE_DUE_TOPIC,
+  OUTBOX_MAX_ATTEMPTS,
+  PermanentOutboxError,
+  RetriableOutboxError,
+} from './delivery';
 export type {
   ClaimedOutboxEvent,
   ClaimOutboxBatch,
   DeliveryPorts,
   DueNudge,
+  EmailDeliveryEventRecordResult,
+  EmailDeliveryEventRepository,
+  EmailMetrics,
+  EmailSendOutcome,
   FindDueNudges,
   NewOutboxEvent,
+  InvitationEmail,
+  InvitationEmailDeliveryCodec,
+  InvitationEmailSender,
+  InvitationEmailSendResult,
   NudgeEmail,
   NudgeEmailReader,
   NudgeEmailSender,
@@ -260,4 +274,6 @@ export type {
   OutboxConsumeResult,
   OutboxMetrics,
   OutboxRepository,
+  ResendDeliveryEvent,
+  ResendDeliveryEventType,
 } from './delivery';

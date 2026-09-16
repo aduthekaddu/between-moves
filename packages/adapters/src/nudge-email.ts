@@ -1,9 +1,16 @@
-import type { NudgeEmail, NudgeEmailSender, NudgeEmailSendResult } from '@between-moves/domain';
+import type {
+  EmailMetrics,
+  NudgeEmail,
+  NudgeEmailSender,
+  NudgeEmailSendResult,
+} from '@between-moves/domain';
+import { ResendEmailClient } from './resend-email-client';
 
 export interface ResendNudgeEmailSenderOptions {
   readonly apiKey: string;
   readonly from: string;
   readonly fetch?: typeof fetch;
+  readonly metrics: EmailMetrics;
 }
 
 function subject(message: NudgeEmail): string {
@@ -19,39 +26,21 @@ function body(message: NudgeEmail): string {
 
 /** [BM-029] [PR-COPY-10/11] Fixed-origin Resend Nudge adapter; content is never logged. */
 export class ResendNudgeEmailSender implements NudgeEmailSender {
-  private readonly request: typeof fetch;
+  private readonly client: ResendEmailClient;
 
   constructor(private readonly options: ResendNudgeEmailSenderOptions) {
-    this.request = options.fetch ?? globalThis.fetch;
+    this.client = new ResendEmailClient(options);
   }
 
   async sendNudge(
     message: NudgeEmail,
     options: { readonly idempotencyKey: string },
   ): Promise<NudgeEmailSendResult> {
-    try {
-      const response = await this.request('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.options.apiKey}`,
-          'Content-Type': 'application/json',
-          'Idempotency-Key': options.idempotencyKey,
-        },
-        body: JSON.stringify({
-          from: this.options.from,
-          to: [message.email],
-          subject: subject(message),
-          text: body(message),
-        }),
-      });
-      if (!response.ok) throw new Error(`Resend Nudge email request failed (${response.status})`);
-      return 'sent';
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('Resend Nudge email request failed')) {
-        throw error;
-      }
-      throw new Error('Resend Nudge email request failed', { cause: error });
-    }
+    await this.client.send(
+      { to: message.email, subject: subject(message), text: body(message) },
+      options.idempotencyKey,
+    );
+    return 'sent';
   }
 }
 

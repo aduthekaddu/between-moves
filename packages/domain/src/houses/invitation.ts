@@ -4,6 +4,7 @@ import type { Clock } from '../shared/clock';
 import { DomainError } from '../shared/errors';
 import type { AuthorizeHouseAction } from './authorization';
 import type { IdGenerator } from './house';
+import type { InvitationEmailDeliveryCodec, NewOutboxEvent } from '../delivery';
 
 const SHARED_INVITATION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1_000;
 
@@ -40,6 +41,7 @@ export interface InvitationCreationInput {
   readonly command: CreateInvitationCommand;
   readonly tokenDigestHex: string;
   readonly createdAt: Date;
+  readonly deliveryEvent: NewOutboxEvent | null;
 }
 
 export interface PersistedInvitationCreation {
@@ -73,6 +75,10 @@ export interface InvitationCreationDependencies {
   readonly ids: IdGenerator;
   readonly tokens: InvitationTokenIssuer;
   readonly invitations: InvitationCreationRepository;
+  readonly invitationEmail: {
+    readonly codec: InvitationEmailDeliveryCodec;
+    readonly buildUrl: (rawToken: string) => string;
+  };
 }
 
 export interface RevokeInvitationRequest {

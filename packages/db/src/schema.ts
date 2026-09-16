@@ -151,6 +151,7 @@ export const outboxEvents = pgTable(
     availableAt: timestamp('available_at', { withTimezone: true }).defaultNow().notNull(),
     sentAt: timestamp('sent_at', { withTimezone: true }),
     failedAt: timestamp('failed_at', { withTimezone: true }),
+    lastError: text('last_error'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -162,6 +163,34 @@ export const outboxEvents = pgTable(
     check(
       'outbox_events_terminal_state_check',
       sql`${table.sentAt} is null or ${table.failedAt} is null`,
+    ),
+    check(
+      'outbox_events_last_error_length_check',
+      sql`${table.lastError} is null or char_length(${table.lastError}) between 1 and 2000`,
+    ),
+  ],
+);
+
+/** [BM-030] Metadata-only, provider-ID-deduplicated Resend delivery events. */
+export const emailDeliveryEvents = pgTable(
+  'email_delivery_events',
+  {
+    id: text('id').primaryKey().notNull(),
+    eventType: text('event_type').notNull(),
+    emailId: text('email_id').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('email_delivery_events_email_occurred_idx').on(table.emailId, table.occurredAt),
+    check('email_delivery_events_id_length_check', sql`char_length(${table.id}) between 1 and 256`),
+    check(
+      'email_delivery_events_type_check',
+      sql`${table.eventType} in ('email.bounced', 'email.clicked', 'email.complained', 'email.delivered', 'email.delivery_delayed', 'email.failed', 'email.opened', 'email.scheduled', 'email.sent', 'email.suppressed')`,
+    ),
+    check(
+      'email_delivery_events_email_id_length_check',
+      sql`char_length(${table.emailId}) between 1 and 256`,
     ),
   ],
 );

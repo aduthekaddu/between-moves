@@ -19,6 +19,7 @@ function creationInput(): InvitationCreationInput {
     command: { kind: 'shared' },
     tokenDigestHex: 'a'.repeat(64),
     createdAt: new Date('2026-08-30T10:00:00.000Z'),
+    deliveryEvent: null,
   };
 }
 
@@ -240,6 +241,87 @@ integration('PostgreSQL Invitation repository', () => {
         command: { kind: 'shared' },
       }),
     ).rejects.toMatchObject({ code: 'idempotency_conflict' });
+  });
+
+  it('[BM-030] atomically persists a restricted Invitation and encrypted email event', async () => {
+    const context = fakeAuthorizationContext({
+      viewerId: houses.first.member.userId,
+      houseId: houses.first.houseId,
+    });
+    const createdAt = new Date('2026-08-30T12:00:00.000Z');
+    const input: InvitationCreationInput = {
+      invitationId: '01941f29-7c00-7000-8000-000000000715',
+      auditId: '01941f29-7c00-7000-8000-000000000716',
+      command: { kind: 'single', intendedEmail: 'private@example.test' },
+      tokenDigestHex: 'ab'.repeat(32),
+      createdAt,
+      deliveryEvent: {
+        id: '01941f29-7c00-7000-8000-000000000717',
+        topic: 'house.invitation-email.requested',
+        aggregateId: '01941f29-7c00-7000-8000-000000000715',
+        sequence: 1n,
+        houseId: houses.first.houseId,
+        payload: { sealed: 'encrypted-recipient-and-token' },
+        availableAt: createdAt,
+        occurredAt: createdAt,
+      },
+    };
+
+    await repository.create(context, input);
+    const state = await database.query(
+      `select i.id::text invitation_id, e.id::text event_id, e.topic, e.payload
+         from invitations i
+         join outbox_events e on e.aggregate_id = i.id
+        where i.id = $1`,
+      [input.invitationId],
+    );
+    expect(state.rows).toEqual([
+      {
+        invitation_id: input.invitationId,
+        event_id: input.deliveryEvent!.id,
+        topic: 'house.invitation-email.requested',
+        payload: { sealed: 'encrypted-recipient-and-token' },
+      },
+    ]);
+    expect(JSON.stringify(state.rows)).not.toContain('private@example.test');
+  });
+
+  it('[BM-030] rolls back the Invitation and audit when its outbox insert fails', async () => {
+    const context = fakeAuthorizationContext({
+      viewerId: houses.first.member.userId,
+      houseId: houses.first.houseId,
+    });
+    const invitationId = '01941f29-7c00-7000-8000-000000000718';
+    const auditId = '01941f29-7c00-7000-8000-000000000719';
+    const createdAt = new Date('2026-08-30T12:30:00.000Z');
+
+    await expect(
+      repository.create(context, {
+        invitationId,
+        auditId,
+        command: { kind: 'single', intendedEmail: 'rollback@example.test' },
+        tokenDigestHex: 'ac'.repeat(32),
+        createdAt,
+        deliveryEvent: {
+          id: '01941f29-7c00-7000-8000-000000000720',
+          topic: '',
+          aggregateId: invitationId,
+          sequence: 1n,
+          houseId: houses.first.houseId,
+          payload: { sealed: 'encrypted' },
+          availableAt: createdAt,
+          occurredAt: createdAt,
+        },
+      }),
+    ).rejects.toThrow();
+
+    const state = await database.query(
+      `select
+         (select count(*)::int from invitations where id = $1) invitations,
+         (select count(*)::int from membership_audit where id = $2) audits`,
+      [invitationId, auditId],
+    );
+    expect(state.rows).toEqual([{ invitations: 0, audits: 0 }]);
   });
 
   it('[BM-014] treats expired and exhausted Invitations as the same unusable inspection state', async () => {

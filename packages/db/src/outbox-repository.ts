@@ -96,19 +96,19 @@ export class PgOutboxRepository implements OutboxRepository {
     );
   }
 
-  async releaseForRetry(eventId: string, availableAt: Date): Promise<void> {
+  async releaseForRetry(eventId: string, availableAt: Date, error: string): Promise<void> {
     await this.database.query(
-      `update outbox_events set available_at = $2
+      `update outbox_events set available_at = $2, last_error = $3
         where id = $1 and sent_at is null and failed_at is null`,
-      [eventId, availableAt],
+      [eventId, availableAt, error],
     );
   }
 
-  async markFailed(eventId: string, failedAt: Date): Promise<void> {
+  async markFailed(eventId: string, failedAt: Date, error: string): Promise<void> {
     await this.database.query(
-      `update outbox_events set failed_at = $2
+      `update outbox_events set failed_at = $2, last_error = $3
         where id = $1 and sent_at is null and failed_at is null`,
-      [eventId, failedAt],
+      [eventId, failedAt, error],
     );
   }
 

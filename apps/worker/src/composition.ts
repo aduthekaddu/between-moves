@@ -1,13 +1,17 @@
 import {
   AesGcmMagicLinkDeliveryCodec,
+  AesGcmInvitationEmailDeliveryCodec,
   generateUuidV7,
   IdempotentLoggingConsumer,
   ResendMagicLinkEmailSender,
+  ResendInvitationEmailSender,
   ResendNudgeEmailSender,
   SystemClock,
 } from '@between-moves/adapters';
 import {
   createMagicLinkEmailConsumer,
+  createEmailDeliveryConsumer,
+  createInvitationEmailConsumer,
   createNudgeDispatcher,
   createNudgeEmailConsumer,
   createOutboxDispatcher,
@@ -21,12 +25,12 @@ import {
   PgNudgeRepository,
   PgOutboxRepository,
 } from '@between-moves/db';
-import { NUDGE_DUE_TOPIC, type OutboxConsumer } from '@between-moves/domain';
 import {
-  createDeliveryMetricStubs,
-  createIdentityMetricStubs,
-  createStructuredLogger,
-} from '@between-moves/observability';
+  INVITATION_EMAIL_TOPIC,
+  NUDGE_DUE_TOPIC,
+  type OutboxConsumer,
+} from '@between-moves/domain';
+import { createDeliveryMetricStubs, createStructuredLogger } from '@between-moves/observability';
 
 function requiredEnvironment(key: string): string {
   const value = process.env[key];
@@ -39,35 +43,43 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
   const clock = new SystemClock();
   const logger = createStructuredLogger({ clock, sink: (line) => console.log(line) });
   const metrics = createDeliveryMetricStubs();
-  const identityMetrics = createIdentityMetricStubs();
   const database = createDatabase(requiredEnvironment('DATABASE_URL'));
 
   try {
     const fallback = new IdempotentLoggingConsumer(logger);
+    const secret = requiredEnvironment('BETTER_AUTH_SECRET');
+    const apiKey = requiredEnvironment('RESEND_API_KEY');
     const magicLink = createMagicLinkEmailConsumer({
-      codec: new AesGcmMagicLinkDeliveryCodec(requiredEnvironment('BETTER_AUTH_SECRET')),
+      codec: new AesGcmMagicLinkDeliveryCodec(secret),
       sender: new ResendMagicLinkEmailSender({
-        apiKey: requiredEnvironment('RESEND_API_KEY'),
+        apiKey,
         from: 'Between Moves <sign-in@betweenmoves.app>',
-        metrics: identityMetrics,
+        metrics,
+      }),
+    });
+    const invitation = createInvitationEmailConsumer({
+      codec: new AesGcmInvitationEmailDeliveryCodec(secret),
+      sender: new ResendInvitationEmailSender({
+        apiKey,
+        from: 'Between Moves <invitations@betweenmoves.app>',
+        metrics,
       }),
     });
     const nudge = createNudgeEmailConsumer({
       clock,
       reader: new PgNudgeEmailReader(database.pool),
       sender: new ResendNudgeEmailSender({
-        apiKey: requiredEnvironment('RESEND_API_KEY'),
+        apiKey,
         from: 'Between Moves <nudges@betweenmoves.app>',
+        metrics,
       }),
       metrics,
     });
+    const email = createEmailDeliveryConsumer({ clock, magicLink, invitation, nudge });
+    const emailTopics = new Set([MAGIC_LINK_EMAIL_TOPIC, INVITATION_EMAIL_TOPIC, NUDGE_DUE_TOPIC]);
     const consumer: OutboxConsumer = {
       consume: (event) =>
-        event.topic === MAGIC_LINK_EMAIL_TOPIC
-          ? magicLink.consume(event)
-          : event.topic === NUDGE_DUE_TOPIC
-            ? nudge.consume(event)
-            : fallback.consume(event),
+        emailTopics.has(event.topic) ? email.consume(event) : fallback.consume(event),
     };
     const dispatcher = createOutboxDispatcher({
       clock,
@@ -86,7 +98,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       event: 'delivery.outbox-dispatch-complete',
       outcome: 'success',
       durationMs: 0,
-      data: { ...summary, ...metrics.snapshot(), ...identityMetrics.snapshot() },
+      data: { ...summary, ...metrics.snapshot() },
     });
     return summary;
   } finally {

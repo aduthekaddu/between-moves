@@ -7,6 +7,11 @@ export class PermanentOutboxError extends Error {
   override readonly name = 'PermanentOutboxError';
 }
 
+/** A retryable delivery failure whose message is safe to retain for operations. */
+export class RetriableOutboxError extends Error {
+  override readonly name = 'RetriableOutboxError';
+}
+
 export interface NewOutboxEvent {
   readonly id: string;
   readonly topic: string;
@@ -34,8 +39,8 @@ export interface ClaimOutboxBatch {
 export interface OutboxRepository {
   claimBatch(request: ClaimOutboxBatch): Promise<readonly ClaimedOutboxEvent[]>;
   markSent(eventId: string, sentAt: Date): Promise<void>;
-  releaseForRetry(eventId: string, availableAt: Date): Promise<void>;
-  markFailed(eventId: string, failedAt: Date): Promise<void>;
+  releaseForRetry(eventId: string, availableAt: Date, error: string): Promise<void>;
+  markFailed(eventId: string, failedAt: Date, error: string): Promise<void>;
   oldestUnsentCreatedAt(): Promise<Date | null>;
 }
 
@@ -49,6 +54,59 @@ export interface OutboxConsumer {
 export interface OutboxMetrics {
   setOutboxAgeSeconds(ageSeconds: number): void;
   incrementRealtimePublishRetry(): void;
+}
+
+export type EmailSendOutcome = 'success' | 'failure';
+
+export interface EmailMetrics {
+  incrementEmailSend(outcome: EmailSendOutcome): void;
+}
+
+export const INVITATION_EMAIL_TOPIC = 'house.invitation-email.requested';
+
+export interface InvitationEmail {
+  readonly email: string;
+  readonly invitationUrl: string;
+}
+
+export interface InvitationEmailDeliveryCodec {
+  seal(message: InvitationEmail): Promise<string>;
+  open(sealed: string): Promise<InvitationEmail>;
+}
+
+export type InvitationEmailSendResult = 'sent' | 'duplicate';
+
+export interface InvitationEmailSender {
+  sendInvitation(
+    message: InvitationEmail,
+    options: { readonly idempotencyKey: string },
+  ): Promise<InvitationEmailSendResult>;
+}
+
+export type ResendDeliveryEventType =
+  | 'email.bounced'
+  | 'email.clicked'
+  | 'email.complained'
+  | 'email.delivered'
+  | 'email.delivery_delayed'
+  | 'email.failed'
+  | 'email.opened'
+  | 'email.scheduled'
+  | 'email.sent'
+  | 'email.suppressed';
+
+export interface ResendDeliveryEvent {
+  readonly id: string;
+  readonly type: ResendDeliveryEventType;
+  readonly occurredAt: Date;
+  readonly emailId: string;
+}
+
+export type EmailDeliveryEventRecordResult = 'processed' | 'duplicate';
+
+/** [BM-030] Durable provider-event ledger for idempotent Resend webhooks. */
+export interface EmailDeliveryEventRepository {
+  record(event: ResendDeliveryEvent, receivedAt: Date): Promise<EmailDeliveryEventRecordResult>;
 }
 
 export interface DeliveryPorts {
