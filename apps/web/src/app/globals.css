@@ -929,6 +929,99 @@ body {
   color: var(--bm-color-danger);
 }
 
+.game-notes {
+  display: grid;
+  gap: var(--bm-space-5);
+  padding: var(--bm-space-5);
+  border: 1px solid color-mix(in srgb, var(--bm-color-wood) 45%, transparent);
+  border-radius: var(--bm-radius-lg);
+  background: var(--bm-color-paper-raised);
+  box-shadow: var(--bm-elev-card);
+}
+
+.game-notes__form {
+  display: grid;
+  gap: var(--bm-space-2);
+}
+
+.game-notes__form label,
+.game-notes__note h3 {
+  font-weight: 700;
+}
+
+.game-notes__form textarea {
+  min-height: 9rem;
+  resize: vertical;
+  padding: var(--bm-space-3);
+  border: 1px solid var(--bm-color-wood);
+  border-radius: var(--bm-radius-sm);
+  color: var(--bm-color-ink);
+  background: var(--bm-color-paper);
+  font: inherit;
+  line-height: var(--bm-leading-body);
+}
+
+.game-notes__form-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--bm-space-3);
+  color: var(--bm-color-ink-muted);
+  font-size: 0.875rem;
+}
+
+.game-notes__form button {
+  min-height: 44px;
+  justify-self: start;
+  padding: var(--bm-space-2) var(--bm-space-4);
+  border: 1px solid var(--bm-color-brass-strong);
+  border-radius: var(--bm-radius-sm);
+  color: var(--bm-color-paper-raised);
+  background: var(--bm-color-brass-strong);
+  font: inherit;
+  font-weight: 700;
+}
+
+.game-notes__form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.game-notes__status,
+.game-notes__error {
+  min-height: 1.5em;
+  margin: 0;
+}
+
+.game-notes__error {
+  color: var(--bm-color-danger);
+}
+
+.game-notes__list {
+  display: grid;
+  gap: var(--bm-space-3);
+}
+
+.game-notes__note {
+  padding: var(--bm-space-4);
+  border-left: 3px solid var(--bm-color-brass);
+  background: var(--bm-color-paper);
+}
+
+.game-notes__note h3,
+.game-notes__note p {
+  margin: 0;
+}
+
+.game-notes__note p {
+  margin-top: var(--bm-space-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.game-notes__note small {
+  color: var(--bm-color-ink-muted);
+}
+
 .move-entry__heading {
   display: flex;
   align-items: baseline;

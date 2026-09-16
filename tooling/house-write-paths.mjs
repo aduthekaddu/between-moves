@@ -107,6 +107,12 @@ export const houseWritePaths = Object.freeze([
     route: 'apps/web/src/app/api/houses/[houseId]/games/[gameId]/reactions/route.ts',
     scope: 'house-id',
   },
+  {
+    id: 'game.note-save',
+    useCase: 'saveGameNote',
+    route: 'apps/web/src/app/api/houses/[houseId]/games/[gameId]/note/route.ts',
+    scope: 'house-id',
+  },
 ]);
 
 /** Runtime House exports which do not mutate an existing House. */
@@ -120,6 +126,7 @@ export const nonHouseWriteExports = Object.freeze([
   'readMoveShelf',
   'readScheduledNights',
   'readCurrentGameReaction',
+  'readGameNotes',
 ]);
 
 /** Mutating API routes which do not act on an existing House. */
