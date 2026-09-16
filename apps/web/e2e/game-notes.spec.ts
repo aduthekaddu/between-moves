@@ -89,7 +89,8 @@ test.describe('completed Game notes', () => {
     await page.getByLabel('Your post-game note').fill(hostile);
     await page.getByRole('button', { name: 'Add note' }).click();
     await expect(page.getByText('Your Game note was added.')).toBeVisible();
-    await expect(page.getByText(hostile, { exact: true })).toBeVisible();
+    const memberNotes = page.getByLabel('Members’ Game notes');
+    await expect(memberNotes.getByText(hostile, { exact: true })).toBeVisible();
     await expect(page.locator('.game-notes__note script')).toHaveCount(0);
     await expect(page.locator('.game-notes__note b')).toHaveCount(0);
     await expect(
@@ -99,7 +100,7 @@ test.describe('completed Game notes', () => {
     await page.getByLabel('Your post-game note').fill('Edited reflection');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Your changes were saved.')).toBeVisible();
-    await expect(page.getByText('Edited reflection', { exact: true })).toBeVisible();
+    await expect(memberNotes.getByText('Edited reflection', { exact: true })).toBeVisible();
     await expect(
       database?.pool.query('select body from game_notes where game_id=$1 and membership_id=$2', [
         gameId,
@@ -108,7 +109,9 @@ test.describe('completed Game notes', () => {
     ).resolves.toMatchObject({ rowCount: 1, rows: [{ body: 'Edited reflection' }] });
 
     await page.reload();
-    await expect(page.getByText('Edited reflection', { exact: true })).toBeVisible();
+    await expect(
+      page.getByLabel('Members’ Game notes').getByText('Edited reflection', { exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
     const scan = await new AxeBuilder({ page }).analyze();
     expect(
