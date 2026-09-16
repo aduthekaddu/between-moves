@@ -31,17 +31,23 @@ export type { NightsUseCase } from './nights';
 export { changeNightSchedule, readScheduledNights } from './nights';
 export type { StoriesUseCase } from './stories';
 export {
+  createEmailDeliveryConsumer,
+  createInvitationEmailConsumer,
   createNudgeDispatcher,
   createNudgeEmailConsumer,
   createOutboxDispatcher,
   DEFAULT_NUDGE_ADVANCE_WINDOW_MS,
+  EMAIL_PROVIDER_RETRY_WINDOW_MS,
   NUDGE_PROVIDER_RETRY_WINDOW_MS,
   type DispatchSummary,
+  type EmailDeliveryConsumers,
   type NudgeDispatcher,
   type NudgeDispatcherOptions,
   type NudgeDispatchSummary,
   type OutboxDispatcher,
   type OutboxDispatcherOptions,
+  recordResendDeliveryEvent,
+  type ResendDeliveryEventDependencies,
 } from './delivery';
 
 export {

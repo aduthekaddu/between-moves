@@ -1,12 +1,10 @@
 import type {
+  EmailMetrics,
   MagicLinkEmail,
   MagicLinkEmailSender,
   MagicLinkEmailSendResult,
 } from '@between-moves/domain';
-
-interface EmailMetrics {
-  incrementEmailSend(outcome: 'success' | 'failure'): void;
-}
+import { ResendEmailClient } from './resend-email-client';
 
 export interface ResendMagicLinkEmailSenderOptions {
   readonly apiKey: string;
@@ -17,41 +15,25 @@ export interface ResendMagicLinkEmailSenderOptions {
 
 /** [BM-008] Fixed-origin Resend adapter; request bodies are never logged. */
 export class ResendMagicLinkEmailSender implements MagicLinkEmailSender {
-  private readonly request: typeof fetch;
+  private readonly client: ResendEmailClient;
 
   constructor(private readonly options: ResendMagicLinkEmailSenderOptions) {
-    this.request = options.fetch ?? globalThis.fetch;
+    this.client = new ResendEmailClient(options);
   }
 
   async sendMagicLink(
     message: MagicLinkEmail,
     options: { readonly idempotencyKey: string },
   ): Promise<MagicLinkEmailSendResult> {
-    try {
-      const response = await this.request('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.options.apiKey}`,
-          'Content-Type': 'application/json',
-          'Idempotency-Key': options.idempotencyKey,
-        },
-        body: JSON.stringify({
-          from: this.options.from,
-          to: [message.email],
-          subject: 'Sign in to Between Moves',
-          text: `Use this link to sign in to Between Moves. It expires in 15 minutes.\n\n${message.signInUrl}`,
-        }),
-      });
-      if (!response.ok) throw new Error(`Resend email request failed (${response.status})`);
-      this.options.metrics.incrementEmailSend('success');
-      return 'sent';
-    } catch (error) {
-      this.options.metrics.incrementEmailSend('failure');
-      if (error instanceof Error && error.message.startsWith('Resend email request failed')) {
-        throw error;
-      }
-      throw new Error('Resend email request failed', { cause: error });
-    }
+    await this.client.send(
+      {
+        to: message.email,
+        subject: 'Sign in to Between Moves',
+        text: `Use this link to sign in to Between Moves. It expires in 15 minutes.\n\n${message.signInUrl}`,
+      },
+      options.idempotencyKey,
+    );
+    return 'sent';
   }
 }
 

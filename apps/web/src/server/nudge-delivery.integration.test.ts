@@ -12,7 +12,7 @@ import {
   PgOutboxRepository,
 } from '@between-moves/db';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from '@between-moves/db/testing';
-import type { NudgeEmailSender } from '@between-moves/domain';
+import { RetriableOutboxError, type NudgeEmailSender } from '@between-moves/domain';
 import { FakeClock } from '@between-moves/domain/testing';
 import { createDeliveryMetricStubs } from '@between-moves/observability';
 import { fileURLToPath } from 'node:url';
@@ -70,7 +70,7 @@ integration('Nudge scheduling and delivery flow', () => {
     await database.end();
   });
 
-  it('[BM-029] [DR-DELIV-03] retains a failed email and delivers it once after retry', async () => {
+  it('[BM-029] [BM-030] [DR-DELIV-03] retains a failed email and marks it sent after retry', async () => {
     const clock = new FakeClock(NOW);
     const metrics = createDeliveryMetricStubs();
     const nudgeRepository = new PgNudgeRepository(database);
@@ -84,7 +84,9 @@ integration('Nudge scheduling and delivery flow', () => {
 
     const successfulSender = new TestNudgeEmailSender();
     const sendNudge = vi.fn<NudgeEmailSender['sendNudge']>(async (message, options) => {
-      if (sendNudge.mock.calls.length === 1) throw new Error('email provider unavailable');
+      if (sendNudge.mock.calls.length === 1) {
+        throw new RetriableOutboxError('Resend email request failed (503)');
+      }
       return successfulSender.sendNudge(message, options);
     });
     const outbox = createOutboxDispatcher({
@@ -106,14 +108,29 @@ integration('Nudge scheduling and delivery flow', () => {
       attempts: number;
       sent_at: Date | null;
       failed_at: Date | null;
-    }>("select attempts, sent_at, failed_at from outbox_events where topic = 'nudge.due'");
-    expect(retained.rows).toEqual([{ attempts: 1, sent_at: null, failed_at: null }]);
+      last_error: string | null;
+    }>(
+      "select attempts, sent_at, failed_at, last_error from outbox_events where topic = 'nudge.due'",
+    );
+    expect(retained.rows).toEqual([
+      {
+        attempts: 1,
+        sent_at: null,
+        failed_at: null,
+        last_error: 'Resend email request failed (503)',
+      },
+    ]);
 
     clock.advance(1_000);
     await expect(outbox.dispatchBatch()).resolves.toMatchObject({ retried: 0, sent: 1 });
     await expect(outbox.dispatchBatch()).resolves.toMatchObject({ claimed: 0, sent: 0 });
     expect(successfulSender.deliveries()).toHaveLength(1);
     expect(sendNudge).toHaveBeenCalledTimes(2);
+    const sent = await database.query<{ sent_at: Date | null; last_error: string | null }>(
+      "select sent_at, last_error from outbox_events where topic = 'nudge.due'",
+    );
+    expect(sent.rows[0]?.sent_at).toBeInstanceOf(Date);
+    expect(sent.rows[0]?.last_error).toBe('Resend email request failed (503)');
     const counts = await database.query<{ nudges: number; events: number }>(
       `select (select count(*)::int from nudge_deliveries) nudges,
               (select count(*)::int from outbox_events where topic = 'nudge.due') events`,

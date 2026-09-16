@@ -121,4 +121,5 @@ export const nonHouseMutationRoutes = Object.freeze([
   'apps/web/src/app/api/auth/magic-link/route.ts',
   'apps/web/src/app/api/auth/recovery/route.ts',
   'apps/web/src/app/api/houses/route.ts',
+  'apps/web/src/app/api/webhooks/resend/route.ts',
 ]);

@@ -9,6 +9,7 @@ export { DrizzleHouseReferenceRepository } from './house-reference-repository';
 export { enqueueOutboxEvent } from './enqueue-outbox-event';
 export type { OutboxTransaction } from './enqueue-outbox-event';
 export { PgOutboxRepository } from './outbox-repository';
+export { PgEmailDeliveryEventRepository } from './email-delivery-event-repository';
 export { PgNudgeEmailReader } from './pg-nudge-email-reader';
 export { PgNudgeRepository } from './pg-nudge-repository';
 

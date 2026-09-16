@@ -13,6 +13,7 @@ import {
   type PersistedInvitationCreation,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
+import { enqueueOutboxEvent } from './enqueue-outbox-event';
 
 interface CreationContextRow extends QueryResultRow {
   readonly member_cap: unknown;
@@ -199,6 +200,9 @@ export class PgInvitationRepository
           input.createdAt,
         ],
       );
+      if (input.deliveryEvent !== null) {
+        await enqueueOutboxEvent(input.deliveryEvent, client);
+      }
       await client.query('commit');
       return {
         invitationId: input.invitationId,

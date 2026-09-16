@@ -86,6 +86,7 @@ describe('outbox dispatcher', () => {
     expect(repository.releaseForRetry).toHaveBeenCalledWith(
       '01941f29-7c00-7000-8000-000000000101',
       new Date('2026-08-29T10:00:01.000Z'),
+      'Error',
     );
     expect(metrics.incrementRealtimePublishRetry).toHaveBeenCalledOnce();
   });
@@ -101,7 +102,11 @@ describe('outbox dispatcher', () => {
       retried: 0,
       failed: 1,
     });
-    expect(repository.markFailed).toHaveBeenCalledWith('01941f29-7c00-7000-8000-000000000101', NOW);
+    expect(repository.markFailed).toHaveBeenCalledWith(
+      '01941f29-7c00-7000-8000-000000000101',
+      NOW,
+      'Error',
+    );
     expect(repository.releaseForRetry).not.toHaveBeenCalled();
   });
 
@@ -116,7 +121,11 @@ describe('outbox dispatcher', () => {
       retried: 0,
       failed: 1,
     });
-    expect(repository.markFailed).toHaveBeenCalledWith('01941f29-7c00-7000-8000-000000000101', NOW);
+    expect(repository.markFailed).toHaveBeenCalledWith(
+      '01941f29-7c00-7000-8000-000000000101',
+      NOW,
+      'provider dedupe window expired',
+    );
     expect(repository.releaseForRetry).not.toHaveBeenCalled();
   });
 

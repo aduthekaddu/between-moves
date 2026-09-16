@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { ResendDeliveryEvent, ResendDeliveryEventType } from '@between-moves/domain';
 
 const REPLAY_WINDOW_SECONDS = 5 * 60;
 const EVENT_TYPES = new Set([
@@ -10,14 +11,11 @@ const EVENT_TYPES = new Set([
   'email.opened',
   'email.clicked',
   'email.failed',
-]);
+  'email.scheduled',
+  'email.suppressed',
+] satisfies readonly ResendDeliveryEventType[]);
 
-export interface ResendWebhookEvent {
-  readonly id: string;
-  readonly type: string;
-  readonly occurredAt: Date;
-  readonly emailId: string;
-}
+export type ResendWebhookEvent = ResendDeliveryEvent;
 
 export interface ResendWebhookInput {
   readonly body: string;
@@ -59,15 +57,24 @@ function parsePayload(body: string, id: string): ResendWebhookEvent {
   const occurredAt = new Date(String(event.created_at));
   if (
     typeof event.type !== 'string' ||
-    !EVENT_TYPES.has(event.type) ||
+    !EVENT_TYPES.has(event.type as ResendDeliveryEventType) ||
     !Number.isFinite(occurredAt.getTime()) ||
     !data ||
     typeof data !== 'object' ||
-    typeof (data as Record<string, unknown>).email_id !== 'string'
+    typeof (data as Record<string, unknown>).email_id !== 'string' ||
+    id.length === 0 ||
+    id.length > 256 ||
+    (data as { email_id: string }).email_id.length === 0 ||
+    (data as { email_id: string }).email_id.length > 256
   ) {
     throw invalid();
   }
-  return { id, type: event.type, occurredAt, emailId: (data as { email_id: string }).email_id };
+  return {
+    id,
+    type: event.type as ResendDeliveryEventType,
+    occurredAt,
+    emailId: (data as { email_id: string }).email_id,
+  };
 }
 
 /** [BM-008] Security §6.5 verifies Resend before parsing provider-controlled JSON. */

@@ -24,6 +24,7 @@ describe('Nudge email adapters', () => {
         apiKey: 're_test_key',
         from: 'Between Moves <nudges@betweenmoves.app>',
         fetch: request,
+        metrics: { incrementEmailSend: vi.fn() },
       });
 
       await expect(
@@ -48,10 +49,11 @@ describe('Nudge email adapters', () => {
       apiKey: 're_test_key',
       from: 'Between Moves <nudges@betweenmoves.app>',
       fetch: vi.fn(async () => new Response('unavailable', { status: 503 })),
+      metrics: { incrementEmailSend: vi.fn() },
     });
 
     await expect(sender.sendNudge(advance, { idempotencyKey: 'nudge-event-2' })).rejects.toThrow(
-      'Resend Nudge email request failed',
+      'Resend email request failed',
     );
   });
 
