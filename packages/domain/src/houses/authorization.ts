@@ -9,6 +9,7 @@ export type HouseAction =
   | { readonly kind: 'view_house_content' }
   | { readonly kind: 'create_or_join_game' }
   | { readonly kind: 'write_house_chat_or_game_note' }
+  | { readonly kind: 'set_game_reaction' }
   | { readonly kind: 'leave_house' }
   | { readonly kind: 'create_member_invite' }
   | { readonly kind: 'revoke_invite' }
@@ -103,6 +104,7 @@ export function houseAuthorizationDenialReason(
     case 'view_house_content':
     case 'create_or_join_game':
     case 'write_house_chat_or_game_note':
+    case 'set_game_reaction':
     case 'leave_house':
       return null;
     case 'create_member_invite':

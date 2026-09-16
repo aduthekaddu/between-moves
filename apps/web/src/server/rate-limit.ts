@@ -2,6 +2,7 @@ import { UpstashRateLimiter } from '@between-moves/adapters';
 import type { RateLimitResult } from '@between-moves/domain';
 import { createInvitationMetricStubs } from '@between-moves/observability';
 import { createMoveMetricStubs } from '@between-moves/observability';
+import { createReactionMetricStubs } from '@between-moves/observability';
 import { getConfig } from '../config';
 import {
   createRecoveryRateLimit,
@@ -13,6 +14,7 @@ import {
   type InvitationRateLimit,
 } from '../kernel/invitation-rate-limit';
 import { createMoveRateLimit, type MoveRateLimit } from '../kernel/move-rate-limit';
+import { createReactionRateLimit, type ReactionRateLimit } from '../kernel/reaction-rate-limit';
 import { getIdentityMetrics } from './identity-metrics';
 import { getLogger } from './logger';
 
@@ -22,6 +24,8 @@ const globalRateLimit = globalThis as typeof globalThis & {
   betweenMovesInvitationRateLimit?: InvitationRateLimit;
   betweenMovesMoveRateLimit?: MoveRateLimit;
   betweenMovesMoveMetrics?: ReturnType<typeof createMoveMetricStubs>;
+  betweenMovesReactionRateLimit?: ReactionRateLimit;
+  betweenMovesReactionMetrics?: ReturnType<typeof createReactionMetricStubs>;
 };
 
 const invitationMetrics = createInvitationMetricStubs();
@@ -154,4 +158,39 @@ export function getMoveRateLimit(): MoveRateLimit {
     });
   }
   return globalRateLimit.betweenMovesMoveRateLimit;
+}
+
+export function getReactionMetrics(): ReturnType<typeof createReactionMetricStubs> {
+  globalRateLimit.betweenMovesReactionMetrics ??= createReactionMetricStubs();
+  return globalRateLimit.betweenMovesReactionMetrics;
+}
+
+/** [BM-031] Composition root for fail-open per-account and per-IP Reaction limits. */
+export function getReactionRateLimit(): ReactionRateLimit {
+  if (!globalRateLimit.betweenMovesReactionRateLimit) {
+    const config = getConfig();
+    globalRateLimit.betweenMovesReactionRateLimit = createReactionRateLimit({
+      primary: new UpstashRateLimiter({
+        url: config.upstashRedisRestUrl.href,
+        token: config.upstashRedisRestToken,
+      }),
+      fallback: new InMemoryRateLimiter(),
+      incrementRateLimitHit: () => getReactionMetrics().incrementRateLimitHit(),
+      onStoreError() {
+        getLogger().log({
+          level: 'warn',
+          requestId: 'rate-limit-store',
+          actorId: 'anonymous',
+          houseId: null,
+          gameId: null,
+          commandId: null,
+          event: 'rate-limit.store-unavailable',
+          outcome: 'error',
+          durationMs: 0,
+          data: { surface: 'reaction', fallback: 'in-process' },
+        });
+      },
+    });
+  }
+  return globalRateLimit.betweenMovesReactionRateLimit;
 }

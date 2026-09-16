@@ -30,6 +30,8 @@ export type {
 } from './invitation-metrics';
 export { createMoveMetricStubs } from './move-metrics';
 export type { MoveMetricSnapshot, MoveMetricStubs } from './move-metrics';
+export { createReactionMetricStubs } from './reaction-metrics';
+export type { ReactionMetricSnapshot, ReactionMetricStubs } from './reaction-metrics';
 export { createSeasonTransitionRecorder } from './season-transition-logger';
 export type { SeasonTransitionRecorderOptions } from './season-transition-logger';
 export { createNightScheduleChangeRecorder } from './night-schedule-change-logger';

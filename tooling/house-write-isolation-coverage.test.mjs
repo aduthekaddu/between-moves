@@ -50,7 +50,7 @@ test('[BM-017] every House write export and route has a parametric isolation cas
   assert.match(isolationSource, /it\.each\(cases\)/);
 
   const moduleIndexes = await Promise.all(
-    ['games', 'houses', 'nights', 'seasons'].map((moduleName) =>
+    ['games', 'houses', 'nights', 'seasons', 'stories'].map((moduleName) =>
       readFile(resolve(repositoryRoot, `packages/application/src/${moduleName}/index.ts`), 'utf8'),
     ),
   );
@@ -62,7 +62,7 @@ test('[BM-017] every House write export and route has a parametric isolation cas
   assert.deepEqual(sorted(runtimeExports), sorted([...useCases, ...nonHouseWriteExports]));
 
   const implementedFunctions = [];
-  for (const moduleName of ['games', 'houses', 'nights', 'seasons']) {
+  for (const moduleName of ['games', 'houses', 'nights', 'seasons', 'stories']) {
     const moduleRoot = resolve(repositoryRoot, `packages/application/src/${moduleName}`);
     for (const path of await filesBelow(moduleRoot)) {
       if (!path.endsWith('.ts') || path.endsWith('.test.ts') || path.endsWith('/index.ts'))
