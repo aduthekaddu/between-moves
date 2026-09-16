@@ -34,7 +34,7 @@ export default async function GamePage({ params }: GamePageProps) {
   );
   const request = new Request(url, { headers: requestHeaders });
   const position = await getGamePosition(request, houseId, gameId);
-  if (position === null) notFound();
+  if (position === null) return notFound();
   const currentReaction =
     position.state === 'completed' ? await getCurrentGameReaction(request, houseId, gameId) : null;
   return <GameView houseId={houseId} position={position} currentReaction={currentReaction} />;
