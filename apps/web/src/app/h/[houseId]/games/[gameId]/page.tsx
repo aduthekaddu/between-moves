@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { getConfig } from '../../../../../config';
 import { getGamePosition } from '../../../../../modules/games/game-position';
 import { getCurrentGameReaction } from '../../../../../modules/stories/reactions';
+import { getGameNotes } from '../../../../../modules/stories/notes';
 import { GameView } from './game-view';
 
 export const dynamic = 'force-dynamic';
@@ -37,5 +38,14 @@ export default async function GamePage({ params }: GamePageProps) {
   if (position === null) return notFound();
   const currentReaction =
     position.state === 'completed' ? await getCurrentGameReaction(request, houseId, gameId) : null;
-  return <GameView houseId={houseId} position={position} currentReaction={currentReaction} />;
+  const gameNotes =
+    position.state === 'completed' ? await getGameNotes(request, houseId, gameId) : null;
+  return (
+    <GameView
+      houseId={houseId}
+      position={position}
+      currentReaction={currentReaction}
+      gameNotes={gameNotes}
+    />
+  );
 }

@@ -30,7 +30,7 @@ export {
 export type { NightsUseCase } from './nights';
 export { changeNightSchedule, readScheduledNights } from './nights';
 export type { StoriesUseCase } from './stories';
-export { readCurrentGameReaction, setGameReaction } from './stories';
+export { readCurrentGameReaction, readGameNotes, saveGameNote, setGameReaction } from './stories';
 export {
   createEmailDeliveryConsumer,
   createInvitationEmailConsumer,

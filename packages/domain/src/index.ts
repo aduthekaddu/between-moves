@@ -237,13 +237,21 @@ export type {
   NightsPorts,
   ReadScheduledNightsRequest,
 } from './nights';
-export { GAME_REACTIONS } from './stories';
+export { GAME_REACTIONS, MAX_GAME_NOTE_LENGTH, validateGameNoteBody } from './stories';
 export type {
+  GameNote,
+  GameNoteRepository,
+  GameNotesView,
   GameReaction,
   GameReactionRepository,
   GameReactionValue,
   ReadCurrentGameReactionRequest,
   ReadGameReactionDependencies,
+  ReadGameNotesDependencies,
+  ReadGameNotesRequest,
+  SaveGameNoteDependencies,
+  SaveGameNoteInput,
+  SaveGameNoteRequest,
   SetGameReactionDependencies,
   SetGameReactionInput,
   SetGameReactionRequest,

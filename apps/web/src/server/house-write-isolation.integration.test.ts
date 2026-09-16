@@ -14,6 +14,7 @@ import {
   publishSeason,
   revokeInvitation,
   resignGame,
+  saveGameNote,
   setGameReaction,
   submitMove,
   transferHouseOwnership,
@@ -26,6 +27,7 @@ import {
   PgGameSeatRepository,
   PgGameCompletionRepository,
   PgGameReactionRepository,
+  PgGameNoteRepository,
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
@@ -42,6 +44,7 @@ import type {
   GameSeatCreationRepository,
   GameCompletionRepository,
   GameReactionRepository,
+  GameNoteRepository,
   IdGenerator,
   InvitationCreationRepository,
   InvitationEmailDeliveryCodec,
@@ -99,6 +102,7 @@ interface IsolationHarness {
   readonly moves: SubmitMoveRepository;
   readonly completions: GameCompletionRepository;
   readonly reactions: GameReactionRepository;
+  readonly notes: GameNoteRepository;
   readonly rules: RulesAdapter;
 }
 
@@ -402,6 +406,22 @@ const cases: readonly IsolationCase[] = [
         harness,
       ),
   },
+  {
+    id: 'game.note-save',
+    name: 'Game note save',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      saveGameNote(
+        {
+          houseId: harness.world.second.houseId,
+          gameId: activeGameId,
+          body: 'Crossed House note',
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -465,7 +485,8 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
        'games', coalesce((
          select jsonb_agg(jsonb_build_object(
            'id', g.id::text, 'state', g.state, 'ply', g.current_ply, 'version', g.version,
-           'moves', (select count(*) from moves m where m.game_id = g.id)
+           'moves', (select count(*) from moves m where m.game_id = g.id),
+           'notes', (select count(*) from game_notes n where n.game_id = g.id)
          ) order by g.id)
          from games g where g.house_id = h.id
        ), '[]'::jsonb)
@@ -625,6 +646,7 @@ integration('BM-017 current House write-path isolation', () => {
       moves: new PgSubmitMoveRepository(database),
       completions: new PgGameCompletionRepository(database),
       reactions: new PgGameReactionRepository(database),
+      notes: new PgGameNoteRepository(database),
       rules: {
         applyMove: () => {
           throw new Error('Cross-House Move must not reach the rules adapter');

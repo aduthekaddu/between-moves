@@ -25,6 +25,7 @@ export { PgGameCompletionRepository } from './pg-game-completion-repository';
 export { PgMoveShelfRepository } from './pg-move-shelf-repository';
 export { PgGamePositionRepository } from './pg-game-position-repository';
 export { PgGameReactionRepository } from './pg-game-reaction-repository';
+export { PgGameNoteRepository } from './pg-game-note-repository';
 export { PgHouseAuthorizationMembershipRepository } from './pg-house-authorization-membership-repository';
 export { PgHouseHomeRepository } from './pg-house-home-repository';
 export { PgInvitationRepository } from './pg-invitation-repository';

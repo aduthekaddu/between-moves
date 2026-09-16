@@ -1,4 +1,5 @@
-import type { GamePosition, GameReactionValue } from '@between-moves/domain';
+import type { GameNotesView, GamePosition, GameReactionValue } from '@between-moves/domain';
+import { GameNotes } from './game-notes';
 import { MoveEntry } from './move-entry';
 import { ReactionControl } from './reaction-control';
 
@@ -7,10 +8,12 @@ export function GameView({
   houseId,
   position,
   currentReaction = null,
+  gameNotes = null,
 }: {
   readonly houseId: string;
   readonly position: GamePosition;
   readonly currentReaction?: GameReactionValue | null;
+  readonly gameNotes?: GameNotesView | null;
 }) {
   return (
     <div className="game-shell">
@@ -39,11 +42,27 @@ export function GameView({
           </section>
         )}
         {position.state === 'completed' ? (
-          <ReactionControl
-            houseId={houseId}
-            gameId={position.gameId}
-            initialReaction={currentReaction}
-          />
+          <>
+            <ReactionControl
+              houseId={houseId}
+              gameId={position.gameId}
+              initialReaction={currentReaction}
+            />
+            {gameNotes === null ? null : (
+              <GameNotes
+                houseId={houseId}
+                gameId={position.gameId}
+                initial={{
+                  currentMembershipId: gameNotes.currentMembershipId,
+                  notes: gameNotes.notes.map((note) => ({
+                    ...note,
+                    createdAt: note.createdAt.toISOString(),
+                    editedAt: note.editedAt?.toISOString() ?? null,
+                  })),
+                }}
+              />
+            )}
+          </>
         ) : null}
       </main>
     </div>

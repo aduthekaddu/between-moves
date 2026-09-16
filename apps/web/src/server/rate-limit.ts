@@ -2,6 +2,7 @@ import { UpstashRateLimiter } from '@between-moves/adapters';
 import type { RateLimitResult } from '@between-moves/domain';
 import { createInvitationMetricStubs } from '@between-moves/observability';
 import { createMoveMetricStubs } from '@between-moves/observability';
+import { createNoteMetricStubs } from '@between-moves/observability';
 import { createReactionMetricStubs } from '@between-moves/observability';
 import { getConfig } from '../config';
 import {
@@ -14,6 +15,7 @@ import {
   type InvitationRateLimit,
 } from '../kernel/invitation-rate-limit';
 import { createMoveRateLimit, type MoveRateLimit } from '../kernel/move-rate-limit';
+import { createNoteRateLimit, type NoteRateLimit } from '../kernel/note-rate-limit';
 import { createReactionRateLimit, type ReactionRateLimit } from '../kernel/reaction-rate-limit';
 import { getIdentityMetrics } from './identity-metrics';
 import { getLogger } from './logger';
@@ -24,6 +26,8 @@ const globalRateLimit = globalThis as typeof globalThis & {
   betweenMovesInvitationRateLimit?: InvitationRateLimit;
   betweenMovesMoveRateLimit?: MoveRateLimit;
   betweenMovesMoveMetrics?: ReturnType<typeof createMoveMetricStubs>;
+  betweenMovesNoteRateLimit?: NoteRateLimit;
+  betweenMovesNoteMetrics?: ReturnType<typeof createNoteMetricStubs>;
   betweenMovesReactionRateLimit?: ReactionRateLimit;
   betweenMovesReactionMetrics?: ReturnType<typeof createReactionMetricStubs>;
 };
@@ -193,4 +197,39 @@ export function getReactionRateLimit(): ReactionRateLimit {
     });
   }
   return globalRateLimit.betweenMovesReactionRateLimit;
+}
+
+export function getNoteMetrics(): ReturnType<typeof createNoteMetricStubs> {
+  globalRateLimit.betweenMovesNoteMetrics ??= createNoteMetricStubs();
+  return globalRateLimit.betweenMovesNoteMetrics;
+}
+
+/** [BM-032] Composition root for fail-open per-account and per-IP Game-note limits. */
+export function getNoteRateLimit(): NoteRateLimit {
+  if (!globalRateLimit.betweenMovesNoteRateLimit) {
+    const config = getConfig();
+    globalRateLimit.betweenMovesNoteRateLimit = createNoteRateLimit({
+      primary: new UpstashRateLimiter({
+        url: config.upstashRedisRestUrl.href,
+        token: config.upstashRedisRestToken,
+      }),
+      fallback: new InMemoryRateLimiter(),
+      incrementRateLimitHit: () => getNoteMetrics().incrementRateLimitHit(),
+      onStoreError() {
+        getLogger().log({
+          level: 'warn',
+          requestId: 'rate-limit-store',
+          actorId: 'anonymous',
+          houseId: null,
+          gameId: null,
+          commandId: null,
+          event: 'rate-limit.store-unavailable',
+          outcome: 'error',
+          durationMs: 0,
+          data: { surface: 'game-note', fallback: 'in-process' },
+        });
+      },
+    });
+  }
+  return globalRateLimit.betweenMovesNoteRateLimit;
 }

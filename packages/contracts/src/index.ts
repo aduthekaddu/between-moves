@@ -2,6 +2,7 @@ export { membershipRoleChangeBodySchema, ownershipTransferBodySchema } from './m
 export { createGameSeatBodySchema, type CreateGameSeatBody } from './game-seats';
 export { submitMoveBodySchema, type SubmitMoveBody } from './game-moves';
 export { gameReactionBodySchema, type GameReactionBody } from './game-reactions';
+export { gameNoteBodySchema, type GameNoteBody } from './game-notes';
 export {
   drawGameBodySchema,
   resignGameBodySchema,
