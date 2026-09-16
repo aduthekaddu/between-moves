@@ -866,6 +866,69 @@ body {
   margin-left: var(--bm-space-4);
 }
 
+.reaction-control {
+  margin: var(--bm-space-6) var(--bm-space-4) 0;
+  padding: var(--bm-space-5);
+  border: 1px solid var(--bm-color-wood-light);
+  border-top: 4px solid var(--bm-color-brass);
+  background: var(--bm-color-paper-raised);
+  box-shadow: var(--bm-elev-card);
+}
+
+.reaction-control h2 {
+  margin: 0;
+  font-family: var(--bm-font-serif);
+  font-size: 1.5rem;
+}
+
+.reaction-control__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--bm-space-3);
+  margin-top: var(--bm-space-4);
+}
+
+.reaction-control__options button {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--bm-space-2);
+  padding: 10px 12px;
+  border: 1px solid var(--bm-color-wood-light);
+  border-radius: var(--bm-radius-sm);
+  color: var(--bm-color-ink);
+  background: var(--bm-color-paper);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reaction-control__options button[aria-pressed='true'] {
+  border: 3px solid var(--bm-color-wood-dark);
+  background: var(--bm-color-brass);
+}
+
+.reaction-control__options button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.reaction-control__status,
+.reaction-control__error {
+  margin: var(--bm-space-3) 0 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.reaction-control__status {
+  color: var(--bm-color-ink-muted);
+}
+
+.reaction-control__error {
+  color: var(--bm-color-danger);
+}
+
 .move-entry__heading {
   display: flex;
   align-items: baseline;

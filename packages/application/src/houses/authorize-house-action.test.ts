@@ -73,6 +73,7 @@ const actions = [
     action: { kind: 'write_house_chat_or_game_note' },
     roles: ['owner', 'steward', 'member'],
   },
+  { action: { kind: 'set_game_reaction' }, roles: ['owner', 'steward', 'member'] },
   { action: { kind: 'leave_house' }, roles: ['owner', 'steward', 'member'] },
   { action: { kind: 'create_member_invite' }, roles: ['owner', 'steward'] },
   { action: { kind: 'revoke_invite' }, roles: ['owner', 'steward'] },

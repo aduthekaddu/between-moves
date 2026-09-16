@@ -237,7 +237,18 @@ export type {
   NightsPorts,
   ReadScheduledNightsRequest,
 } from './nights';
-export type { StoriesPorts } from './stories';
+export { GAME_REACTIONS } from './stories';
+export type {
+  GameReaction,
+  GameReactionRepository,
+  GameReactionValue,
+  ReadCurrentGameReactionRequest,
+  ReadGameReactionDependencies,
+  SetGameReactionDependencies,
+  SetGameReactionInput,
+  SetGameReactionRequest,
+  StoriesPorts,
+} from './stories';
 export {
   INVITATION_EMAIL_TOPIC,
   NUDGE_DUE_TOPIC,

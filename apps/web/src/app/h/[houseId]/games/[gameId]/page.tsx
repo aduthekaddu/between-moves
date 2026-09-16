@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { getConfig } from '../../../../../config';
 import { getGamePosition } from '../../../../../modules/games/game-position';
+import { getCurrentGameReaction } from '../../../../../modules/stories/reactions';
 import { GameView } from './game-view';
 
 export const dynamic = 'force-dynamic';
@@ -31,11 +32,10 @@ export default async function GamePage({ params }: GamePageProps) {
     `/h/${encodeURIComponent(houseId)}/games/${encodeURIComponent(gameId)}`,
     getConfig().appOrigin,
   );
-  const position = await getGamePosition(
-    new Request(url, { headers: requestHeaders }),
-    houseId,
-    gameId,
-  );
-  if (position === null) notFound();
-  return <GameView houseId={houseId} position={position} />;
+  const request = new Request(url, { headers: requestHeaders });
+  const position = await getGamePosition(request, houseId, gameId);
+  if (position === null) return notFound();
+  const currentReaction =
+    position.state === 'completed' ? await getCurrentGameReaction(request, houseId, gameId) : null;
+  return <GameView houseId={houseId} position={position} currentReaction={currentReaction} />;
 }

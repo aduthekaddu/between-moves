@@ -1,13 +1,16 @@
-import type { GamePosition } from '@between-moves/domain';
+import type { GamePosition, GameReactionValue } from '@between-moves/domain';
 import { MoveEntry } from './move-entry';
+import { ReactionControl } from './reaction-control';
 
 /** [BM-027] [UX-RESP-02] Narrow-first correspondence Game page. */
 export function GameView({
   houseId,
   position,
+  currentReaction = null,
 }: {
   readonly houseId: string;
   readonly position: GamePosition;
+  readonly currentReaction?: GameReactionValue | null;
 }) {
   return (
     <div className="game-shell">
@@ -35,6 +38,13 @@ export function GameView({
             <p>Live Move entry is available on wider screens during Between Moves Night.</p>
           </section>
         )}
+        {position.state === 'completed' ? (
+          <ReactionControl
+            houseId={houseId}
+            gameId={position.gameId}
+            initialReaction={currentReaction}
+          />
+        ) : null}
       </main>
     </div>
   );

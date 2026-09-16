@@ -14,6 +14,7 @@ import {
   publishSeason,
   revokeInvitation,
   resignGame,
+  setGameReaction,
   submitMove,
   transferHouseOwnership,
 } from '@between-moves/application';
@@ -24,6 +25,7 @@ import {
   PgGameSeatAcceptanceRepository,
   PgGameSeatRepository,
   PgGameCompletionRepository,
+  PgGameReactionRepository,
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
@@ -39,6 +41,7 @@ import type {
   GameSeatAcceptanceRepository,
   GameSeatCreationRepository,
   GameCompletionRepository,
+  GameReactionRepository,
   IdGenerator,
   InvitationCreationRepository,
   InvitationEmailDeliveryCodec,
@@ -95,6 +98,7 @@ interface IsolationHarness {
   readonly transitions: SeasonTransitionRecorder;
   readonly moves: SubmitMoveRepository;
   readonly completions: GameCompletionRepository;
+  readonly reactions: GameReactionRepository;
   readonly rules: RulesAdapter;
 }
 
@@ -382,6 +386,22 @@ const cases: readonly IsolationCase[] = [
         harness,
       ),
   },
+  {
+    id: 'game.reaction-set',
+    name: 'Game Reaction set',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      setGameReaction(
+        {
+          houseId: harness.world.second.houseId,
+          gameId: activeGameId,
+          reaction: 'dramatic',
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -604,6 +624,7 @@ integration('BM-017 current House write-path isolation', () => {
       transitions: { record: () => undefined },
       moves: new PgSubmitMoveRepository(database),
       completions: new PgGameCompletionRepository(database),
+      reactions: new PgGameReactionRepository(database),
       rules: {
         applyMove: () => {
           throw new Error('Cross-House Move must not reach the rules adapter');
