@@ -64,6 +64,7 @@ import type {
   MembershipAdminRepository,
   NightAttendanceEventRecorder,
   NightAttendanceRepository,
+  NightJoinLeaveRecorder,
   NightLifecycleRecorder,
   NightLifecycleRepository,
   NightRepository,
@@ -109,6 +110,7 @@ interface IsolationHarness {
   readonly memberships: MembershipAdminRepository;
   readonly attendance: NightAttendanceRepository;
   readonly events: NightAttendanceEventRecorder;
+  readonly joinLeave: NightJoinLeaveRecorder;
   readonly nights: NightRepository;
   readonly lifecycle: NightLifecycleRepository;
   readonly rsvps: NightRsvpRepository;
@@ -660,6 +662,12 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
          ) order by a.id)
          from night_attendance a where a.house_id = h.id
        ), '[]'::jsonb),
+       'night_attendance_events', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'id', e.id::text, 'night', e.night_id::text, 'kind', e.kind
+         ) order by e.id)
+         from night_attendance_events e where e.house_id = h.id
+       ), '[]'::jsonb),
        'games', coalesce((
          select jsonb_agg(jsonb_build_object(
            'id', g.id::text, 'state', g.state, 'ply', g.current_ply, 'version', g.version,
@@ -818,6 +826,7 @@ integration('BM-017 current House write-path isolation', () => {
       memberships: new PgMembershipAdminRepository(database),
       attendance: new PgNightAttendanceRepository(database),
       events: { record: () => undefined },
+      joinLeave: { record: () => undefined },
       nights: new PgNightRepository(database),
       lifecycle,
       rsvps: new PgNightRsvpRepository(database),

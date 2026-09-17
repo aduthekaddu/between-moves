@@ -84,6 +84,7 @@ integration('PostgreSQL Between Moves Night attendance', () => {
 
     await attendance.join(context, {
       attendanceId: id(970),
+      eventId: id(969),
       nightId: nightIds[0],
       joinedAt: clock.now(),
     });
@@ -124,6 +125,7 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     await expect(
       attendance.leave(context, {
         nightId: nightIds[0],
+        eventId: id(968),
         scoringEventId: id(973),
         leftAt: clock.now(),
       }),
@@ -156,7 +158,7 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     ]);
   });
 
-  it('[BM-033] [DR-SCORE-08] keeps repeated joins/leaves unique and scores once', async () => {
+  it('[BM-033] [BM-036] [DR-SCORE-08] keeps repeated joins/leaves unique and scores once', async () => {
     const clock = new FakeClock(startedAt);
     const repository = new PgNightAttendanceRepository(database);
     const context = fakeAuthorizationContext({
@@ -167,12 +169,14 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     const join = () =>
       repository.join(context, {
         attendanceId: id(nextId++),
+        eventId: id(nextId++),
         nightId: nightIds[0],
         joinedAt: clock.now(),
       });
     const leave = () =>
       repository.leave(context, {
         nightId: nightIds[0],
+        eventId: id(nextId++),
         scoringEventId: id(nextId++),
         leftAt: clock.now(),
       });
@@ -180,6 +184,8 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     const first = await join();
     const repeated = await join();
     expect(repeated.attendanceId).toBe(first.attendanceId);
+    expect(first.joinedNow).toBe(true);
+    expect(repeated.joinedNow).toBe(false);
     clock.advance(600_000);
     await leave();
     await leave();
@@ -199,8 +205,20 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     const events = await database.query(
       "select count(*)::int as count from outbox_events where topic='night.attendance-qualified'",
     );
+    const joinLeave = await database.query(
+      `select kind, count(*)::int as count
+         from night_attendance_events
+        where night_id=$1 and membership_id=$2
+        group by kind
+        order by kind`,
+      [nightIds[0], world.first.nonOwner.membershipId],
+    );
     expect(attendance.rows).toEqual([{ count: 1, accumulated_seconds: 960 }]);
     expect(events.rows).toEqual([{ count: 1 }]);
+    expect(joinLeave.rows).toEqual([
+      { kind: 'join', count: 3 },
+      { kind: 'leave', count: 3 },
+    ]);
   });
 
   it('[BM-033] [DR-NIGHT-05] defines the completed-live-Game qualification seam', async () => {
@@ -211,6 +229,7 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     });
     await repository.join(context, {
       attendanceId: id(990),
+      eventId: id(989),
       nightId: nightIds[0],
       joinedAt: startedAt,
     });
@@ -250,6 +269,7 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     });
     await repository.join(context, {
       attendanceId: id(993),
+      eventId: id(992),
       nightId: nightIds[0],
       joinedAt: clock.now(),
     });
@@ -292,7 +312,7 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     ).resolves.toMatchObject({ scoringEventEmitted: true });
   });
 
-  it("[BM-033] [DR-SEC-01] denies another House's Member and Night pairing", async () => {
+  it("[BM-033] [BM-036] [DR-SEC-01] denies another House's Member and Night pairing", async () => {
     const clock = new FakeClock(startedAt);
     const repository = new PgNightAttendanceRepository(database);
     const context = fakeAuthorizationContext({
@@ -303,6 +323,7 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     await expect(
       repository.join(context, {
         attendanceId: id(997),
+        eventId: id(996),
         nightId: nightIds[0],
         joinedAt: clock.now(),
       }),
@@ -320,5 +341,116 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     await expect(
       database.query('select count(*)::int as count from night_attendance'),
     ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+    await expect(
+      database.query('select count(*)::int as count from night_attendance_events'),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+  });
+
+  it('[BM-036] concurrent first joins share one attendance row and one join event', async () => {
+    const clock = new FakeClock(startedAt);
+    const repository = new PgNightAttendanceRepository(database);
+    const context = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.nonOwner.userId,
+    });
+
+    const results = await Promise.all([
+      repository.join(context, {
+        attendanceId: id(930),
+        eventId: id(931),
+        nightId: nightIds[0],
+        joinedAt: clock.now(),
+      }),
+      repository.join(context, {
+        attendanceId: id(932),
+        eventId: id(933),
+        nightId: nightIds[0],
+        joinedAt: clock.now(),
+      }),
+    ]);
+
+    expect(new Set(results.map((result) => result.attendanceId)).size).toBe(1);
+    expect(results.filter((result) => result.joinedNow)).toHaveLength(1);
+    await expect(
+      database.query(
+        `select count(*)::int as count from night_attendance_events
+          where night_id=$1 and membership_id=$2 and kind='join'`,
+        [nightIds[0], world.first.nonOwner.membershipId],
+      ),
+    ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+  });
+
+  it('[BM-036] [DR-NIGHT-02/05] accrues 15 minutes on leave and fires attendance once', async () => {
+    const clock = new FakeClock(startedAt);
+    const repository = new PgNightAttendanceRepository(database);
+    const context = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.nonOwner.userId,
+    });
+
+    const joined = await repository.join(context, {
+      attendanceId: id(940),
+      eventId: id(941),
+      nightId: nightIds[0],
+      joinedAt: clock.now(),
+    });
+    expect(joined).toMatchObject({
+      joinedNow: true,
+      firstJoinedAt: startedAt,
+      currentJoinedAt: startedAt,
+      lastLeftAt: null,
+      accumulatedSeconds: 0,
+    });
+
+    clock.advance(900_000);
+    const left = await repository.leave(context, {
+      nightId: nightIds[0],
+      eventId: id(942),
+      scoringEventId: id(943),
+      leftAt: clock.now(),
+    });
+    expect(left).toMatchObject({
+      attendanceId: id(940),
+      firstJoinedAt: startedAt,
+      currentJoinedAt: null,
+      lastLeftAt: new Date('2026-09-04T14:15:00.000Z'),
+      accumulatedSeconds: 900,
+      qualifiedAt: new Date('2026-09-04T14:15:00.000Z'),
+      qualificationReason: 'duration',
+      leftNow: true,
+      scoringEventEmitted: true,
+      sourceKey: `night:${nightIds[0]}`,
+    });
+
+    await expect(
+      repository.leave(context, {
+        nightId: nightIds[0],
+        eventId: id(944),
+        scoringEventId: id(945),
+        leftAt: clock.now(),
+      }),
+    ).resolves.toMatchObject({ leftNow: false, scoringEventEmitted: false });
+
+    const events = await database.query(
+      `select kind, occurred_at
+         from night_attendance_events
+        where attendance_id=$1
+        order by occurred_at, kind`,
+      [id(940)],
+    );
+    const scoring = await database.query(
+      "select count(*)::int as count from outbox_events where topic='night.attendance-qualified'",
+    );
+    const rows = await database.query(
+      `select count(*)::int as count from night_attendance
+        where night_id=$1 and membership_id=$2`,
+      [nightIds[0], world.first.nonOwner.membershipId],
+    );
+    expect(events.rows).toEqual([
+      { kind: 'join', occurred_at: startedAt },
+      { kind: 'leave', occurred_at: new Date('2026-09-04T14:15:00.000Z') },
+    ]);
+    expect(scoring.rows).toEqual([{ count: 1 }]);
+    expect(rows.rows).toEqual([{ count: 1 }]);
   });
 });

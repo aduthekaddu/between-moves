@@ -8,7 +8,7 @@ interface RouteContext {
   readonly params: Promise<{ readonly houseId: string; readonly nightId: string }>;
 }
 
-/** [BM-033] POST /api/houses/{houseId}/nights/{nightId}/leave. */
+/** [BM-036] POST /api/houses/{houseId}/nights/{nightId}/leave. */
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   const { houseId, nightId } = await context.params;
   return createLeaveNightHandler(nightAttendanceHandlerDependencies(request))(

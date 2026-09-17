@@ -3,7 +3,7 @@ import {
   DomainError,
   HouseAuthorizationDeniedError,
   type AuthenticatedViewer,
-  type NightAttendance,
+  type NightAttendanceJoinResult,
   type NightAttendanceLeaveResult,
   type NightAttendanceRequest,
 } from '@between-moves/domain';
@@ -15,7 +15,7 @@ const identifier = z.string().uuid();
 export interface NightAttendanceHandlerDependencies {
   readonly expectedOrigin: string;
   readonly requireViewer: (request: Request) => Promise<AuthenticatedViewer>;
-  readonly joinNight: (request: NightAttendanceRequest) => Promise<NightAttendance>;
+  readonly joinNight: (request: NightAttendanceRequest) => Promise<NightAttendanceJoinResult>;
   readonly leaveNight: (
     request: NightAttendanceRequest,
   ) => Promise<NightAttendanceLeaveResult | null>;
@@ -85,7 +85,7 @@ function preflight(
   return null;
 }
 
-/** [BM-033] Durable Night join boundary; realtime token issuance remains BM-039. */
+/** [BM-036] Durable Night join boundary; realtime token issuance remains BM-039. */
 export function createJoinNightHandler(dependencies: NightAttendanceHandlerDependencies) {
   return async (request: Request, houseId: string, nightId: string): Promise<Response> => {
     const rejected = preflight(request, houseId, nightId, dependencies.expectedOrigin);
@@ -110,7 +110,7 @@ export function createJoinNightHandler(dependencies: NightAttendanceHandlerDepen
   };
 }
 
-/** [BM-033] Idempotent durable Night leave boundary. */
+/** [BM-036] Idempotent durable Night leave boundary. */
 export function createLeaveNightHandler(dependencies: NightAttendanceHandlerDependencies) {
   return async (request: Request, houseId: string, nightId: string): Promise<Response> => {
     const rejected = preflight(request, houseId, nightId, dependencies.expectedOrigin);

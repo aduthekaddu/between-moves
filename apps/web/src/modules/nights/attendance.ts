@@ -8,6 +8,7 @@ import type { NightAttendanceDependencies } from '@between-moves/domain';
 import {
   createHouseAuthorizationMetricStubs,
   createNightAttendanceEventRecorder,
+  createNightJoinLeaveRecorder,
 } from '@between-moves/observability';
 import { getConfig } from '../../config';
 import { getDatabase } from '../../server/database';
@@ -41,10 +42,11 @@ function dependencies(request: Request): NightAttendanceDependencies {
     clock,
     ids: { generate: () => generateUuidV7() },
     events: createNightAttendanceEventRecorder({ logger: getLogger(), requestId: id }),
+    joinLeave: createNightJoinLeaveRecorder({ logger: getLogger(), requestId: id }),
   };
 }
 
-/** [BM-033] Web composition for durable Night attendance. */
+/** [BM-036] Web composition for durable Night join/leave and attendance accrual. */
 export function nightAttendanceHandlerDependencies(
   request: Request,
 ): NightAttendanceHandlerDependencies {

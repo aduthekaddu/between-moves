@@ -241,6 +241,8 @@ export type {
   OfferedGameColor,
 } from './games';
 export {
+  accumulatedAttendanceSeconds,
+  crossedAttendanceDurationThreshold,
   DEFAULT_NIGHT_DURATION_MS,
   NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
   NIGHT_ATTENDANCE_THRESHOLD_SECONDS,
@@ -263,6 +265,7 @@ export type {
   NightAttendanceDependencies,
   NightAttendanceEventObservation,
   NightAttendanceEventRecorder,
+  NightAttendanceJoinResult,
   NightAttendanceLeaveResult,
   NightAttendanceQualificationReason,
   NightAttendanceRepository,
@@ -271,6 +274,9 @@ export type {
   NightChangeResult,
   NightDependencies,
   NightHostCandidate,
+  NightJoinLeaveKind,
+  NightJoinLeaveObservation,
+  NightJoinLeaveRecorder,
   NightLifecycleDependencies,
   NightLifecycleEvent,
   NightLifecycleInput,
