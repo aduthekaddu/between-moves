@@ -34,6 +34,8 @@ export { createReactionMetricStubs } from './reaction-metrics';
 export type { ReactionMetricSnapshot, ReactionMetricStubs } from './reaction-metrics';
 export { createNoteMetricStubs } from './note-metrics';
 export type { NoteMetricSnapshot, NoteMetricStubs } from './note-metrics';
+export { createRealtimeMetricStubs } from './realtime-metrics';
+export type { RealtimeMetricSnapshot, RealtimeMetricStubs } from './realtime-metrics';
 export { createSeasonTransitionRecorder } from './season-transition-logger';
 export type { SeasonTransitionRecorderOptions } from './season-transition-logger';
 export { createNightScheduleChangeRecorder } from './night-schedule-change-logger';

@@ -9,7 +9,9 @@ const SENSITIVE_KEYS = new Set([
   'emailcontent',
   'gamenotebody',
   'password',
+  'rootkey',
   'secret',
+  'serverkey',
 ]);
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';

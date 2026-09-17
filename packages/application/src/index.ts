@@ -42,6 +42,7 @@ export {
   endNight,
   joinNight,
   leaveNight,
+  mintRealtimeToken,
   readNightHostCandidates,
   readScheduledNights,
   rsvpNight,

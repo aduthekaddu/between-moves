@@ -85,7 +85,7 @@ function preflight(
   return null;
 }
 
-/** [BM-036] Durable Night join boundary; realtime token issuance remains BM-039. */
+/** [BM-036] Durable Night join boundary; realtime token issuance is BM-037. */
 export function createJoinNightHandler(dependencies: NightAttendanceHandlerDependencies) {
   return async (request: Request, houseId: string, nightId: string): Promise<Response> => {
     const rejected = preflight(request, houseId, nightId, dependencies.expectedOrigin);
