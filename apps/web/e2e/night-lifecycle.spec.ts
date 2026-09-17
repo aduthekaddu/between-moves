@@ -60,15 +60,9 @@ async function seedScheduledNights(): Promise<void> {
   );
   await database.pool.query(
     `insert into seasons
-      (id, house_id, title, state, starts_at, ends_at, published_charter_version, created_at, updated_at)
-     values ($1, $2, 'Autumn tables', 'active', $3, $4, 1, $5, $5)`,
-    [
-      seasonId,
-      seeded.first.houseId,
-      new Date('2026-09-04T00:00:00.000Z'),
-      new Date('2026-10-02T00:00:00.000Z'),
-      createdAt,
-    ],
+      (id, house_id, title, state, created_at, updated_at)
+     values ($1, $2, 'Autumn tables', 'draft', $3, $3)`,
+    [seasonId, seeded.first.houseId, createdAt],
   );
   await database.pool.query(
     `insert into season_charters
@@ -86,6 +80,18 @@ async function seedScheduledNights(): Promise<void> {
         publishedPuzzle: 1,
         caps: { games: 8, nights: 4, puzzles: 2 },
       }),
+      createdAt,
+    ],
+  );
+  await database.pool.query(
+    `update seasons
+        set state = 'active', starts_at = $2, ends_at = $3,
+            published_charter_version = 1, updated_at = $4
+      where id = $1`,
+    [
+      seasonId,
+      new Date('2026-09-04T00:00:00.000Z'),
+      new Date('2026-10-02T00:00:00.000Z'),
       createdAt,
     ],
   );
