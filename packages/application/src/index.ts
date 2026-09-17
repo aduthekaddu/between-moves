@@ -28,7 +28,7 @@ export {
   submitMove,
 } from './games';
 export type { NightsUseCase } from './nights';
-export { changeNightSchedule, readScheduledNights } from './nights';
+export { changeNightSchedule, joinNight, leaveNight, readScheduledNights } from './nights';
 export type { StoriesUseCase } from './stories';
 export { readCurrentGameReaction, readGameNotes, saveGameNote, setGameReaction } from './stories';
 export {

@@ -10,6 +10,22 @@ export {
   materializeNightSchedule,
   type MaterializedNight,
 } from './schedule';
+export {
+  NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
+  NIGHT_ATTENDANCE_THRESHOLD_SECONDS,
+  nightAttendanceSourceKey,
+  type JoinNightAttendanceInput,
+  type LeaveNightAttendanceInput,
+  type NightAttendance,
+  type NightAttendanceDependencies,
+  type NightAttendanceEventObservation,
+  type NightAttendanceEventRecorder,
+  type NightAttendanceLeaveResult,
+  type NightAttendanceQualificationReason,
+  type NightAttendanceRepository,
+  type NightAttendanceRequest,
+  type QualifyNightAttendanceInput,
+} from './attendance';
 
 export type NightState = 'scheduled' | 'live' | 'ended' | 'cancelled';
 

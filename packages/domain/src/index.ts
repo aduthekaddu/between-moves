@@ -219,13 +219,26 @@ export type {
 } from './games';
 export {
   DEFAULT_NIGHT_DURATION_MS,
+  NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
+  NIGHT_ATTENDANCE_THRESHOLD_SECONDS,
   houseLocalDateTimeToInstant,
   materializeNightSchedule,
+  nightAttendanceSourceKey,
 } from './nights';
 export type {
   ChangeNightScheduleRequest,
   HouseNightView,
+  JoinNightAttendanceInput,
+  LeaveNightAttendanceInput,
   MaterializedNight,
+  NightAttendance,
+  NightAttendanceDependencies,
+  NightAttendanceEventObservation,
+  NightAttendanceEventRecorder,
+  NightAttendanceLeaveResult,
+  NightAttendanceQualificationReason,
+  NightAttendanceRepository,
+  NightAttendanceRequest,
   NightChangeInput,
   NightChangeResult,
   NightDependencies,
@@ -236,6 +249,7 @@ export type {
   NightState,
   NightsPorts,
   ReadScheduledNightsRequest,
+  QualifyNightAttendanceInput,
 } from './nights';
 export { GAME_REACTIONS, MAX_GAME_NOTE_LENGTH, validateGameNoteBody } from './stories';
 export type {

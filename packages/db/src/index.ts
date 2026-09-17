@@ -32,4 +32,5 @@ export { PgInvitationRepository } from './pg-invitation-repository';
 export { PgInvitationRedemptionRepository } from './pg-invitation-redemption-repository';
 export { PgMembershipAdminRepository } from './pg-membership-admin-repository';
 export { PgNightRepository } from './pg-night-repository';
+export { PgNightAttendanceRepository } from './pg-night-attendance-repository';
 export { PgSeasonRepository } from './pg-season-repository';

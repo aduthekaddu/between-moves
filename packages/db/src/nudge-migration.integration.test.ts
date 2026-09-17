@@ -43,8 +43,9 @@ integration('BM-029 Nudge migration', () => {
   beforeEach(async () => {
     await migrateDown(database, { migrationsDirectory, all: true });
     await migrateUp(database, { migrationsDirectory });
-    // Roll back BM-030 as well as BM-029 so the fixture is inserted before
+    // Roll back migrations newer than BM-029 so the fixture is inserted before
     // the nudge migration runs and its backfill is exercised.
+    await migrateDown(database, { migrationsDirectory });
     await migrateDown(database, { migrationsDirectory });
     await migrateDown(database, { migrationsDirectory });
   });

@@ -38,3 +38,5 @@ export { createSeasonTransitionRecorder } from './season-transition-logger';
 export type { SeasonTransitionRecorderOptions } from './season-transition-logger';
 export { createNightScheduleChangeRecorder } from './night-schedule-change-logger';
 export type { NightScheduleChangeRecorderOptions } from './night-schedule-change-logger';
+export { createNightAttendanceEventRecorder } from './night-attendance-event-logger';
+export type { NightAttendanceEventRecorderOptions } from './night-attendance-event-logger';
