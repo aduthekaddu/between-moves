@@ -38,7 +38,16 @@ const environmentSchema = z
     VERCEL_ENV: z.enum(['development', 'preview', 'production']).optional(),
     VERCEL_GIT_COMMIT_SHA: requiredValue.optional(),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((values, context) => {
+    if (values.REALTIME_PUBLIC_KEY === values.REALTIME_SERVER_KEY) {
+      context.addIssue({
+        code: 'custom',
+        path: ['REALTIME_PUBLIC_KEY'],
+        message: 'REALTIME_PUBLIC_KEY must differ from REALTIME_SERVER_KEY',
+      });
+    }
+  });
 
 export const appMetadata = {
   name: 'between-moves',

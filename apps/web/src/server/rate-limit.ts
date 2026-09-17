@@ -4,6 +4,7 @@ import { createInvitationMetricStubs } from '@between-moves/observability';
 import { createMoveMetricStubs } from '@between-moves/observability';
 import { createNoteMetricStubs } from '@between-moves/observability';
 import { createReactionMetricStubs } from '@between-moves/observability';
+import { createRealtimeMetricStubs } from '@between-moves/observability';
 import { getConfig } from '../config';
 import {
   createRecoveryRateLimit,
@@ -17,6 +18,10 @@ import {
 import { createMoveRateLimit, type MoveRateLimit } from '../kernel/move-rate-limit';
 import { createNoteRateLimit, type NoteRateLimit } from '../kernel/note-rate-limit';
 import { createReactionRateLimit, type ReactionRateLimit } from '../kernel/reaction-rate-limit';
+import {
+  createRealtimeTokenRateLimit,
+  type RealtimeTokenRateLimit,
+} from '../kernel/realtime-token-rate-limit';
 import { getIdentityMetrics } from './identity-metrics';
 import { getLogger } from './logger';
 
@@ -30,6 +35,8 @@ const globalRateLimit = globalThis as typeof globalThis & {
   betweenMovesNoteMetrics?: ReturnType<typeof createNoteMetricStubs>;
   betweenMovesReactionRateLimit?: ReactionRateLimit;
   betweenMovesReactionMetrics?: ReturnType<typeof createReactionMetricStubs>;
+  betweenMovesRealtimeTokenRateLimit?: RealtimeTokenRateLimit;
+  betweenMovesRealtimeMetrics?: ReturnType<typeof createRealtimeMetricStubs>;
 };
 
 const invitationMetrics = createInvitationMetricStubs();
@@ -232,4 +239,40 @@ export function getNoteRateLimit(): NoteRateLimit {
     });
   }
   return globalRateLimit.betweenMovesNoteRateLimit;
+}
+
+/** [BM-037] Process-local realtime_token_issue_total and rate-limit counters. */
+export function getRealtimeMetrics(): ReturnType<typeof createRealtimeMetricStubs> {
+  globalRateLimit.betweenMovesRealtimeMetrics ??= createRealtimeMetricStubs();
+  return globalRateLimit.betweenMovesRealtimeMetrics;
+}
+
+/** [BM-037] Composition root for fail-open per-account and per-IP realtime token limits. */
+export function getRealtimeTokenRateLimit(): RealtimeTokenRateLimit {
+  if (!globalRateLimit.betweenMovesRealtimeTokenRateLimit) {
+    const config = getConfig();
+    globalRateLimit.betweenMovesRealtimeTokenRateLimit = createRealtimeTokenRateLimit({
+      primary: new UpstashRateLimiter({
+        url: config.upstashRedisRestUrl.href,
+        token: config.upstashRedisRestToken,
+      }),
+      fallback: new InMemoryRateLimiter(),
+      incrementRateLimitHit: () => getRealtimeMetrics().incrementRateLimitHit(),
+      onStoreError() {
+        getLogger().log({
+          level: 'warn',
+          requestId: 'rate-limit-store',
+          actorId: 'anonymous',
+          houseId: null,
+          gameId: null,
+          commandId: null,
+          event: 'rate-limit.store-unavailable',
+          outcome: 'error',
+          durationMs: 0,
+          data: { surface: 'realtime-token', fallback: 'in-process' },
+        });
+      },
+    });
+  }
+  return globalRateLimit.betweenMovesRealtimeTokenRateLimit;
 }

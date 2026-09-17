@@ -75,6 +75,23 @@ describe('loadConfig', () => {
     }
   });
 
+  it('[BM-037] [DR-SEC-03] rejects a realtime public key that equals the server key', () => {
+    try {
+      loadConfig({
+        ...validEnvironment,
+        REALTIME_PUBLIC_KEY: validEnvironment.REALTIME_SERVER_KEY,
+      });
+      expect.unreachable('Expected configuration validation to fail');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigValidationError);
+      expect(error).toMatchObject({
+        missingKeys: [],
+        invalidKeys: ['REALTIME_PUBLIC_KEY'],
+      });
+      expect(String(error)).not.toContain(validEnvironment.REALTIME_SERVER_KEY);
+    }
+  });
+
   it('[BM-003] [DR-SEC-03] accepts valid configuration and permits unknown keys', () => {
     const config = loadConfig({ ...validEnvironment, HOST_PLATFORM_METADATA: 'allowed' });
 

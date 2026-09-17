@@ -9,3 +9,8 @@ export {
   type DrawGameBody,
   type ResignGameBody,
 } from './game-completion';
+export {
+  realtimeTokenHidesRootKey,
+  realtimeTokenResponseSchema,
+  type RealtimeTokenResponse,
+} from './realtime-token';

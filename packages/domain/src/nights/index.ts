@@ -34,6 +34,22 @@ export {
   type QualifyNightAttendanceInput,
 } from './attendance';
 export {
+  REALTIME_TOKEN_TTL_MS,
+  realtimeChannelOperations,
+  type IssuedRealtimeToken,
+  type MintRealtimeTokenRequest,
+  type NightRealtimeScope,
+  type NightRealtimeScopeRepository,
+  type RealtimeChannelKind,
+  type RealtimeChannelOperation,
+  type RealtimeGameChannel,
+  type RealtimeTokenChannels,
+  type RealtimeTokenDependencies,
+  type RealtimeTokenIssueInput,
+  type RealtimeTokenIssuer,
+  type SignedRealtimePresence,
+} from './realtime-token';
+export {
   NIGHT_ENDED_TOPIC,
   NIGHT_STARTED_TOPIC,
   transitionNightLifecycle,

@@ -164,15 +164,17 @@ export const nonHouseWriteExports = Object.freeze([
   'readMoveShelf',
   'readScheduledNights',
   'readNightHostCandidates',
+  'mintRealtimeToken',
   'readCurrentGameReaction',
   'readGameNotes',
 ]);
 
-/** Mutating API routes which do not act on an existing House. */
+/** POST routes which do not mutate an existing House. */
 export const nonHouseMutationRoutes = Object.freeze([
   'apps/web/src/app/api/auth/[...all]/route.ts',
   'apps/web/src/app/api/auth/magic-link/route.ts',
   'apps/web/src/app/api/auth/recovery/route.ts',
   'apps/web/src/app/api/houses/route.ts',
+  'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/realtime-token/route.ts',
   'apps/web/src/app/api/webhooks/resend/route.ts',
 ]);
