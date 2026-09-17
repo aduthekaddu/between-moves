@@ -15,7 +15,11 @@ export type HouseAction =
   | { readonly kind: 'revoke_invite' }
   | { readonly kind: 'draft_or_publish_charter' }
   | { readonly kind: 'schedule_night' }
-  | { readonly kind: 'start_or_end_assigned_night'; readonly nightId: string }
+  | {
+      readonly kind: 'start_or_end_assigned_night';
+      readonly nightId: string;
+      readonly operation?: 'start' | 'end';
+    }
   | { readonly kind: 'remove_member'; readonly targetMembershipId: string }
   | { readonly kind: 'change_permanent_role' }
   | { readonly kind: 'transfer_ownership' }
@@ -46,11 +50,16 @@ export interface HouseAuthorizationMembershipRepository {
 }
 
 export interface HouseNightHostAssignmentRepository {
-  /** Verify the assigned membership on the requested House Night, excluding ended/cancelled Nights. */
+  /**
+   * Verify the assigned membership on the requested House Night.
+   * Start is limited to scheduled/live; end remains valid on ended Nights for idempotent replay.
+   * Cancelled Nights never grant host duty.
+   */
   isAssignedNightHost(input: {
     readonly houseId: string;
     readonly nightId: string;
     readonly membershipId: string;
+    readonly operation?: 'start' | 'end';
   }): Promise<boolean>;
 }
 

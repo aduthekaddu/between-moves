@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { getConfig } from '../../../../config';
+import { getNightHostCandidates } from '../../../../modules/nights/lifecycle';
 import { getHouseHome } from '../../../../server/house-home';
 import { getHouseSeason } from '../../../../server/seasons';
 import { getScheduledNights } from '../../../../server/nights';
@@ -26,6 +27,8 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
   if (home === null) notFound();
   const season = await getHouseSeason(request, houseId);
   const nights = await getScheduledNights(request, houseId);
+  const hostCandidates =
+    home.membershipRole === 'member' ? [] : await getNightHostCandidates(request, houseId);
   return (
     <main className="season-shell">
       <nav className="season-nav" aria-label="House navigation">
@@ -36,6 +39,7 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
         houseId={houseId}
         membershipRole={home.membershipRole}
         nights={nights}
+        hostCandidates={hostCandidates}
         season={season}
         timeZone={home.timeZone}
       />

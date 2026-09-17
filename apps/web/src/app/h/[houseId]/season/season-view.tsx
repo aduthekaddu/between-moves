@@ -2,6 +2,7 @@ import type {
   HouseNightView,
   HouseSeasonView,
   MembershipRole,
+  NightHostCandidate,
   NightRecurrence,
 } from '@between-moves/domain';
 import { CharterAuthoringForm } from './charter-authoring-form';
@@ -18,12 +19,14 @@ function ActiveSeason({
   houseId,
   membershipRole,
   nights,
+  hostCandidates,
   season,
   timeZone,
 }: {
   readonly houseId: string;
   readonly membershipRole: MembershipRole;
   readonly nights: readonly HouseNightView[];
+  readonly hostCandidates: readonly NightHostCandidate[];
   readonly season: HouseSeasonView;
   readonly timeZone: string;
 }) {
@@ -58,6 +61,7 @@ function ActiveSeason({
         membershipRole={membershipRole}
         timeZone={timeZone}
         initialNights={nights}
+        hostCandidates={hostCandidates}
       />
     </article>
   );
@@ -68,12 +72,14 @@ export function SeasonView({
   houseId,
   membershipRole,
   nights = [],
+  hostCandidates = [],
   season,
   timeZone = 'UTC',
 }: {
   readonly houseId: string;
   readonly membershipRole: MembershipRole;
   readonly nights?: readonly HouseNightView[];
+  readonly hostCandidates?: readonly NightHostCandidate[];
   readonly season: HouseSeasonView | null;
   readonly timeZone?: string;
 }) {
@@ -83,6 +89,7 @@ export function SeasonView({
         houseId={houseId}
         membershipRole={membershipRole}
         nights={nights}
+        hostCandidates={hostCandidates}
         season={season}
         timeZone={timeZone}
       />

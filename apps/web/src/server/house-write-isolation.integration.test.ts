@@ -4,9 +4,11 @@ import {
   createAuthorizeHouseAction,
   createGameSeat,
   createInvitation,
+  assignNightHost,
   changeNightSchedule,
   draftSeason,
   draftSeasonCharter,
+  endNight,
   joinNight,
   leaveHouse,
   leaveNight,
@@ -14,10 +16,12 @@ import {
   redeemInvitation,
   removeHouseMember,
   publishSeason,
+  rsvpNight,
   revokeInvitation,
   resignGame,
   saveGameNote,
   setGameReaction,
+  startNight,
   submitMove,
   transferHouseOwnership,
 } from '@between-moves/application';
@@ -34,7 +38,9 @@ import {
   PgInvitationRepository,
   PgMembershipAdminRepository,
   PgNightAttendanceRepository,
+  PgNightLifecycleRepository,
   PgNightRepository,
+  PgNightRsvpRepository,
   PgSeasonRepository,
   PgSubmitMoveRepository,
 } from '@between-moves/db';
@@ -58,7 +64,10 @@ import type {
   MembershipAdminRepository,
   NightAttendanceEventRecorder,
   NightAttendanceRepository,
+  NightLifecycleRecorder,
+  NightLifecycleRepository,
   NightRepository,
+  NightRsvpRepository,
   NightScheduleChangeRecorder,
   SeasonRepository,
   SeasonTransitionRecorder,
@@ -101,6 +110,9 @@ interface IsolationHarness {
   readonly attendance: NightAttendanceRepository;
   readonly events: NightAttendanceEventRecorder;
   readonly nights: NightRepository;
+  readonly lifecycle: NightLifecycleRepository;
+  readonly rsvps: NightRsvpRepository;
+  readonly lifecycleChanges: NightLifecycleRecorder;
   readonly acceptances: GameSeatAcceptanceRepository;
   readonly seats: GameSeatCreationRepository;
   readonly changes: NightScheduleChangeRecorder;
@@ -306,6 +318,112 @@ const cases: readonly IsolationCase[] = [
           viewer: viewer(harness.world.second.member),
         },
         harness,
+      ),
+  },
+  {
+    id: 'night.start',
+    name: 'Night start',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      startNight(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          viewer: viewer(harness.world.first.nonOwner),
+        },
+        {
+          authorizeHouseAction: harness.authorizeHouseAction,
+          clock: harness.clock,
+          ids: harness.ids,
+          lifecycle: harness.lifecycle,
+          rsvps: harness.rsvps,
+          changes: harness.lifecycleChanges,
+        },
+      ),
+  },
+  {
+    id: 'night.end',
+    name: 'Night end',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      endNight(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          viewer: viewer(harness.world.first.nonOwner),
+        },
+        {
+          authorizeHouseAction: harness.authorizeHouseAction,
+          clock: harness.clock,
+          ids: harness.ids,
+          lifecycle: harness.lifecycle,
+          rsvps: harness.rsvps,
+          changes: harness.lifecycleChanges,
+        },
+      ),
+  },
+  {
+    id: 'night.host-assign',
+    name: 'Night host assignment',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      assignNightHost(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          hostMembershipId: harness.world.first.nonOwner.membershipId,
+          viewer: viewer(harness.world.first.member),
+        },
+        {
+          authorizeHouseAction: harness.authorizeHouseAction,
+          clock: harness.clock,
+          ids: harness.ids,
+          lifecycle: harness.lifecycle,
+          rsvps: harness.rsvps,
+          changes: harness.lifecycleChanges,
+        },
+      ),
+  },
+  {
+    id: 'night.rsvp',
+    name: 'Night RSVP',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      rsvpNight(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          status: 'going',
+          viewer: viewer(harness.world.first.nonOwner),
+        },
+        {
+          authorizeHouseAction: harness.authorizeHouseAction,
+          clock: harness.clock,
+          ids: harness.ids,
+          lifecycle: harness.lifecycle,
+          rsvps: harness.rsvps,
+          changes: harness.lifecycleChanges,
+        },
       ),
   },
   {
@@ -519,9 +637,17 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
        ), '[]'::jsonb),
        'nights', coalesce((
          select jsonb_agg(jsonb_build_object(
-           'id', n.id::text, 'state', n.state, 'start', n.scheduled_start
+           'id', n.id::text, 'state', n.state, 'start', n.scheduled_start,
+           'host', n.host_membership_id::text, 'started', n.started_at, 'ended', n.ended_at
          ) order by n.id)
          from house_nights n where n.house_id = h.id
+       ), '[]'::jsonb),
+       'night_rsvps', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'id', r.id::text, 'night', r.night_id::text, 'member', r.membership_id::text,
+           'status', r.status
+         ) order by r.id)
+         from night_rsvps r where r.house_id = h.id
        ), '[]'::jsonb),
        'night_audit', coalesce((
          select jsonb_agg(jsonb_build_object('id', a.id::text, 'action', a.action) order by a.id)
@@ -564,9 +690,10 @@ integration('BM-017 current House write-path isolation', () => {
       issue: () => ({ raw: invitationToken, digestHex: invitationDigest }),
       digest: (rawToken: string) => (rawToken === invitationToken ? invitationDigest : null),
     };
+    const lifecycle = new PgNightLifecycleRepository(database);
     const authorizeHouseAction = createAuthorizeHouseAction({
       memberships: new PgHouseAuthorizationMembershipRepository(database),
-      nightHosts: { isAssignedNightHost: async () => false },
+      nightHosts: lifecycle,
       denials: { record: () => undefined },
     });
     const seasons = new PgSeasonRepository(database);
@@ -692,6 +819,9 @@ integration('BM-017 current House write-path isolation', () => {
       attendance: new PgNightAttendanceRepository(database),
       events: { record: () => undefined },
       nights: new PgNightRepository(database),
+      lifecycle,
+      rsvps: new PgNightRsvpRepository(database),
+      lifecycleChanges: { record: () => undefined },
       acceptances: new PgGameSeatAcceptanceRepository(database),
       seats: new PgGameSeatRepository(database),
       changes: { record: () => undefined },

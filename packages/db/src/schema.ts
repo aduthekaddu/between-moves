@@ -383,6 +383,19 @@ export const houseNights = pgTable(
       'house_nights_state_check',
       sql`${table.state} in ('scheduled', 'live', 'ended', 'cancelled')`,
     ),
+    check(
+      'house_nights_lifecycle_times_check',
+      sql`(
+        (${table.state} in ('scheduled', 'cancelled') and ${table.startedAt} is null and ${table.endedAt} is null)
+        or (${table.state} = 'live' and ${table.startedAt} is not null and ${table.endedAt} is null)
+        or (
+          ${table.state} = 'ended'
+          and ${table.startedAt} is not null
+          and ${table.endedAt} is not null
+          and ${table.endedAt} >= ${table.startedAt}
+        )
+      )`,
+    ),
   ],
 );
 
@@ -480,6 +493,40 @@ export const nightAttendance = pgTable(
       'night_attendance_qualified_at_check',
       sql`${table.qualifiedAt} is null or ${table.qualifiedAt} >= ${table.firstJoinedAt}`,
     ),
+  ],
+);
+
+/** [BM-035] House-scoped RSVP intent for one Night and Member. */
+export const nightRsvps = pgTable(
+  'night_rsvps',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    nightId: uuid('night_id').notNull(),
+    membershipId: uuid('membership_id').notNull(),
+    status: text('status').notNull(),
+    respondedAt: timestamp('responded_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique('night_rsvps_night_membership_unique').on(table.nightId, table.membershipId),
+    unique('night_rsvps_id_house_unique').on(table.id, table.houseId),
+    foreignKey({
+      columns: [table.nightId, table.houseId],
+      foreignColumns: [houseNights.id, houseNights.houseId],
+      name: 'night_rsvps_night_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.membershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'night_rsvps_membership_house_fk',
+    }).onDelete('restrict'),
+    index('night_rsvps_house_night_idx').on(table.houseId, table.nightId),
+    index('night_rsvps_membership_idx').on(table.membershipId, table.nightId),
+    check('night_rsvps_status_check', sql`${table.status} in ('going', 'not_going')`),
   ],
 );
 

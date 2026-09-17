@@ -32,6 +32,11 @@ describe('SeasonView', () => {
     scheduledStart: new Date(Date.UTC(2026, 8, 4 + week * 7, 14)),
     scheduledEnd: new Date(Date.UTC(2026, 8, 4 + week * 7, 16)),
     state: 'scheduled' as const,
+    hostMembershipId: null,
+    startedAt: null,
+    endedAt: null,
+    viewerIsHost: false,
+    viewerRsvp: null,
   }));
 
   it('[BM-019] [PR-JRN-03] shows the active Season and published Charter version', () => {
@@ -128,6 +133,70 @@ describe('SeasonView', () => {
     expect(html.match(/<h3>Night [1-4]<\/h3>/g)).toHaveLength(4);
     expect(html).not.toContain('Reschedule');
     expect(html).not.toContain('Cancel Night');
+  });
+
+  it('[BM-035] lets an Owner assign a host and start a Night', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        nights={nights}
+        hostCandidates={[
+          {
+            membershipId: '01941f29-7c00-7000-8000-000000000623',
+            displayName: 'Bea',
+          },
+        ]}
+        season={activeSeason}
+        timeZone="Asia/Kolkata"
+      />,
+    );
+
+    expect(html).toContain('Start Night 1');
+    expect(html).toContain('Assign Night host');
+    expect(html).toContain('Going');
+    expect(html).toContain('Bea');
+  });
+
+  it('[BM-035] hides start/end from a Member without host duty', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        nights={nights}
+        season={activeSeason}
+        timeZone="Asia/Kolkata"
+      />,
+    );
+
+    expect(html).toContain('Going');
+    expect(html).not.toContain('Start Night 1');
+    expect(html).not.toContain('Assign Night host');
+  });
+
+  it('[BM-035] lets an assigned host start and end their Night', () => {
+    const hosted = nights.map((night, index) =>
+      index === 0
+        ? {
+            ...night,
+            viewerIsHost: true,
+            hostMembershipId: '01941f29-7c00-7000-8000-000000000623',
+          }
+        : night,
+    );
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        nights={hosted}
+        season={activeSeason}
+        timeZone="Asia/Kolkata"
+      />,
+    );
+
+    expect(html).toContain('Start Night 1');
+    expect(html).not.toContain('Start Night 2');
+    expect(html).not.toContain('Assign Night host');
   });
 
   it('[BM-020] exposes the same Night edit controls to a Steward', () => {

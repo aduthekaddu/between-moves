@@ -34,6 +34,11 @@ function dependencies(repository: Partial<NightRepository> = {}) {
             ? input.command.scheduledEnd
             : new Date('2026-09-04T16:00:00.000Z'),
         state: input.command.kind === 'cancel' ? ('cancelled' as const) : ('scheduled' as const),
+        hostMembershipId: null,
+        startedAt: null,
+        endedAt: null,
+        viewerIsHost: false,
+        viewerRsvp: null,
       },
       changedNow: true,
     })),

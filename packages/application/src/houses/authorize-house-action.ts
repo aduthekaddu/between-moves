@@ -45,6 +45,7 @@ async function resolveEvaluation(
             houseId: membership.houseId,
             nightId: action.nightId,
             membershipId: membership.membershipId,
+            ...(action.operation === undefined ? {} : { operation: action.operation }),
           })),
       };
     case 'remove_member': {
