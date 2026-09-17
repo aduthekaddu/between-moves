@@ -19,9 +19,9 @@ function id(suffix: number): string {
   return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
 }
 
-function input(command: number): GameCompletionInput {
+function input(command: number, targetGameId = gameId): GameCompletionInput {
   return {
-    gameId,
+    gameId: targetGameId,
     clientCommandId: id(800 + command),
     completedEventId: id(900 + command * 2),
     analysisEventId: id(901 + command * 2),
@@ -113,7 +113,9 @@ integration('PostgreSQL Game completion repository', () => {
     });
     await expect(
       database.query(
-        'select state, result, result_reason, completed_at, version from games where id=$1',
+        `select state, result, result_reason, completed_at, version,
+                season_completion_sequence::text
+           from games where id=$1`,
         [gameId],
       ),
     ).resolves.toMatchObject({
@@ -124,6 +126,7 @@ integration('PostgreSQL Game completion repository', () => {
           result_reason: 'resign',
           completed_at: command.completedAt,
           version: 1,
+          season_completion_sequence: '1',
         },
       ],
     });
@@ -133,6 +136,33 @@ integration('PostgreSQL Game completion repository', () => {
         { topic: 'game.analysis-requested', sequence: '2', payload: { result: 'black_win' } },
       ],
     });
+  });
+
+  it('[BM-034] serializes concurrent Game completions into a durable Season order', async () => {
+    const secondGameId = id(704);
+    await database.query(
+      `insert into games
+        (id, house_id, season_id, mode, state, white_membership_id, black_membership_id,
+         clock_policy, move_due_at, created_at)
+       select $1, house_id, season_id, mode, state, white_membership_id, black_membership_id,
+              clock_policy, move_due_at, created_at
+         from games where id=$2`,
+      [secondGameId, gameId],
+    );
+
+    await Promise.all([
+      repository.resign(context(world, 'white'), input(20, gameId)),
+      repository.resign(context(world, 'white'), input(21, secondGameId)),
+    ]);
+
+    await expect(
+      database.query(
+        `select season_completion_sequence::text as value
+           from games where id in ($1,$2)
+          order by season_completion_sequence`,
+        [gameId, secondGameId],
+      ),
+    ).resolves.toMatchObject({ rows: [{ value: '1' }, { value: '2' }] });
   });
 
   it('[BM-028] [DR-DRAW-01/02] records and accepts a draw offer atomically', async () => {

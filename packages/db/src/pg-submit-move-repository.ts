@@ -16,9 +16,11 @@ import {
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { enqueueOutboxEvent } from './enqueue-outbox-event';
 import { enqueueGameCompletionEvents } from './game-completion-events';
+import { allocateGameCompletionSequence } from './game-completion-sequence';
 
 interface LockedGameRow extends QueryResultRow {
   readonly actor_membership_id: unknown;
+  readonly season_id: unknown;
   readonly state: unknown;
   readonly mode: unknown;
   readonly white_membership_id: unknown;
@@ -104,7 +106,7 @@ async function loadGame(
   gameId: string,
 ): Promise<LockedGameRow> {
   const result = await client.query<LockedGameRow>(
-    `select actor.id::text as actor_membership_id, g.state, g.mode,
+    `select actor.id::text as actor_membership_id, g.season_id::text, g.state, g.mode,
             g.white_membership_id::text, g.black_membership_id::text,
             g.initial_fen, g.current_fen, g.current_ply, g.side_to_move, g.version,
             g.outbox_sequence::text,
@@ -290,6 +292,14 @@ async function submitInTransaction(
   const nextVersion = version + 1;
   const firstEventSequence = bigInteger(game.outbox_sequence, 'outbox sequence') + 1n;
   const lastEventSequence = firstEventSequence + (terminal.state === 'completed' ? 2n : 0n);
+  const completionSequence =
+    terminal.state === 'completed'
+      ? await allocateGameCompletionSequence(
+          client,
+          context.houseId,
+          text(game.season_id, 'Season id'),
+        )
+      : null;
 
   await client.query(
     `insert into moves
@@ -318,7 +328,7 @@ async function submitInTransaction(
             move_due_at=$11,
             draw_offer_membership_id=null, draw_offer_ply=null,
             turn_started_at=case when mode='live' and $7='active' then $12::timestamptz else null end,
-            outbox_sequence=$13
+            outbox_sequence=$13, season_completion_sequence=$14
       where id=$1 and house_id=$2`,
     [
       input.gameId,
@@ -334,6 +344,7 @@ async function submitInTransaction(
       moveDueAt,
       input.receivedAt,
       lastEventSequence.toString(),
+      completionSequence?.toString() ?? null,
     ],
   );
   const payload = {

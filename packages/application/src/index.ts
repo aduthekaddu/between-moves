@@ -16,7 +16,15 @@ export {
 } from './houses';
 export type { HousesUseCase } from './houses';
 export type { SeasonsUseCase } from './seasons';
-export { draftSeason, draftSeasonCharter, publishSeason, readHouseSeason } from './seasons';
+export {
+  createSeasonScoringConsumer,
+  draftSeason,
+  draftSeasonCharter,
+  publishSeason,
+  readHouseSeason,
+  readSeasonStandings,
+  type SeasonScoringConsumerDependencies,
+} from './seasons';
 export type { GamesUseCase } from './games';
 export {
   acceptGameSeat,

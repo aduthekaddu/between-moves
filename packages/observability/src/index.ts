@@ -40,3 +40,5 @@ export { createNightScheduleChangeRecorder } from './night-schedule-change-logge
 export type { NightScheduleChangeRecorderOptions } from './night-schedule-change-logger';
 export { createNightAttendanceEventRecorder } from './night-attendance-event-logger';
 export type { NightAttendanceEventRecorderOptions } from './night-attendance-event-logger';
+export { createSeasonScoringEventRecorder } from './season-scoring-event-logger';
+export type { SeasonScoringEventRecorderOptions } from './season-scoring-event-logger';
