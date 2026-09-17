@@ -72,6 +72,30 @@ export const houseWritePaths = Object.freeze([
     scope: 'house-id',
   },
   {
+    id: 'night.start',
+    useCase: 'startNight',
+    route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/start/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'night.end',
+    useCase: 'endNight',
+    route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/end/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'night.host-assign',
+    useCase: 'assignNightHost',
+    route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/host/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'night.rsvp',
+    useCase: 'rsvpNight',
+    route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/rsvp/route.ts',
+    scope: 'house-id',
+  },
+  {
     id: 'night.attendance-join',
     useCase: 'joinNight',
     route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/join/route.ts',
@@ -139,6 +163,7 @@ export const nonHouseWriteExports = Object.freeze([
   'readGamePosition',
   'readMoveShelf',
   'readScheduledNights',
+  'readNightHostCandidates',
   'readCurrentGameReaction',
   'readGameNotes',
 ]);

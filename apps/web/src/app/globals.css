@@ -636,6 +636,42 @@ body {
   color: var(--bm-color-danger) !important;
 }
 
+.night-rsvp,
+.night-host {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bm-space-3);
+  margin-top: var(--bm-space-3);
+}
+
+.night-host {
+  display: grid;
+}
+
+.night-host label {
+  display: grid;
+  gap: var(--bm-space-2);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.night-rsvp button,
+.night-host select,
+.night-host button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--bm-color-wood-light);
+  border-radius: var(--bm-radius-sm);
+  color: var(--bm-color-ink);
+  background: var(--bm-color-paper-raised);
+  font: inherit;
+}
+
+.night-rsvp button[aria-pressed='true'] {
+  border-color: var(--bm-color-ink);
+  font-weight: 700;
+}
+
 .house-unavailable {
   display: grid;
   min-height: 100vh;

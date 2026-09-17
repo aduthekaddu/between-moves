@@ -33,5 +33,7 @@ export { PgInvitationRedemptionRepository } from './pg-invitation-redemption-rep
 export { PgMembershipAdminRepository } from './pg-membership-admin-repository';
 export { PgNightRepository } from './pg-night-repository';
 export { PgNightAttendanceRepository } from './pg-night-attendance-repository';
+export { PgNightLifecycleRepository } from './pg-night-lifecycle-repository';
+export { PgNightRsvpRepository } from './pg-night-rsvp-repository';
 export { PgSeasonRepository } from './pg-season-repository';
 export { PgSeasonScoringRepository } from './pg-season-scoring-repository';

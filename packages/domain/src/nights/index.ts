@@ -3,6 +3,7 @@ import type { AuthorizationContext } from '../shared/authorization-context';
 import type { Clock } from '../shared/clock';
 import type { AuthorizeHouseAction } from '../houses/authorization';
 import type { IdGenerator } from '../houses/house';
+import type { HouseNightView } from './night';
 
 export {
   DEFAULT_NIGHT_DURATION_MS,
@@ -26,17 +27,28 @@ export {
   type NightAttendanceRequest,
   type QualifyNightAttendanceInput,
 } from './attendance';
-
-export type NightState = 'scheduled' | 'live' | 'ended' | 'cancelled';
-
-export interface HouseNightView {
-  readonly nightId: string;
-  readonly houseId: string;
-  readonly seasonId: string;
-  readonly scheduledStart: Date;
-  readonly scheduledEnd: Date;
-  readonly state: NightState;
-}
+export {
+  NIGHT_ENDED_TOPIC,
+  NIGHT_STARTED_TOPIC,
+  transitionNightLifecycle,
+  type AssignNightHostInput,
+  type AssignNightHostRequest,
+  type NightHostCandidate,
+  type NightLifecycleDependencies,
+  type NightLifecycleEvent,
+  type NightLifecycleInput,
+  type NightLifecycleObservation,
+  type NightLifecycleRecorder,
+  type NightLifecycleRepository,
+  type NightLifecycleRequest,
+  type NightLifecycleResult,
+  type NightLifecycleTransition,
+  type NightRsvp,
+  type NightRsvpInput,
+  type NightRsvpRepository,
+  type NightRsvpRequest,
+} from './lifecycle';
+export type { HouseNightView, NightRsvpStatus, NightState } from './night';
 
 export type NightScheduleCommand =
   | {
