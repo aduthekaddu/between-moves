@@ -496,6 +496,48 @@ export const nightAttendance = pgTable(
   ],
 );
 
+/** [BM-036] [DR-NIGHT-02] Append-only server-timestamped Night join/leave events. */
+export const nightAttendanceEvents = pgTable(
+  'night_attendance_events',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    attendanceId: uuid('attendance_id').notNull(),
+    nightId: uuid('night_id').notNull(),
+    membershipId: uuid('membership_id').notNull(),
+    kind: text('kind').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique('night_attendance_events_id_house_unique').on(table.id, table.houseId),
+    foreignKey({
+      columns: [table.attendanceId, table.houseId],
+      foreignColumns: [nightAttendance.id, nightAttendance.houseId],
+      name: 'night_attendance_events_attendance_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.nightId, table.houseId],
+      foreignColumns: [houseNights.id, houseNights.houseId],
+      name: 'night_attendance_events_night_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.membershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'night_attendance_events_membership_house_fk',
+    }).onDelete('restrict'),
+    index('night_attendance_events_house_night_idx').on(table.houseId, table.nightId),
+    index('night_attendance_events_attendance_occurred_idx').on(
+      table.attendanceId,
+      table.occurredAt,
+    ),
+    index('night_attendance_events_membership_idx').on(table.membershipId, table.nightId),
+    check('night_attendance_events_kind_check', sql`${table.kind} in ('join', 'leave')`),
+  ],
+);
+
 /** [BM-035] House-scoped RSVP intent for one Night and Member. */
 export const nightRsvps = pgTable(
   'night_rsvps',

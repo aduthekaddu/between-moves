@@ -45,13 +45,14 @@ function dependencies(
       accumulatedSeconds: 0,
       qualifiedAt: null,
       qualificationReason: null,
+      joinedNow: true,
     })),
     leaveNight: vi.fn(async () => null),
     ...overrides,
   };
 }
 
-describe('BM-033 Night attendance command boundary', () => {
+describe('BM-036 Night attendance command boundary', () => {
   it('records a durable join and returns its attendance ID', async () => {
     const deps = dependencies();
     const response = await createJoinNightHandler(deps)(request(), houseId, nightId);

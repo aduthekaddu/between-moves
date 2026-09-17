@@ -40,6 +40,8 @@ export { createNightScheduleChangeRecorder } from './night-schedule-change-logge
 export type { NightScheduleChangeRecorderOptions } from './night-schedule-change-logger';
 export { createNightAttendanceEventRecorder } from './night-attendance-event-logger';
 export type { NightAttendanceEventRecorderOptions } from './night-attendance-event-logger';
+export { createNightJoinLeaveRecorder } from './night-join-leave-logger';
+export type { NightJoinLeaveRecorderOptions } from './night-join-leave-logger';
 export { createNightLifecycleRecorder } from './night-lifecycle-logger';
 export type { NightLifecycleRecorderOptions } from './night-lifecycle-logger';
 export { createSeasonScoringEventRecorder } from './season-scoring-event-logger';

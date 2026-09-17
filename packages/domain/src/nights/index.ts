@@ -12,6 +12,8 @@ export {
   type MaterializedNight,
 } from './schedule';
 export {
+  accumulatedAttendanceSeconds,
+  crossedAttendanceDurationThreshold,
   NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
   NIGHT_ATTENDANCE_THRESHOLD_SECONDS,
   nightAttendanceSourceKey,
@@ -21,10 +23,14 @@ export {
   type NightAttendanceDependencies,
   type NightAttendanceEventObservation,
   type NightAttendanceEventRecorder,
+  type NightAttendanceJoinResult,
   type NightAttendanceLeaveResult,
   type NightAttendanceQualificationReason,
   type NightAttendanceRepository,
   type NightAttendanceRequest,
+  type NightJoinLeaveKind,
+  type NightJoinLeaveObservation,
+  type NightJoinLeaveRecorder,
   type QualifyNightAttendanceInput,
 } from './attendance';
 export {

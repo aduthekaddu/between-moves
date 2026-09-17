@@ -1,12 +1,14 @@
 import {
+  accumulatedAttendanceSeconds,
+  crossedAttendanceDurationThreshold,
   DomainError,
   NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
-  NIGHT_ATTENDANCE_THRESHOLD_SECONDS,
   nightAttendanceSourceKey,
   type AuthorizationContext,
   type JoinNightAttendanceInput,
   type LeaveNightAttendanceInput,
   type NightAttendance,
+  type NightAttendanceJoinResult,
   type NightAttendanceLeaveResult,
   type NightAttendanceQualificationReason,
   type NightAttendanceRepository,
@@ -32,6 +34,7 @@ interface AttendanceRow extends QueryResultRow {
   readonly accumulated_seconds: unknown;
   readonly qualified_at: unknown;
   readonly qualification_reason: unknown;
+  readonly interval_started?: unknown;
 }
 
 function stringValue(value: unknown, field: string): string {
@@ -72,6 +75,12 @@ function parseAttendance(row: AttendanceRow): NightAttendance {
     qualifiedAt: nullableDate(row.qualified_at, 'qualification'),
     qualificationReason: qualificationReason(row.qualification_reason),
   };
+}
+
+function attendanceRow(rows: readonly AttendanceRow[], field: string): AttendanceRow {
+  const row = rows[0];
+  if (row === undefined) throw new Error(`Invalid attendance ${field}`);
+  return row;
 }
 
 async function transaction<T>(database: Pool, operation: (client: PoolClient) => Promise<T>) {
@@ -122,13 +131,32 @@ function assertValidInstant(value: Date): void {
   }
 }
 
-function effectiveAccumulatedSeconds(attendance: NightAttendance, at: Date): number {
-  if (attendance.currentJoinedAt === null) return attendance.accumulatedSeconds;
-  const elapsedMilliseconds = at.getTime() - attendance.currentJoinedAt.getTime();
-  if (elapsedMilliseconds < 0) {
-    throw new DomainError('conflict', 'Attendance time precedes its current join');
-  }
-  return attendance.accumulatedSeconds + Math.floor(elapsedMilliseconds / 1_000);
+async function insertAttendanceEvent(
+  client: PoolClient,
+  input: {
+    readonly eventId: string;
+    readonly houseId: string;
+    readonly attendanceId: string;
+    readonly nightId: string;
+    readonly membershipId: string;
+    readonly kind: 'join' | 'leave';
+    readonly occurredAt: Date;
+  },
+): Promise<void> {
+  await client.query(
+    `insert into night_attendance_events
+      (id, house_id, attendance_id, night_id, membership_id, kind, occurred_at, created_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $7)`,
+    [
+      input.eventId,
+      input.houseId,
+      input.attendanceId,
+      input.nightId,
+      input.membershipId,
+      input.kind,
+      input.occurredAt,
+    ],
+  );
 }
 
 async function enqueueQualificationEvent(
@@ -165,46 +193,66 @@ async function enqueueQualificationEvent(
   return sourceKey;
 }
 
-/** [BM-033] [DR-NIGHT-02/05] PostgreSQL attendance intervals and atomic scoring source. */
+/** [BM-033] [BM-036] [DR-NIGHT-02/05] Unique (night, member) join/leave events, duration accrual, and scoring source. */
 export class PgNightAttendanceRepository implements NightAttendanceRepository {
   constructor(private readonly database: Pool) {}
 
   async join(
     context: AuthorizationContext,
     input: JoinNightAttendanceInput,
-  ): Promise<NightAttendance> {
+  ): Promise<NightAttendanceJoinResult> {
     assertValidInstant(input.joinedAt);
     return transaction(this.database, async (client) => {
       const authorized = await authorizedLiveNight(client, context, input.nightId);
       const membershipId = stringValue(authorized.membership_id, 'membership id');
-      const result = await client.query<AttendanceRow>(
+      const seasonId = stringValue(authorized.season_id, 'Season id');
+      const upserted = await client.query<AttendanceRow>(
         `insert into night_attendance
-          (id, house_id, night_id, membership_id, first_joined_at,
-           current_joined_at, accumulated_seconds, created_at, updated_at)
+           (id, house_id, night_id, membership_id, first_joined_at,
+            current_joined_at, accumulated_seconds, created_at, updated_at)
          values ($1, $2, $3, $4, $5, $5, 0, $5, $5)
          on conflict (night_id, membership_id) do update
-           set current_joined_at = case
-                 when night_attendance.current_joined_at is null then excluded.current_joined_at
-                 else night_attendance.current_joined_at
-               end,
-               updated_at = case
-                 when night_attendance.current_joined_at is null then excluded.updated_at
-                 else night_attendance.updated_at
-               end
+           set current_joined_at = excluded.current_joined_at,
+               updated_at = excluded.updated_at
+         where night_attendance.current_joined_at is null
          returning id::text, house_id::text, night_id::text, $6::text as season_id,
                    membership_id::text, first_joined_at, current_joined_at,
                    last_left_at, accumulated_seconds, qualified_at,
-                   qualification_reason`,
+                   qualification_reason, true as interval_started`,
         [
           input.attendanceId,
           context.houseId,
           input.nightId,
           membershipId,
           input.joinedAt,
-          stringValue(authorized.season_id, 'Season id'),
+          seasonId,
         ],
       );
-      return parseAttendance(result.rows[0] as AttendanceRow);
+      const existing =
+        upserted.rows[0] === undefined
+          ? await client.query<AttendanceRow>(
+              `select ${attendanceColumns}, false as interval_started
+                 from night_attendance a
+                 join house_nights n on n.id = a.night_id and n.house_id = a.house_id
+                where a.night_id = $1 and a.house_id = $2 and a.membership_id = $3`,
+              [input.nightId, context.houseId, membershipId],
+            )
+          : upserted;
+      const row = attendanceRow(existing.rows, 'join');
+      const attendance = parseAttendance(row);
+      const joinedNow = row.interval_started === true;
+      if (joinedNow) {
+        await insertAttendanceEvent(client, {
+          eventId: input.eventId,
+          houseId: attendance.houseId,
+          attendanceId: attendance.attendanceId,
+          nightId: attendance.nightId,
+          membershipId: attendance.membershipId,
+          kind: 'join',
+          occurredAt: input.joinedAt,
+        });
+      }
+      return { ...attendance, joinedNow };
     });
   }
 
@@ -231,13 +279,18 @@ export class PgNightAttendanceRepository implements NightAttendanceRepository {
       if (row === undefined) return null;
       const attendance = parseAttendance(row);
       if (attendance.currentJoinedAt === null) {
-        return { ...attendance, scoringEventEmitted: false, sourceKey: null };
+        return { ...attendance, leftNow: false, scoringEventEmitted: false, sourceKey: null };
       }
-      const accumulatedSeconds = effectiveAccumulatedSeconds(attendance, input.leftAt);
-      const qualifiedNow =
-        attendance.qualifiedAt === null &&
-        attendance.accumulatedSeconds < NIGHT_ATTENDANCE_THRESHOLD_SECONDS &&
-        accumulatedSeconds >= NIGHT_ATTENDANCE_THRESHOLD_SECONDS;
+      const accumulatedSeconds = accumulatedAttendanceSeconds({
+        accumulatedSeconds: attendance.accumulatedSeconds,
+        currentJoinedAt: attendance.currentJoinedAt,
+        at: input.leftAt,
+      });
+      const qualifiedNow = crossedAttendanceDurationThreshold({
+        alreadyQualified: attendance.qualifiedAt !== null,
+        previousSeconds: attendance.accumulatedSeconds,
+        accumulatedSeconds,
+      });
       const updated = await client.query<AttendanceRow>(
         `update night_attendance a
             set current_joined_at = null,
@@ -260,9 +313,18 @@ export class PgNightAttendanceRepository implements NightAttendanceRepository {
           attendance.seasonId,
         ],
       );
-      const result = parseAttendance(updated.rows[0] as AttendanceRow);
+      const result = parseAttendance(attendanceRow(updated.rows, 'leave'));
+      await insertAttendanceEvent(client, {
+        eventId: input.eventId,
+        houseId: result.houseId,
+        attendanceId: result.attendanceId,
+        nightId: result.nightId,
+        membershipId: result.membershipId,
+        kind: 'leave',
+        occurredAt: input.leftAt,
+      });
       if (!qualifiedNow) {
-        return { ...result, scoringEventEmitted: false, sourceKey: null };
+        return { ...result, leftNow: true, scoringEventEmitted: false, sourceKey: null };
       }
 
       const sourceKey = await enqueueQualificationEvent(
@@ -270,7 +332,7 @@ export class PgNightAttendanceRepository implements NightAttendanceRepository {
         { scoringEventId: input.scoringEventId, qualifiedAt: input.leftAt, reason: 'duration' },
         client,
       );
-      return { ...result, scoringEventEmitted: true, sourceKey };
+      return { ...result, leftNow: true, scoringEventEmitted: true, sourceKey };
     });
   }
 
@@ -294,11 +356,22 @@ export class PgNightAttendanceRepository implements NightAttendanceRepository {
       if (row === undefined) return null;
       const attendance = parseAttendance(row);
       if (attendance.qualifiedAt !== null) {
-        return { ...attendance, scoringEventEmitted: false, sourceKey: null };
+        return { ...attendance, leftNow: false, scoringEventEmitted: false, sourceKey: null };
       }
-      const effectiveSeconds = effectiveAccumulatedSeconds(attendance, input.qualifiedAt);
-      if (input.reason === 'duration' && effectiveSeconds < NIGHT_ATTENDANCE_THRESHOLD_SECONDS) {
-        return { ...attendance, scoringEventEmitted: false, sourceKey: null };
+      const effectiveSeconds = accumulatedAttendanceSeconds({
+        accumulatedSeconds: attendance.accumulatedSeconds,
+        currentJoinedAt: attendance.currentJoinedAt,
+        at: input.qualifiedAt,
+      });
+      if (
+        input.reason === 'duration' &&
+        !crossedAttendanceDurationThreshold({
+          alreadyQualified: false,
+          previousSeconds: 0,
+          accumulatedSeconds: effectiveSeconds,
+        })
+      ) {
+        return { ...attendance, leftNow: false, scoringEventEmitted: false, sourceKey: null };
       }
 
       const updated = await client.query<AttendanceRow>(
@@ -324,9 +397,9 @@ export class PgNightAttendanceRepository implements NightAttendanceRepository {
           effectiveSeconds,
         ],
       );
-      const result = parseAttendance(updated.rows[0] as AttendanceRow);
+      const result = parseAttendance(attendanceRow(updated.rows, 'qualify'));
       const sourceKey = await enqueueQualificationEvent(result, input, client);
-      return { ...result, scoringEventEmitted: true, sourceKey };
+      return { ...result, leftNow: false, scoringEventEmitted: true, sourceKey };
     });
   }
 }
