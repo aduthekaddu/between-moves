@@ -14,6 +14,7 @@ export type LifecycleAction = 'resign' | 'draw_offer' | 'draw_accept';
 
 export interface LockedGameRow extends QueryResultRow {
   readonly actor_membership_id: unknown;
+  readonly season_id: unknown;
   readonly state: unknown;
   readonly white_membership_id: unknown;
   readonly black_membership_id: unknown;
@@ -183,7 +184,7 @@ export async function loadGame(
   gameId: string,
 ): Promise<LockedGameRow> {
   const result = await client.query<LockedGameRow>(
-    `select actor.id::text as actor_membership_id, g.state,
+    `select actor.id::text as actor_membership_id, g.season_id::text, g.state,
             g.white_membership_id::text, g.black_membership_id::text,
             g.current_fen, g.current_ply, g.side_to_move, g.version,
             g.outbox_sequence::text,

@@ -4,3 +4,5 @@ import type { AuthorizedUseCase } from '../shared/use-case';
 export type SeasonsUseCase<Command, Result> = AuthorizedUseCase<Command, Result>;
 export { draftSeason, draftSeasonCharter, publishSeason } from './season-lifecycle';
 export { readHouseSeason } from './read-house-season';
+export { createSeasonScoringConsumer, readSeasonStandings } from './scoring';
+export type { SeasonScoringConsumerDependencies } from './scoring';

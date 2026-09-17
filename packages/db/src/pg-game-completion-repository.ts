@@ -12,6 +12,7 @@ import {
 } from '@between-moves/domain';
 import type { Pool, PoolClient } from 'pg';
 import { enqueueGameCompletionEvents } from './game-completion-events';
+import { allocateGameCompletionSequence } from './game-completion-sequence';
 import {
   bigInteger,
   integer,
@@ -36,11 +37,16 @@ async function finish(
 ): Promise<GameLifecycleResult> {
   const nextVersion = integer(game.version, 'version') + 1;
   const firstEventSequence = bigInteger(game.outbox_sequence, 'outbox sequence') + 1n;
+  const completionSequence = await allocateGameCompletionSequence(
+    client,
+    context.houseId,
+    text(game.season_id, 'Season id'),
+  );
   await client.query(
     `update games set state='completed', result=$3, result_reason=$4, completed_at=$5,
                       version=$6, move_due_at=null, turn_started_at=null,
                       draw_offer_membership_id=null, draw_offer_ply=null,
-                      outbox_sequence=$7
+                      outbox_sequence=$7, season_completion_sequence=$8
       where id=$1 and house_id=$2`,
     [
       input.gameId,
@@ -50,6 +56,7 @@ async function finish(
       input.completedAt,
       nextVersion,
       (firstEventSequence + 1n).toString(),
+      completionSequence.toString(),
     ],
   );
   await enqueueGameCompletionEvents(

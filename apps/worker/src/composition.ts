@@ -15,6 +15,7 @@ import {
   createNudgeDispatcher,
   createNudgeEmailConsumer,
   createOutboxDispatcher,
+  createSeasonScoringConsumer,
   MAGIC_LINK_EMAIL_TOPIC,
   type DispatchSummary,
   type NudgeDispatchSummary,
@@ -24,13 +25,21 @@ import {
   PgNudgeEmailReader,
   PgNudgeRepository,
   PgOutboxRepository,
+  PgSeasonScoringRepository,
 } from '@between-moves/db';
 import {
+  GAME_COMPLETED_SCORING_TOPIC,
   INVITATION_EMAIL_TOPIC,
+  NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
   NUDGE_DUE_TOPIC,
+  PUZZLE_PUBLISHED_SCORING_TOPIC,
   type OutboxConsumer,
 } from '@between-moves/domain';
-import { createDeliveryMetricStubs, createStructuredLogger } from '@between-moves/observability';
+import {
+  createDeliveryMetricStubs,
+  createSeasonScoringEventRecorder,
+  createStructuredLogger,
+} from '@between-moves/observability';
 
 function requiredEnvironment(key: string): string {
   const value = process.env[key];
@@ -76,10 +85,24 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       metrics,
     });
     const email = createEmailDeliveryConsumer({ clock, magicLink, invitation, nudge });
+    const scoring = createSeasonScoringConsumer({
+      scoring: new PgSeasonScoringRepository(database.pool),
+      ids: { generate: () => generateUuidV7() },
+      events: createSeasonScoringEventRecorder({ logger }),
+      clock,
+    });
     const emailTopics = new Set([MAGIC_LINK_EMAIL_TOPIC, INVITATION_EMAIL_TOPIC, NUDGE_DUE_TOPIC]);
+    const scoringTopics = new Set([
+      GAME_COMPLETED_SCORING_TOPIC,
+      NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
+      PUZZLE_PUBLISHED_SCORING_TOPIC,
+    ]);
     const consumer: OutboxConsumer = {
-      consume: (event) =>
-        emailTopics.has(event.topic) ? email.consume(event) : fallback.consume(event),
+      consume: (event) => {
+        if (emailTopics.has(event.topic)) return email.consume(event);
+        if (scoringTopics.has(event.topic)) return scoring.consume(event);
+        return fallback.consume(event);
+      },
     };
     const dispatcher = createOutboxDispatcher({
       clock,

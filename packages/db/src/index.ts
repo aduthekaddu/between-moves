@@ -34,3 +34,4 @@ export { PgMembershipAdminRepository } from './pg-membership-admin-repository';
 export { PgNightRepository } from './pg-night-repository';
 export { PgNightAttendanceRepository } from './pg-night-attendance-repository';
 export { PgSeasonRepository } from './pg-season-repository';
+export { PgSeasonScoringRepository } from './pg-season-scoring-repository';

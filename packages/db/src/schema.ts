@@ -276,6 +276,10 @@ export const seasons = pgTable(
     closedAt: timestamp('closed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    outboxSequence: bigint('outbox_sequence', { mode: 'bigint' }).default(0n).notNull(),
+    gameCompletionSequence: bigint('game_completion_sequence', { mode: 'bigint' })
+      .default(0n)
+      .notNull(),
   },
   (table) => [
     unique('seasons_id_house_unique').on(table.id, table.houseId),
@@ -288,6 +292,8 @@ export const seasons = pgTable(
       .where(sql`${table.draftIdempotencyDigest} is not null`),
     check('seasons_title_check', sql`char_length(${table.title}) between 1 and 80`),
     check('seasons_state_check', sql`${table.state} in ('draft', 'active', 'closing', 'closed')`),
+    check('seasons_outbox_sequence_check', sql`${table.outboxSequence} >= 0`),
+    check('seasons_game_completion_sequence_check', sql`${table.gameCompletionSequence} >= 0`),
     check(
       'seasons_draft_idempotency_digest_check',
       sql`${table.draftIdempotencyDigest} is null or ${table.draftIdempotencyDigest} ~ '^[0-9a-f]{64}$'`,
@@ -477,6 +483,54 @@ export const nightAttendance = pgTable(
   ],
 );
 
+/** [BM-034] [DR-SCORE-01..08] Immutable, explainable Season points. */
+export const seasonScoreLedger = pgTable(
+  'season_score_ledger',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    seasonId: uuid('season_id').notNull(),
+    membershipId: uuid('membership_id').notNull(),
+    sourceKind: text('source_kind').notNull(),
+    sourceKey: text('source_key').notNull(),
+    points: integer('points').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.seasonId, table.houseId],
+      foreignColumns: [seasons.id, seasons.houseId],
+      name: 'season_score_ledger_season_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.membershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'season_score_ledger_membership_house_fk',
+    }).onDelete('restrict'),
+    unique('season_score_ledger_source_unique').on(
+      table.seasonId,
+      table.membershipId,
+      table.sourceKey,
+    ),
+    index('season_score_ledger_season_membership_idx').on(table.seasonId, table.membershipId),
+    index('season_score_ledger_house_season_idx').on(table.houseId, table.seasonId),
+    check(
+      'season_score_ledger_source_kind_check',
+      sql`${table.sourceKind} in ('game_played', 'game_win', 'game_draw', 'night_attendance', 'puzzle_published')`,
+    ),
+    check(
+      'season_score_ledger_fixed_points_check',
+      sql`(${table.sourceKind} = 'game_win' and ${table.points} = 3) or (${table.sourceKind} = 'game_draw' and ${table.points} = 2) or (${table.sourceKind} not in ('game_win', 'game_draw') and ${table.points} = 1)`,
+    ),
+    check(
+      'season_score_ledger_source_key_length_check',
+      sql`char_length(${table.sourceKey}) between 1 and 200`,
+    ),
+  ],
+);
+
 const standardFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 /** [BM-021] [DR-GAME-01..04] Current, server-authoritative Game snapshot. */
@@ -508,6 +562,7 @@ export const games = pgTable(
     moveDueAt: timestamp('move_due_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    seasonCompletionSequence: bigint('season_completion_sequence', { mode: 'bigint' }),
     drawOfferMembershipId: uuid('draw_offer_membership_id'),
     drawOfferPly: integer('draw_offer_ply'),
   },
@@ -548,6 +603,10 @@ export const games = pgTable(
     index('games_black_move_shelf_idx')
       .on(table.blackMembershipId, table.state, table.moveDueAt)
       .where(sql`${table.state} = 'active' and ${table.mode} = 'correspondence'`),
+    unique('games_season_completion_sequence_unique').on(
+      table.seasonId,
+      table.seasonCompletionSequence,
+    ),
     check('games_mode_check', sql`${table.mode} in ('correspondence', 'live')`),
     check(
       'games_state_check',
@@ -555,6 +614,10 @@ export const games = pgTable(
     ),
     check('games_side_to_move_check', sql`${table.sideToMove} in ('white', 'black')`),
     check('games_outbox_sequence_check', sql`${table.outboxSequence} >= 0`),
+    check(
+      'games_season_completion_sequence_check',
+      sql`${table.seasonCompletionSequence} is null or ${table.seasonCompletionSequence} > 0`,
+    ),
     check(
       'games_result_check',
       sql`${table.result} is null or ${table.result} in ('white_win', 'black_win', 'draw', 'aborted')`,

@@ -457,6 +457,7 @@ integration('PostgreSQL durable Move repository', () => {
       ).resolves.toMatchObject({ completedNow: true, clock: { moveDueAt: null } });
       const persisted = await database.query(
         `select g.state, g.result, g.result_reason, g.completed_at,
+              g.season_completion_sequence::text,
               o.topic, o.sequence::text, o.payload
          from games g join outbox_events o on o.aggregate_id=g.id
         where g.id=$1 order by o.sequence`,
@@ -468,6 +469,7 @@ integration('PostgreSQL durable Move repository', () => {
           state: 'completed',
           result: terminal.result,
           result_reason: terminal.reason,
+          season_completion_sequence: '1',
           topic: 'game.completed',
           sequence: '2',
           payload: expect.objectContaining({

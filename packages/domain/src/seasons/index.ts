@@ -5,6 +5,8 @@ import { DomainError } from '../shared/errors';
 import type { AuthorizeHouseAction } from '../houses/authorization';
 import type { IdGenerator } from '../houses/house';
 
+export * from './scoring';
+
 export type SeasonState = 'draft' | 'active' | 'closing' | 'closed';
 export type SeasonTransitionEvent =
   'draft_season' | 'publish_season' | 'close_season' | 'generation_complete';

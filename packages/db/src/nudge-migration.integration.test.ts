@@ -48,6 +48,7 @@ integration('BM-029 Nudge migration', () => {
     await migrateDown(database, { migrationsDirectory });
     await migrateDown(database, { migrationsDirectory });
     await migrateDown(database, { migrationsDirectory });
+    await migrateDown(database, { migrationsDirectory });
   });
 
   afterAll(async () => {
