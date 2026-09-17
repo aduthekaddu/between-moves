@@ -1,0 +1,145 @@
+import {
+  HouseAuthorizationDeniedError,
+  type AuthenticatedViewer,
+  type NightAttendanceRepository,
+} from '@between-moves/domain';
+import { fakeAuthorizationContext, FakeClock } from '@between-moves/domain/testing';
+import { describe, expect, it, vi } from 'vitest';
+import { joinNight, leaveNight } from './attendance';
+
+const houseId = '01941f29-7c00-7000-8000-000000000201';
+const nightId = '01941f29-7c00-7000-8000-000000000901';
+const attendanceId = '01941f29-7c00-7000-8000-000000000902';
+const scoringEventId = '01941f29-7c00-7000-8000-000000000903';
+const joinedAt = new Date('2026-09-04T14:00:00.000Z');
+const viewer: AuthenticatedViewer = {
+  kind: 'authenticated',
+  userId: '01941f29-7c00-7000-8000-000000000101',
+  displayName: 'Ada',
+  imageUrl: null,
+};
+const context = fakeAuthorizationContext({ viewerId: viewer.userId, houseId });
+
+function dependencies(repository: Partial<NightAttendanceRepository> = {}) {
+  const clock = new FakeClock(joinedAt);
+  const ids = [attendanceId, scoringEventId];
+  const attendance: NightAttendanceRepository = {
+    join: vi.fn(async (_context, input) => ({
+      attendanceId: input.attendanceId,
+      houseId,
+      nightId,
+      seasonId: '01941f29-7c00-7000-8000-000000000701',
+      membershipId: '01941f29-7c00-7000-8000-000000000601',
+      firstJoinedAt: input.joinedAt,
+      currentJoinedAt: input.joinedAt,
+      lastLeftAt: null,
+      accumulatedSeconds: 0,
+      qualifiedAt: null,
+      qualificationReason: null,
+    })),
+    leave: vi.fn(async (_context, input) => ({
+      attendanceId,
+      houseId,
+      nightId,
+      seasonId: '01941f29-7c00-7000-8000-000000000701',
+      membershipId: '01941f29-7c00-7000-8000-000000000601',
+      firstJoinedAt: joinedAt,
+      currentJoinedAt: null,
+      lastLeftAt: input.leftAt,
+      accumulatedSeconds: 900,
+      qualifiedAt: input.leftAt,
+      qualificationReason: 'duration' as const,
+      scoringEventEmitted: true,
+      sourceKey: `night:${nightId}`,
+    })),
+    qualify: vi.fn(async () => null),
+    ...repository,
+  };
+  return {
+    authorizeHouseAction: vi.fn(async () => context),
+    attendance,
+    clock,
+    ids: { generate: vi.fn(() => ids.shift() ?? 'unexpected-id') },
+    events: { record: vi.fn() },
+  };
+}
+
+describe('Between Moves Night attendance commands', () => {
+  it('[BM-033] [DR-NIGHT-02] records joins with server-owned time', async () => {
+    const deps = dependencies();
+
+    await expect(joinNight({ houseId, nightId, viewer }, deps)).resolves.toMatchObject({
+      attendanceId,
+      currentJoinedAt: joinedAt,
+    });
+    expect(deps.authorizeHouseAction).toHaveBeenCalledWith(
+      { kind: 'view_house_content' },
+      houseId,
+      viewer,
+    );
+    expect(deps.attendance.join).toHaveBeenCalledWith(context, {
+      attendanceId,
+      nightId,
+      joinedAt,
+    });
+  });
+
+  it('[BM-033] [DR-NIGHT-05] records the unique attendance event after threshold', async () => {
+    const deps = dependencies();
+    deps.clock.advance(900_000);
+    deps.ids.generate.mockReturnValueOnce(scoringEventId);
+
+    await expect(leaveNight({ houseId, nightId, viewer }, deps)).resolves.toMatchObject({
+      scoringEventEmitted: true,
+      sourceKey: `night:${nightId}`,
+    });
+    expect(deps.attendance.leave).toHaveBeenCalledWith(context, {
+      nightId,
+      scoringEventId,
+      leftAt: new Date('2026-09-04T14:15:00.000Z'),
+    });
+    expect(deps.events.record).toHaveBeenCalledWith({
+      actorId: viewer.userId,
+      attendanceId,
+      houseId,
+      nightId,
+      sourceKey: `night:${nightId}`,
+    });
+  });
+
+  it('[BM-033] does not log a scoring event when a leave is below threshold', async () => {
+    const deps = dependencies({
+      leave: vi.fn(async () => ({
+        attendanceId,
+        houseId,
+        nightId,
+        seasonId: '01941f29-7c00-7000-8000-000000000701',
+        membershipId: '01941f29-7c00-7000-8000-000000000601',
+        firstJoinedAt: joinedAt,
+        currentJoinedAt: null,
+        lastLeftAt: joinedAt,
+        accumulatedSeconds: 0,
+        qualifiedAt: null,
+        qualificationReason: null,
+        scoringEventEmitted: false,
+        sourceKey: null,
+      })),
+    });
+
+    await leaveNight({ houseId, nightId, viewer }, deps);
+    expect(deps.events.record).not.toHaveBeenCalled();
+  });
+
+  it('[BM-033] denies inactive or cross-House viewers before persistence', async () => {
+    const deps = dependencies();
+    deps.authorizeHouseAction.mockRejectedValue(
+      new HouseAuthorizationDeniedError('not_a_member', true),
+    );
+
+    await expect(joinNight({ houseId, nightId, viewer }, deps)).rejects.toMatchObject({
+      code: 'authorization_denied',
+      crossHouse: true,
+    });
+    expect(deps.attendance.join).not.toHaveBeenCalled();
+  });
+});

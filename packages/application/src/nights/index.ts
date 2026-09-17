@@ -4,3 +4,4 @@ import type { AuthorizedUseCase } from '../shared/use-case';
 export type NightsUseCase<Command, Result> = AuthorizedUseCase<Command, Result>;
 
 export { changeNightSchedule, readScheduledNights } from './schedule';
+export { joinNight, leaveNight } from './attendance';

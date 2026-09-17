@@ -7,7 +7,9 @@ import {
   changeNightSchedule,
   draftSeason,
   draftSeasonCharter,
+  joinNight,
   leaveHouse,
+  leaveNight,
   handleDraw,
   redeemInvitation,
   removeHouseMember,
@@ -31,6 +33,7 @@ import {
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
+  PgNightAttendanceRepository,
   PgNightRepository,
   PgSeasonRepository,
   PgSubmitMoveRepository,
@@ -53,6 +56,8 @@ import type {
   InvitationTokenDigester,
   InvitationTokenIssuer,
   MembershipAdminRepository,
+  NightAttendanceEventRecorder,
+  NightAttendanceRepository,
   NightRepository,
   NightScheduleChangeRecorder,
   SeasonRepository,
@@ -93,6 +98,8 @@ interface IsolationHarness {
   };
   readonly redemptions: InvitationRedemptionRepository;
   readonly memberships: MembershipAdminRepository;
+  readonly attendance: NightAttendanceRepository;
+  readonly events: NightAttendanceEventRecorder;
   readonly nights: NightRepository;
   readonly acceptances: GameSeatAcceptanceRepository;
   readonly seats: GameSeatCreationRepository;
@@ -302,6 +309,44 @@ const cases: readonly IsolationCase[] = [
       ),
   },
   {
+    id: 'night.attendance-join',
+    name: 'Night attendance join',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      joinNight(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          viewer: viewer(harness.world.first.nonOwner),
+        },
+        harness,
+      ),
+  },
+  {
+    id: 'night.attendance-leave',
+    name: 'Night attendance leave',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      leaveNight(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          viewer: viewer(harness.world.first.nonOwner),
+        },
+        harness,
+      ),
+  },
+  {
     id: 'game.seat-create',
     name: 'Game seat creation',
     outcome: 'denied',
@@ -482,6 +527,13 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
          select jsonb_agg(jsonb_build_object('id', a.id::text, 'action', a.action) order by a.id)
          from night_audit a where a.house_id = h.id
        ), '[]'::jsonb),
+       'night_attendance', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'id', a.id::text, 'night', a.night_id::text, 'member', a.membership_id::text,
+           'seconds', a.accumulated_seconds
+         ) order by a.id)
+         from night_attendance a where a.house_id = h.id
+       ), '[]'::jsonb),
        'games', coalesce((
          select jsonb_agg(jsonb_build_object(
            'id', g.id::text, 'state', g.state, 'ply', g.current_ply, 'version', g.version,
@@ -637,6 +689,8 @@ integration('BM-017 current House write-path isolation', () => {
       },
       redemptions: new PgInvitationRedemptionRepository(database),
       memberships: new PgMembershipAdminRepository(database),
+      attendance: new PgNightAttendanceRepository(database),
+      events: { record: () => undefined },
       nights: new PgNightRepository(database),
       acceptances: new PgGameSeatAcceptanceRepository(database),
       seats: new PgGameSeatRepository(database),

@@ -419,6 +419,64 @@ export const nightAudit = pgTable(
   ],
 );
 
+/** [BM-033] [DR-NIGHT-02/05] Server-timestamped durable Night attendance. */
+export const nightAttendance = pgTable(
+  'night_attendance',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    nightId: uuid('night_id').notNull(),
+    membershipId: uuid('membership_id').notNull(),
+    firstJoinedAt: timestamp('first_joined_at', { withTimezone: true }).notNull(),
+    currentJoinedAt: timestamp('current_joined_at', { withTimezone: true }),
+    lastLeftAt: timestamp('last_left_at', { withTimezone: true }),
+    accumulatedSeconds: integer('accumulated_seconds').default(0).notNull(),
+    qualifiedAt: timestamp('qualified_at', { withTimezone: true }),
+    qualificationReason: text('qualification_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique('night_attendance_night_membership_unique').on(table.nightId, table.membershipId),
+    unique('night_attendance_id_house_unique').on(table.id, table.houseId),
+    foreignKey({
+      columns: [table.nightId, table.houseId],
+      foreignColumns: [houseNights.id, houseNights.houseId],
+      name: 'night_attendance_night_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.membershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'night_attendance_membership_house_fk',
+    }).onDelete('restrict'),
+    index('night_attendance_house_night_idx').on(table.houseId, table.nightId),
+    index('night_attendance_membership_idx').on(table.membershipId, table.nightId),
+    check('night_attendance_accumulated_check', sql`${table.accumulatedSeconds} >= 0`),
+    check(
+      'night_attendance_current_join_check',
+      sql`${table.currentJoinedAt} is null or ${table.currentJoinedAt} >= ${table.firstJoinedAt}`,
+    ),
+    check(
+      'night_attendance_last_leave_check',
+      sql`${table.lastLeftAt} is null or ${table.lastLeftAt} >= ${table.firstJoinedAt}`,
+    ),
+    check(
+      'night_attendance_qualification_pair_check',
+      sql`(${table.qualifiedAt} is null) = (${table.qualificationReason} is null)`,
+    ),
+    check(
+      'night_attendance_qualification_reason_check',
+      sql`${table.qualificationReason} is null or ${table.qualificationReason} in ('duration', 'completed_live_game')`,
+    ),
+    check(
+      'night_attendance_qualified_at_check',
+      sql`${table.qualifiedAt} is null or ${table.qualifiedAt} >= ${table.firstJoinedAt}`,
+    ),
+  ],
+);
+
 const standardFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 /** [BM-021] [DR-GAME-01..04] Current, server-authoritative Game snapshot. */
