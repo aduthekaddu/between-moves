@@ -2,6 +2,8 @@ import {
   AesGcmMagicLinkDeliveryCodec,
   AesGcmInvitationEmailDeliveryCodec,
   generateUuidV7,
+  HmacRealtimeChannelResolver,
+  HttpRealtimePublisher,
   IdempotentLoggingConsumer,
   ResendMagicLinkEmailSender,
   ResendInvitationEmailSender,
@@ -15,8 +17,10 @@ import {
   createNudgeDispatcher,
   createNudgeEmailConsumer,
   createOutboxDispatcher,
+  createRealtimePublishConsumer,
   createSeasonScoringConsumer,
   MAGIC_LINK_EMAIL_TOPIC,
+  REALTIME_PUBLISH_TOPIC_SET,
   type DispatchSummary,
   type NudgeDispatchSummary,
 } from '@between-moves/application';
@@ -37,6 +41,7 @@ import {
 } from '@between-moves/domain';
 import {
   createDeliveryMetricStubs,
+  createRealtimeMetricStubs,
   createSeasonScoringEventRecorder,
   createStructuredLogger,
 } from '@between-moves/observability';
@@ -52,6 +57,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
   const clock = new SystemClock();
   const logger = createStructuredLogger({ clock, sink: (line) => console.log(line) });
   const metrics = createDeliveryMetricStubs();
+  const realtimeMetrics = createRealtimeMetricStubs();
   const database = createDatabase(requiredEnvironment('DATABASE_URL'));
 
   try {
@@ -97,11 +103,35 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
       PUZZLE_PUBLISHED_SCORING_TOPIC,
     ]);
+    const appOrigin = process.env.APP_ORIGIN;
+    const realtimeServerKey = process.env.REALTIME_SERVER_KEY;
+    const realtime =
+      appOrigin !== undefined &&
+      appOrigin.length > 0 &&
+      realtimeServerKey !== undefined &&
+      realtimeServerKey.length > 0
+        ? createRealtimePublishConsumer({
+            clock,
+            publisher: new HttpRealtimePublisher({
+              url: new URL('/api/internal/realtime/publish', appOrigin).toString(),
+              serverKey: realtimeServerKey,
+            }),
+            channels: new HmacRealtimeChannelResolver(realtimeServerKey),
+            metrics: realtimeMetrics,
+          })
+        : null;
     const consumer: OutboxConsumer = {
-      consume: (event) => {
+      async consume(event) {
         if (emailTopics.has(event.topic)) return email.consume(event);
-        if (scoringTopics.has(event.topic)) return scoring.consume(event);
-        return fallback.consume(event);
+        const scoringResult = scoringTopics.has(event.topic) ? await scoring.consume(event) : null;
+        const realtimeResult =
+          realtime !== null && REALTIME_PUBLISH_TOPIC_SET.has(event.topic)
+            ? await realtime.consume(event)
+            : null;
+        if (scoringResult === null && realtimeResult === null) return fallback.consume(event);
+        return scoringResult === 'processed' || realtimeResult === 'processed'
+          ? 'processed'
+          : 'duplicate';
       },
     };
     const dispatcher = createOutboxDispatcher({
@@ -121,7 +151,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       event: 'delivery.outbox-dispatch-complete',
       outcome: 'success',
       durationMs: 0,
-      data: { ...summary, ...metrics.snapshot() },
+      data: { ...summary, ...metrics.snapshot(), ...realtimeMetrics.snapshot() },
     });
     return summary;
   } finally {

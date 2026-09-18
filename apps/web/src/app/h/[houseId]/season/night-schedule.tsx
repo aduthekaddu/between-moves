@@ -313,6 +313,14 @@ export function NightSchedule({
               <p className="night-card__zone">
                 {timeZone} · {stateLabel(night.state)}
               </p>
+              {night.state !== 'cancelled' ? (
+                <a
+                  className="night-card__rail"
+                  href={`/h/${encodeURIComponent(houseId)}/nights/${encodeURIComponent(night.nightId)}`}
+                >
+                  Open the rail
+                </a>
+              ) : null}
               <NightLifecycleControls
                 key={`${night.nightId}-${night.state}-${night.hostMembershipId ?? 'none'}`}
                 houseId={houseId}

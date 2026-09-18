@@ -165,6 +165,7 @@ export const nonHouseWriteExports = Object.freeze([
   'readScheduledNights',
   'readNightHostCandidates',
   'mintRealtimeToken',
+  'readNightRail',
   'readCurrentGameReaction',
   'readGameNotes',
 ]);
@@ -177,4 +178,5 @@ export const nonHouseMutationRoutes = Object.freeze([
   'apps/web/src/app/api/houses/route.ts',
   'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/realtime-token/route.ts',
   'apps/web/src/app/api/webhooks/resend/route.ts',
+  'apps/web/src/app/api/internal/realtime/publish/route.ts',
 ]);

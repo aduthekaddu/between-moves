@@ -34,6 +34,29 @@ export {
   type QualifyNightAttendanceInput,
 } from './attendance';
 export {
+  applyRailRealtimeEvent,
+  applyRailRealtimeEventOrRepair,
+  GAME_COMPLETED_TOPIC,
+  GAME_MOVE_ACCEPTED_TOPIC,
+  nightSequenceForState,
+  RAIL_RECENT_RESULT_LIMIT,
+  REALTIME_PUBLISH_TOPICS,
+} from './rail';
+export type {
+  ApplyRailRealtimeEventResult,
+  RepairRailRealtimeEventResult,
+  NightRailBoard,
+  NightRailPlayer,
+  NightRailRepository,
+  NightRailResult,
+  NightRailResultValue,
+  NightRailSnapshot,
+  RailRealtimeEvent,
+  ReadNightRailDependencies,
+  ReadNightRailRequest,
+  RealtimePublishTopic,
+} from './rail';
+export {
   REALTIME_TOKEN_TTL_MS,
   realtimeChannelOperations,
   type IssuedRealtimeToken,

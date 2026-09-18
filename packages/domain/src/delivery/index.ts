@@ -51,6 +51,32 @@ export interface OutboxConsumer {
   consume(event: ClaimedOutboxEvent): Promise<OutboxConsumeResult>;
 }
 
+export type RealtimePublishResult = 'published' | 'duplicate';
+
+export interface RealtimePublishMessage {
+  readonly eventId: string;
+  readonly channel: string;
+  readonly topic: string;
+  readonly houseId: string;
+  readonly aggregateId: string;
+  readonly sequence: bigint;
+  readonly payload: Readonly<Record<string, unknown>>;
+  readonly occurredAt: Date;
+}
+
+/** [BM-038] Hosted realtime publish port; implementations must be idempotent on eventId. */
+export interface RealtimePublisher {
+  publish(message: RealtimePublishMessage): Promise<RealtimePublishResult>;
+}
+
+export interface RealtimeChannelResolver {
+  channelFor(event: ClaimedOutboxEvent): string | null;
+}
+
+export interface RealtimePublishMetrics {
+  observeRealtimePublishDelay(milliseconds: number): void;
+}
+
 export interface OutboxMetrics {
   setOutboxAgeSeconds(ageSeconds: number): void;
   incrementRealtimePublishRetry(): void;

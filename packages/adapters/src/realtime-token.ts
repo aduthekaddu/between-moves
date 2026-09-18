@@ -51,6 +51,16 @@ function opaqueChannelId(serverKey: string, parts: readonly string[]): string {
   return hmac.digest('base64url').slice(0, CHANNEL_ID_LENGTH);
 }
 
+/** [BM-037] [BM-038] Opaque Night/Game channel IDs shared by tokens and publish. */
+export function opaqueRealtimeChannelId(
+  serverKey: string,
+  kind: 'night' | 'game',
+  houseId: string,
+  entityId: string,
+): string {
+  return opaqueChannelId(serverKey, [kind, houseId, entityId]);
+}
+
 function sign(serverKey: string, payload: string): Buffer {
   return createHmac('sha256', keyMaterial(serverKey, 'realtime-token')).update(payload).digest();
 }
@@ -174,10 +184,15 @@ export class HmacRealtimeTokenIssuer implements RealtimeTokenIssuer {
   issue(input: RealtimeTokenIssueInput): IssuedRealtimeToken {
     const iat = unixSeconds(input.issuedAt);
     const expiresAt = new Date(input.issuedAt.getTime() + this.ttlMs);
-    const nightChannel = opaqueChannelId(this.serverKey, ['night', input.houseId, input.nightId]);
+    const nightChannel = opaqueRealtimeChannelId(
+      this.serverKey,
+      'night',
+      input.houseId,
+      input.nightId,
+    );
     const games = input.gameIds.map((gameId) => ({
       gameId,
-      channel: opaqueChannelId(this.serverKey, ['game', input.houseId, gameId]),
+      channel: opaqueRealtimeChannelId(this.serverKey, 'game', input.houseId, gameId),
     }));
     const capability = {
       [nightChannel]: realtimeChannelOperations('night'),

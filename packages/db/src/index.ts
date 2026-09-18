@@ -36,5 +36,6 @@ export { PgNightAttendanceRepository } from './pg-night-attendance-repository';
 export { PgNightLifecycleRepository } from './pg-night-lifecycle-repository';
 export { PgNightRsvpRepository } from './pg-night-rsvp-repository';
 export { PgNightRealtimeScopeRepository } from './pg-night-realtime-scope-repository';
+export { PgNightRailRepository } from './pg-night-rail-repository';
 export { PgSeasonRepository } from './pg-season-repository';
 export { PgSeasonScoringRepository } from './pg-season-scoring-repository';
