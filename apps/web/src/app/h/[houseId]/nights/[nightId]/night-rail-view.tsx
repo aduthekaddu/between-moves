@@ -185,6 +185,23 @@ export interface NightPresenceLifecycleOptions {
   readonly onPresence: (presence: NightPresenceResponse) => void;
 }
 
+function preserveActiveIdentity(
+  presence: NightPresenceResponse,
+  identity: RealtimeTokenResponse | null,
+  active: boolean,
+): NightPresenceResponse {
+  if (!active || identity === null) return presence;
+  const members = [
+    ...presence.presence.filter((member) => member.clientId !== identity.presence.clientId),
+    identity.presence,
+  ].sort(
+    (left, right) =>
+      left.displayName.localeCompare(right.displayName) ||
+      left.clientId.localeCompare(right.clientId),
+  );
+  return { presence: members, presenceCount: members.length };
+}
+
 /** [BM-039] Keep the local lease authoritative while the SSE stream catches up. */
 export function startNightPresence(options: NightPresenceLifecycleOptions): () => void {
   let cancelled = false;
@@ -195,7 +212,8 @@ export function startNightPresence(options: NightPresenceLifecycleOptions): () =
 
   const onPresence = (event: MessageEvent<string>) => {
     try {
-      options.onPresence(nightPresenceResponseSchema.parse(JSON.parse(event.data) as unknown));
+      const presence = nightPresenceResponseSchema.parse(JSON.parse(event.data) as unknown);
+      options.onPresence(preserveActiveIdentity(presence, signedIdentity, active));
     } catch {
       // Ignore malformed live data and keep the last verified snapshot.
     }
@@ -226,8 +244,8 @@ export function startNightPresence(options: NightPresenceLifecycleOptions): () =
         await sendLeave(identity);
         return;
       }
-      options.onPresence(presence);
       signedIdentity = identity;
+      options.onPresence(presence);
       if (previousIdentity !== null) await sendLeave(previousIdentity).catch(() => undefined);
       const delay = Math.max(
         1_000,
