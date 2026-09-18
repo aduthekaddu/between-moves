@@ -108,6 +108,12 @@ export const houseWritePaths = Object.freeze([
     scope: 'house-id',
   },
   {
+    id: 'night.presence-change',
+    useCase: 'changeNightPresence',
+    route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/presence/route.ts',
+    scope: 'house-id',
+  },
+  {
     id: 'game.seat-create',
     useCase: 'createGameSeat',
     route: 'apps/web/src/app/api/houses/[houseId]/games/route.ts',

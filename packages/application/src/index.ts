@@ -38,6 +38,7 @@ export {
 export type { NightsUseCase } from './nights';
 export {
   assignNightHost,
+  changeNightPresence,
   changeNightSchedule,
   endNight,
   joinNight,

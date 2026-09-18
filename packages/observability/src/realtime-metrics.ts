@@ -3,6 +3,7 @@ export interface RealtimeMetricSnapshot {
   readonly rate_limit_hit_total: number;
   readonly realtime_publish_delay_ms: readonly number[];
   readonly live_reconnect_total: number;
+  readonly presence_count: number;
 }
 
 export interface RealtimeMetricStubs {
@@ -10,6 +11,7 @@ export interface RealtimeMetricStubs {
   incrementRateLimitHit(): void;
   observeRealtimePublishDelay(milliseconds: number): void;
   incrementLiveReconnect(): void;
+  setPresenceCount(count: number): void;
   snapshot(): RealtimeMetricSnapshot;
 }
 
@@ -18,6 +20,7 @@ export function createRealtimeMetricStubs(): RealtimeMetricStubs {
   let tokenIssues = 0;
   let rateLimitHits = 0;
   let liveReconnects = 0;
+  let presenceCount = 0;
   const publishDelays: number[] = [];
   return {
     incrementRealtimeTokenIssue() {
@@ -32,12 +35,16 @@ export function createRealtimeMetricStubs(): RealtimeMetricStubs {
     incrementLiveReconnect() {
       liveReconnects += 1;
     },
+    setPresenceCount(count) {
+      presenceCount = Math.max(0, Math.trunc(count));
+    },
     snapshot() {
       return {
         realtime_token_issue_total: tokenIssues,
         rate_limit_hit_total: rateLimitHits,
         realtime_publish_delay_ms: [...publishDelays],
         live_reconnect_total: liveReconnects,
+        presence_count: presenceCount,
       };
     },
   };

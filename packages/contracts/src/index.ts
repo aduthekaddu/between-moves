@@ -16,6 +16,13 @@ export {
 } from './realtime-token';
 export { nightRailSnapshotSchema, type NightRailSnapshotResponse } from './night-rail';
 export {
+  nightPresenceCommandSchema,
+  nightPresenceResponseSchema,
+  signedNightPresenceSchema,
+  type NightPresenceCommandBody,
+  type NightPresenceResponse,
+} from './night-presence';
+export {
   realtimePublishEnvelopeSchema,
   realtimePublishHidesRootKey,
   type RealtimePublishEnvelope,

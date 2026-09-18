@@ -6,6 +6,7 @@ export {
   HmacRealtimeTokenIssuer,
   inspectRealtimeCapabilityToken,
   opaqueRealtimeChannelId,
+  verifyRealtimePresenceIdentity,
   type HmacRealtimeTokenIssuerOptions,
   type RealtimeCapabilityTokenPayload,
 } from './realtime-token';
@@ -51,3 +52,8 @@ export {
   type UpstashLimitClientFactory,
   type UpstashRateLimiterOptions,
 } from './upstash-rate-limiter';
+export {
+  UpstashNightPresenceStore,
+  type NightPresenceRedisClient,
+  type UpstashNightPresenceStoreOptions,
+} from './upstash-night-presence';

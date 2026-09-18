@@ -3,6 +3,8 @@ import type { AuthorizeHouseAction } from '../houses/authorization';
 import type { AuthorizationContext } from '../shared/authorization-context';
 import type { SideToMove } from '../games/rules-adapter';
 import type { NightState } from './night';
+import type { NightPresenceReader } from './presence';
+import type { SignedRealtimePresence } from './realtime-token';
 
 export const RAIL_RECENT_RESULT_LIMIT = 8;
 
@@ -46,7 +48,7 @@ export interface NightRailResult {
   readonly black: NightRailPlayer;
 }
 
-/** [BM-038] Durable Night rail: active boards, recent results, and presence count. */
+/** [BM-038] [BM-039] Durable rail data combined with ephemeral signed presence. */
 export interface NightRailSnapshot {
   readonly houseId: string;
   readonly nightId: string;
@@ -57,6 +59,7 @@ export interface NightRailSnapshot {
   readonly startedAt: Date | null;
   readonly endedAt: Date | null;
   readonly nightSequence: bigint;
+  readonly presence: readonly SignedRealtimePresence[];
   readonly presenceCount: number;
   readonly activeBoards: readonly NightRailBoard[];
   readonly recentResults: readonly NightRailResult[];
@@ -74,6 +77,8 @@ export interface ReadNightRailRequest {
 
 export interface ReadNightRailDependencies {
   readonly authorizeHouseAction: AuthorizeHouseAction;
+  readonly clock: { now(): Date };
+  readonly presence: NightPresenceReader;
   readonly rails: NightRailRepository;
 }
 
@@ -211,12 +216,6 @@ function applyNight(
   const relation = sequenceRelation(snapshot.nightSequence, event.sequence);
   if (relation === 'stale') return { kind: 'ignored' };
   if (relation === 'gap') return { kind: 'gap' };
-  const presenceCount =
-    typeof event.payload.presenceCount === 'number' &&
-    Number.isInteger(event.payload.presenceCount) &&
-    event.payload.presenceCount >= 0
-      ? event.payload.presenceCount
-      : snapshot.presenceCount;
   const atValue = event.payload.at;
   const at = typeof atValue === 'string' ? new Date(atValue) : null;
   if (at === null || Number.isNaN(at.getTime())) return { kind: 'ignored' };
@@ -226,7 +225,6 @@ function applyNight(
       ...snapshot,
       state: nextState,
       nightSequence: event.sequence,
-      presenceCount,
       startedAt:
         nextState === 'live' || nextState === 'ended'
           ? (snapshot.startedAt ?? at)

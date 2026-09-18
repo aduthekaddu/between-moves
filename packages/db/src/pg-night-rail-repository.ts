@@ -135,7 +135,7 @@ const gamePlayerColumns = `
   black_member.id::text as black_membership_id,
   coalesce(black_member.display_name_snapshot, black_user.display_name) as black_name`;
 
-/** [BM-038] [DR-SEC-01] House-scoped durable Night rail: boards, results, presence. */
+/** [BM-038] [BM-039] [DR-SEC-01] House-scoped durable boards and results only. */
 export class PgNightRailRepository implements NightRailRepository {
   constructor(private readonly database: Pool) {}
 
@@ -158,7 +158,7 @@ export class PgNightRailRepository implements NightRailRepository {
     const row = night.rows[0];
     if (row === undefined) return null;
 
-    const [boards, results, presence] = await Promise.all([
+    const [boards, results] = await Promise.all([
       this.database.query<RailGameRow>(
         `select g.id::text as game_id, g.outbox_sequence::text as sequence, g.current_fen,
                 g.current_ply, g.side_to_move, last_move.san as last_san,
@@ -187,12 +187,6 @@ export class PgNightRailRepository implements NightRailRepository {
           limit $3`,
         [context.houseId, nightId, RAIL_RECENT_RESULT_LIMIT],
       ),
-      this.database.query<{ presence_count: unknown }>(
-        `select count(*)::int as presence_count
-           from night_attendance a
-          where a.house_id = $1 and a.night_id = $2 and a.current_joined_at is not null`,
-        [context.houseId, nightId],
-      ),
     ]);
 
     const state = nightState(row.state);
@@ -206,7 +200,8 @@ export class PgNightRailRepository implements NightRailRepository {
       startedAt: nullableDate(row.started_at, 'started at'),
       endedAt: nullableDate(row.ended_at, 'ended at'),
       nightSequence: nightSequenceForState(state),
-      presenceCount: integer(presence.rows[0]?.presence_count, 'presence count'),
+      presence: [],
+      presenceCount: 0,
       activeBoards: boards.rows.map(board),
       recentResults: results.rows.map(completed),
     };

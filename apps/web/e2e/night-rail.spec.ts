@@ -50,8 +50,16 @@ async function seedRailNight(): Promise<void> {
   const startedAt = new Date('2026-09-04T14:00:00.000Z');
   await database.pool.query(
     `insert into sessions (id, user_id, token, expires_at)
-     values ($1, $2, $3, '2099-01-01T00:00:00.000Z')`,
-    [seeded.first.member.sessionId, seeded.first.member.userId, seeded.first.member.sessionToken],
+     values ($1, $2, $3, '2099-01-01T00:00:00.000Z'),
+            ($4, $5, $6, '2099-01-01T00:00:00.000Z')`,
+    [
+      seeded.first.member.sessionId,
+      seeded.first.member.userId,
+      seeded.first.member.sessionToken,
+      seeded.first.nonOwner.sessionId,
+      seeded.first.nonOwner.userId,
+      seeded.first.nonOwner.sessionToken,
+    ],
   );
   await database.pool.query(
     `insert into seasons (id, house_id, title, state, created_at, updated_at)
@@ -181,5 +189,64 @@ test.describe('Night rail', () => {
     await expect(page.getByText('Black to move')).toBeVisible();
     await expect(page.getByText('Ada won')).toBeVisible();
     await expectNoBlockingAxeViolations(page);
+    await Promise.all([
+      page.waitForResponse((response) => response.url().endsWith('/presence')),
+      page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide'))),
+    ]);
+  });
+
+  test('[BM-039] updates presence count with server-signed member identity', async ({
+    browser,
+  }) => {
+    const seeded = fixture();
+    const memberContext = await browser.newContext({
+      extraHTTPHeaders: {
+        cookie: await signedCookie(seeded.first.member.sessionToken),
+        'x-request-id': 'bm-039-member-presence',
+      },
+    });
+    const guestContext = await browser.newContext({
+      extraHTTPHeaders: {
+        cookie: await signedCookie(seeded.first.nonOwner.sessionToken),
+        'x-request-id': 'bm-039-guest-presence',
+      },
+    });
+    const memberPage = await memberContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const path = `/h/${seeded.first.houseId}/nights/${nightIds[0]}`;
+
+    const memberPresenceResponse = memberPage.waitForResponse(
+      (response) => response.url().endsWith('/presence') && response.request().method() === 'POST',
+    );
+    await memberPage.goto(path);
+    const memberPresenceResponseResult = await memberPresenceResponse;
+    const memberPresencePayload = await memberPresenceResponseResult.json();
+    expect(memberPresenceResponseResult.status()).toBe(200);
+    expect(memberPresencePayload).toMatchObject({
+      presenceCount: 1,
+      presence: [expect.objectContaining({ displayName: 'Ada' })],
+    });
+    await expect(memberPage.getByText('1 member at the table')).toBeVisible();
+    const hereNow = memberPage.getByRole('region', { name: 'Here now' });
+    await expect(hereNow.getByText('Ada', { exact: true })).toBeVisible();
+
+    await guestPage.goto(path);
+    await expect(memberPage.getByText('2 members at the table')).toBeVisible();
+    await expect(
+      memberPage.getByRole('region', { name: 'Here now' }).getByText('Bea', { exact: true }),
+    ).toBeVisible();
+
+    await Promise.all([
+      guestPage.waitForResponse((response) => response.url().endsWith('/presence')),
+      guestPage.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide'))),
+    ]);
+    await expect(memberPage.getByText('1 member at the table')).toBeVisible();
+
+    await Promise.all([
+      memberPage.waitForResponse((response) => response.url().endsWith('/presence')),
+      memberPage.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide'))),
+    ]);
+    await guestContext.close();
+    await memberContext.close();
   });
 });

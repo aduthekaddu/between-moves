@@ -79,6 +79,12 @@ function presenceSignature(
     .digest('base64url');
 }
 
+function signatureMatches(actual: string, expected: string): boolean {
+  const actualBytes = Buffer.from(actual, 'base64url');
+  const expectedBytes = Buffer.from(expected, 'base64url');
+  return actualBytes.length === expectedBytes.length && timingSafeEqual(actualBytes, expectedBytes);
+}
+
 function encodeToken(serverKey: string, payload: RealtimeCapabilityTokenPayload): string {
   const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
   return `${body}.${sign(serverKey, body).toString('base64url')}`;
@@ -160,6 +166,45 @@ export function inspectRealtimeCapabilityToken(
     if (error instanceof DomainError) throw error;
     throw new DomainError('validation_failed', 'Realtime token is invalid', { cause: error });
   }
+}
+
+/** [BM-039] Verify that signed display data belongs to this token and Night channel. */
+export function verifyRealtimePresenceIdentity(input: {
+  readonly token: string;
+  readonly presence: {
+    readonly clientId: string;
+    readonly displayName: string;
+    readonly signature: string;
+  };
+  readonly serverKey: string;
+  readonly houseId: string;
+  readonly nightId: string;
+  readonly now: Date;
+}): { readonly expiresAt: Date; readonly leaseId: string } {
+  const payload = inspectRealtimeCapabilityToken(input.token, input.serverKey, input.now);
+  const nightChannel = opaqueRealtimeChannelId(
+    input.serverKey,
+    'night',
+    input.houseId,
+    input.nightId,
+  );
+  const expectedSignature = presenceSignature(input.serverKey, {
+    clientId: payload.clientId,
+    displayName: payload.presence.displayName,
+    iat: payload.iat,
+    nightChannel,
+  });
+  const operations = payload.capability[nightChannel];
+  if (
+    payload.clientId !== input.presence.clientId ||
+    payload.presence.displayName !== input.presence.displayName ||
+    operations === undefined ||
+    !operations.includes('presence') ||
+    !signatureMatches(input.presence.signature, expectedSignature)
+  ) {
+    throw new DomainError('validation_failed', 'Presence identity is invalid');
+  }
+  return { expiresAt: new Date(payload.exp * 1_000), leaseId: payload.nonce };
 }
 
 /** [BM-037] HMAC opaque Night/Game channel IDs; client payload exposes publicKey only. */

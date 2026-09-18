@@ -1,7 +1,12 @@
-import { HouseAuthorizationDeniedError, type NightRailSnapshot } from '@between-moves/domain';
+import {
+  HouseAuthorizationDeniedError,
+  type NightRailSnapshot,
+} from '@between-moves/domain';
+import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { createRealtimeMetricStubs, createStructuredLogger } from '@between-moves/observability';
 import { describe, expect, it, vi } from 'vitest';
-import { createNightRailReader } from './rail';
+import { EphemeralNightPresenceStore } from './presence';
+import { createNightRailReader, createResilientNightPresenceReader } from './rail';
 
 const houseId = '01941f29-7c00-7000-8000-000000000601';
 const nightId = '01941f29-7c00-7000-8000-000000000901';
@@ -21,6 +26,18 @@ const snapshot: NightRailSnapshot = {
   startedAt: new Date('2026-09-04T14:00:00.000Z'),
   endedAt: null,
   nightSequence: 1n,
+  presence: [
+    {
+      clientId: viewer.userId,
+      displayName: viewer.displayName,
+      signature: 'a'.repeat(43),
+    },
+    {
+      clientId: '01941f29-7c00-7000-8000-000000000102',
+      displayName: 'Bea',
+      signature: 'b'.repeat(43),
+    },
+  ],
   presenceCount: 2,
   activeBoards: [],
   recentResults: [],
@@ -52,6 +69,7 @@ describe('Night rail request seam', () => {
       ),
     ).resolves.toEqual(snapshot);
     expect(metrics.snapshot().live_reconnect_total).toBe(1);
+    expect(metrics.snapshot().presence_count).toBe(2);
     expect(JSON.parse(lines[0] ?? '')).toMatchObject({
       house_id: houseId,
       event: 'night.rail-repaired',
@@ -80,5 +98,28 @@ describe('Night rail request seam', () => {
       ),
     ).resolves.toBeNull();
     expect(logger.log).not.toHaveBeenCalled();
+  });
+
+  it('[BM-039] keeps the durable rail available when ephemeral presence is unavailable', async () => {
+    const logger = { log: vi.fn() };
+    const presence = new EphemeralNightPresenceStore();
+    vi.spyOn(presence, 'read').mockRejectedValue(new Error('shared store unavailable'));
+    const reader = createResilientNightPresenceReader({
+      presence,
+      logger,
+      requestId: 'bm-039-degraded-presence',
+    });
+
+    await expect(
+      reader.read(fakeAuthorizationContext({ viewerId: viewer.userId, houseId }), nightId, now),
+    ).resolves.toEqual({ members: [] });
+    expect(logger.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'warn',
+        event: 'night.presence-store-unavailable',
+        houseId,
+        data: { night_id: nightId, fallback: 'empty' },
+      }),
+    );
   });
 });

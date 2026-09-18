@@ -22,6 +22,18 @@ function snapshot(overrides: Partial<NightRailSnapshot> = {}): NightRailSnapshot
     startedAt: new Date('2026-09-04T14:00:00.000Z'),
     endedAt: null,
     nightSequence: 1n,
+    presence: [
+      {
+        clientId: '01941f29-7c00-7000-8000-000000000101',
+        displayName: 'Ada',
+        signature: 'a'.repeat(43),
+      },
+      {
+        clientId: '01941f29-7c00-7000-8000-000000000102',
+        displayName: 'Bea',
+        signature: 'b'.repeat(43),
+      },
+    ],
     presenceCount: 2,
     activeBoards: [
       {
@@ -139,7 +151,7 @@ describe('Night rail snapshot application', () => {
     ).toEqual({ kind: 'gap' });
   });
 
-  it('[BM-038] applies the next Night event and can refresh presence from the payload', () => {
+  it('[BM-038] [BM-039] applies the next Night event without changing ephemeral presence', () => {
     const applied = applyRailRealtimeEvent(snapshot(), {
       topic: 'night.ended',
       aggregateId: nightId,
@@ -152,7 +164,8 @@ describe('Night rail snapshot application', () => {
       snapshot: {
         state: 'ended',
         nightSequence: 2n,
-        presenceCount: 0,
+        presenceCount: 2,
+        presence: snapshot().presence,
         endedAt: new Date('2026-09-04T16:00:00.000Z'),
       },
     });

@@ -27,6 +27,7 @@ export function serializeNightRailSnapshot(snapshot: NightRailSnapshot): NightRa
     startedAt: snapshot.startedAt === null ? null : iso(snapshot.startedAt),
     endedAt: snapshot.endedAt === null ? null : iso(snapshot.endedAt),
     nightSequence: snapshot.nightSequence.toString(),
+    presence: snapshot.presence,
     presenceCount: snapshot.presenceCount,
     activeBoards: snapshot.activeBoards.map((board) => ({
       gameId: board.gameId,
@@ -63,6 +64,7 @@ export function parseNightRailSnapshot(payload: NightRailSnapshotResponse): Nigh
     startedAt: parsed.startedAt === null ? null : instant(parsed.startedAt),
     endedAt: parsed.endedAt === null ? null : instant(parsed.endedAt),
     nightSequence: BigInt(parsed.nightSequence),
+    presence: parsed.presence,
     presenceCount: parsed.presenceCount,
     activeBoards: parsed.activeBoards.map((board) => ({
       gameId: board.gameId,

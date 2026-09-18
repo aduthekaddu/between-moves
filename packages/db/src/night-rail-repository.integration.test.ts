@@ -162,7 +162,7 @@ integration('PostgreSQL Night rail snapshot', () => {
     await database.end();
   });
 
-  it('[BM-038] reads active boards, recent results, and presence for one Night', async () => {
+  it('[BM-038] reads durable boards and results without deriving presence from attendance', async () => {
     const rail = await rails.read(
       fakeAuthorizationContext({
         viewerId: world.first.nonOwner.userId,
@@ -176,7 +176,8 @@ integration('PostgreSQL Night rail snapshot', () => {
       nightId: nightIds[0],
       state: 'live',
       nightSequence: 1n,
-      presenceCount: 1,
+      presence: [],
+      presenceCount: 0,
     });
     expect(rail?.activeBoards).toEqual([
       expect.objectContaining({

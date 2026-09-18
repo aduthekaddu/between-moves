@@ -1,11 +1,11 @@
 import { UpstashRateLimiter } from '@between-moves/adapters';
-import type { RateLimitResult } from '@between-moves/domain';
+import type { RateLimitResult, RateLimiter } from '@between-moves/domain';
 import { createInvitationMetricStubs } from '@between-moves/observability';
 import { createMoveMetricStubs } from '@between-moves/observability';
 import { createNoteMetricStubs } from '@between-moves/observability';
 import { createReactionMetricStubs } from '@between-moves/observability';
 import { createRealtimeMetricStubs } from '@between-moves/observability';
-import { getConfig } from '../config';
+import { getConfig, type AppConfig } from '../config';
 import {
   createRecoveryRateLimit,
   createSignInRateLimit,
@@ -22,6 +22,7 @@ import {
   createRealtimeTokenRateLimit,
   type RealtimeTokenRateLimit,
 } from '../kernel/realtime-token-rate-limit';
+import { createPresenceRateLimit, type PresenceRateLimit } from '../kernel/presence-rate-limit';
 import { getIdentityMetrics } from './identity-metrics';
 import { getLogger } from './logger';
 
@@ -36,10 +37,21 @@ const globalRateLimit = globalThis as typeof globalThis & {
   betweenMovesReactionRateLimit?: ReactionRateLimit;
   betweenMovesReactionMetrics?: ReturnType<typeof createReactionMetricStubs>;
   betweenMovesRealtimeTokenRateLimit?: RealtimeTokenRateLimit;
+  betweenMovesPresenceRateLimit?: PresenceRateLimit;
   betweenMovesRealtimeMetrics?: ReturnType<typeof createRealtimeMetricStubs>;
 };
 
 const invitationMetrics = createInvitationMetricStubs();
+
+export function createSharedRateLimiter(
+  config: Pick<AppConfig, 'environment' | 'upstashRedisRestUrl' | 'upstashRedisRestToken'>,
+): RateLimiter {
+  if (config.environment === 'local') return new InMemoryRateLimiter();
+  return new UpstashRateLimiter({
+    url: config.upstashRedisRestUrl.href,
+    token: config.upstashRedisRestToken,
+  });
+}
 
 /** [BM-009] Composition root for the reusable auth-surface limiter. */
 export function getSignInRateLimit(): (
@@ -252,10 +264,7 @@ export function getRealtimeTokenRateLimit(): RealtimeTokenRateLimit {
   if (!globalRateLimit.betweenMovesRealtimeTokenRateLimit) {
     const config = getConfig();
     globalRateLimit.betweenMovesRealtimeTokenRateLimit = createRealtimeTokenRateLimit({
-      primary: new UpstashRateLimiter({
-        url: config.upstashRedisRestUrl.href,
-        token: config.upstashRedisRestToken,
-      }),
+      primary: createSharedRateLimiter(config),
       fallback: new InMemoryRateLimiter(),
       incrementRateLimitHit: () => getRealtimeMetrics().incrementRateLimitHit(),
       onStoreError() {
@@ -275,4 +284,31 @@ export function getRealtimeTokenRateLimit(): RealtimeTokenRateLimit {
     });
   }
   return globalRateLimit.betweenMovesRealtimeTokenRateLimit;
+}
+
+/** [BM-039] Composition root for fail-open per-account and per-IP presence limits. */
+export function getPresenceRateLimit(): PresenceRateLimit {
+  if (!globalRateLimit.betweenMovesPresenceRateLimit) {
+    const config = getConfig();
+    globalRateLimit.betweenMovesPresenceRateLimit = createPresenceRateLimit({
+      primary: createSharedRateLimiter(config),
+      fallback: new InMemoryRateLimiter(),
+      incrementRateLimitHit: () => getRealtimeMetrics().incrementRateLimitHit(),
+      onStoreError() {
+        getLogger().log({
+          level: 'warn',
+          requestId: 'rate-limit-store',
+          actorId: 'anonymous',
+          houseId: null,
+          gameId: null,
+          commandId: null,
+          event: 'rate-limit.store-unavailable',
+          outcome: 'error',
+          durationMs: 0,
+          data: { surface: 'presence', fallback: 'in-process' },
+        });
+      },
+    });
+  }
+  return globalRateLimit.betweenMovesPresenceRateLimit;
 }
