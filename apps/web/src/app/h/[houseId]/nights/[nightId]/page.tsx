@@ -36,6 +36,6 @@ export default async function NightRailPage({ params }: NightRailPageProps) {
   );
   const request = new Request(url, { headers: requestHeaders });
   const snapshot = await getNightRail(request, houseId, nightId);
-  if (snapshot === null) notFound();
+  if (snapshot === null) return notFound();
   return <NightRailView houseId={houseId} initial={serializeNightRailSnapshot(snapshot)} />;
 }
