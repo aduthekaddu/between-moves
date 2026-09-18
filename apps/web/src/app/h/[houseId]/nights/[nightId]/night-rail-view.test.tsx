@@ -13,6 +13,18 @@ const snapshot: NightRailSnapshotResponse = {
   startedAt: '2026-09-04T14:00:00.000Z',
   endedAt: null,
   nightSequence: '1',
+  presence: [
+    {
+      clientId: '01941f29-7c00-7000-8000-000000000101',
+      displayName: 'Ada',
+      signature: 'a'.repeat(43),
+    },
+    {
+      clientId: '01941f29-7c00-7000-8000-000000000102',
+      displayName: 'Bea',
+      signature: 'b'.repeat(43),
+    },
+  ],
   presenceCount: 2,
   activeBoards: [
     {
@@ -53,6 +65,7 @@ describe('Night rail view', () => {
     expect(html).toContain('Showing the last saved table.');
     expect(html).not.toContain('Live updates are on.');
     expect(html).toContain('2 members at the table');
+    expect(html).toContain('Here now');
     expect(html).toContain('Ada');
     expect(html).toContain('Bea');
     expect(html).toContain('e4');

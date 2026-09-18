@@ -12,6 +12,18 @@ const snapshot: NightRailSnapshotResponse = {
   startedAt: '2026-09-04T14:00:00.000Z',
   endedAt: null,
   nightSequence: '1',
+  presence: [
+    {
+      clientId: '01941f29-7c00-7000-8000-000000000101',
+      displayName: 'Ada',
+      signature: 'a'.repeat(43),
+    },
+    {
+      clientId: '01941f29-7c00-7000-8000-000000000102',
+      displayName: 'Bea',
+      signature: 'b'.repeat(43),
+    },
+  ],
   presenceCount: 2,
   activeBoards: [
     {
@@ -52,7 +64,7 @@ describe('Night rail realtime apply', () => {
       sideToMove: 'white',
     });
 
-    const repaired = { ...snapshot, nightSequence: '2', presenceCount: 0 };
+    const repaired = { ...snapshot, nightSequence: '2', presence: [], presenceCount: 0 };
     const readFresh = vi.fn(async () => repaired);
     const gap = await applyOrRepairNightRail(
       snapshot,

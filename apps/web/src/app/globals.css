@@ -1388,12 +1388,25 @@ body {
 }
 
 .night-rail__boards,
-.night-rail__results {
+.night-rail__results,
+.night-rail__presence {
   display: grid;
   gap: var(--bm-space-4);
   margin: var(--bm-space-4) 0 0;
   padding: 0;
   list-style: none;
+}
+
+.night-rail__presence {
+  grid-template-columns: repeat(auto-fit, minmax(8rem, max-content));
+}
+
+.night-rail__presence li {
+  padding: var(--bm-space-2) var(--bm-space-3);
+  border: 1px solid var(--bm-color-wood-light);
+  border-radius: 999px;
+  background: var(--bm-color-paper-raised);
+  font-weight: 700;
 }
 
 .night-rail__boards a,

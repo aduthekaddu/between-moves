@@ -72,6 +72,17 @@ export {
   type RealtimeTokenIssuer,
   type SignedRealtimePresence,
 } from './realtime-token';
+export type {
+  NightPresenceCommand,
+  NightPresenceDependencies,
+  NightPresenceEntry,
+  NightPresenceReader,
+  NightPresenceRepository,
+  NightPresenceRequest,
+  NightPresenceSnapshot,
+  VerifiedRealtimePresence,
+  VerifyRealtimePresence,
+} from './presence';
 export {
   NIGHT_ENDED_TOPIC,
   NIGHT_STARTED_TOPIC,

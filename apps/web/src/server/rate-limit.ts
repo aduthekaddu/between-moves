@@ -22,6 +22,10 @@ import {
   createRealtimeTokenRateLimit,
   type RealtimeTokenRateLimit,
 } from '../kernel/realtime-token-rate-limit';
+import {
+  createPresenceRateLimit,
+  type PresenceRateLimit,
+} from '../kernel/presence-rate-limit';
 import { getIdentityMetrics } from './identity-metrics';
 import { getLogger } from './logger';
 
@@ -36,6 +40,7 @@ const globalRateLimit = globalThis as typeof globalThis & {
   betweenMovesReactionRateLimit?: ReactionRateLimit;
   betweenMovesReactionMetrics?: ReturnType<typeof createReactionMetricStubs>;
   betweenMovesRealtimeTokenRateLimit?: RealtimeTokenRateLimit;
+  betweenMovesPresenceRateLimit?: PresenceRateLimit;
   betweenMovesRealtimeMetrics?: ReturnType<typeof createRealtimeMetricStubs>;
 };
 
@@ -275,4 +280,34 @@ export function getRealtimeTokenRateLimit(): RealtimeTokenRateLimit {
     });
   }
   return globalRateLimit.betweenMovesRealtimeTokenRateLimit;
+}
+
+/** [BM-039] Composition root for fail-open per-account and per-IP presence limits. */
+export function getPresenceRateLimit(): PresenceRateLimit {
+  if (!globalRateLimit.betweenMovesPresenceRateLimit) {
+    const config = getConfig();
+    globalRateLimit.betweenMovesPresenceRateLimit = createPresenceRateLimit({
+      primary: new UpstashRateLimiter({
+        url: config.upstashRedisRestUrl.href,
+        token: config.upstashRedisRestToken,
+      }),
+      fallback: new InMemoryRateLimiter(),
+      incrementRateLimitHit: () => getRealtimeMetrics().incrementRateLimitHit(),
+      onStoreError() {
+        getLogger().log({
+          level: 'warn',
+          requestId: 'rate-limit-store',
+          actorId: 'anonymous',
+          houseId: null,
+          gameId: null,
+          commandId: null,
+          event: 'rate-limit.store-unavailable',
+          outcome: 'error',
+          durationMs: 0,
+          data: { surface: 'presence', fallback: 'in-process' },
+        });
+      },
+    });
+  }
+  return globalRateLimit.betweenMovesPresenceRateLimit;
 }

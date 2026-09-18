@@ -11,6 +11,18 @@ const valid = {
   startedAt: '2026-09-04T14:00:00.000Z',
   endedAt: null,
   nightSequence: '1',
+  presence: [
+    {
+      clientId: '01941f29-7c00-7000-8000-000000000101',
+      displayName: 'Ada',
+      signature: 'a'.repeat(43),
+    },
+    {
+      clientId: '01941f29-7c00-7000-8000-000000000102',
+      displayName: 'Bea',
+      signature: 'b'.repeat(43),
+    },
+  ],
   presenceCount: 2,
   activeBoards: [
     {
@@ -34,5 +46,6 @@ describe('Night rail snapshot contract', () => {
       false,
     );
     expect(nightRailSnapshotSchema.safeParse({ ...valid, nightSequence: 1 }).success).toBe(false);
+    expect(nightRailSnapshotSchema.safeParse({ ...valid, presenceCount: 1 }).success).toBe(false);
   });
 });

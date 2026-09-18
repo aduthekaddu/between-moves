@@ -1,6 +1,7 @@
 import {
   acceptGameSeat,
   changeMembershipRole,
+  changeNightPresence,
   createAuthorizeHouseAction,
   createGameSeat,
   createInvitation,
@@ -67,6 +68,7 @@ import type {
   NightJoinLeaveRecorder,
   NightLifecycleRecorder,
   NightLifecycleRepository,
+  NightPresenceRepository,
   NightRepository,
   NightRsvpRepository,
   NightScheduleChangeRecorder,
@@ -113,6 +115,7 @@ interface IsolationHarness {
   readonly joinLeave: NightJoinLeaveRecorder;
   readonly nights: NightRepository;
   readonly lifecycle: NightLifecycleRepository;
+  readonly presence: NightPresenceRepository;
   readonly rsvps: NightRsvpRepository;
   readonly lifecycleChanges: NightLifecycleRecorder;
   readonly acceptances: GameSeatAcceptanceRepository;
@@ -464,6 +467,46 @@ const cases: readonly IsolationCase[] = [
           viewer: viewer(harness.world.first.nonOwner),
         },
         harness,
+      ),
+  },
+  {
+    id: 'night.presence-change',
+    name: 'Night presence change',
+    outcome: 'denied',
+    expectedError: {
+      code: 'authorization_denied',
+      reason: 'not_a_member',
+      crossHouse: true,
+    },
+    run: (harness) =>
+      changeNightPresence(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          viewer: viewer(harness.world.first.nonOwner),
+          command: {
+            kind: 'enter',
+            token: 'signed-presence-token-that-is-long-enough',
+            presence: {
+              clientId: harness.world.first.nonOwner.userId,
+              displayName: harness.world.first.nonOwner.displayName,
+              signature: 's'.repeat(43),
+            },
+          },
+        },
+        {
+          authorizeHouseAction: harness.authorizeHouseAction,
+          clock: harness.clock,
+          nights: {
+            read: async () => {
+              throw new Error('Cross-House presence must not read the Night');
+            },
+          },
+          presence: harness.presence,
+          verifyPresence: () => {
+            throw new Error('Cross-House presence must not verify identity');
+          },
+        },
       ),
   },
   {
@@ -829,6 +872,11 @@ integration('BM-017 current House write-path isolation', () => {
       joinLeave: { record: () => undefined },
       nights: new PgNightRepository(database),
       lifecycle,
+      presence: {
+        read: async () => ({ members: [] }),
+        enter: async () => ({ members: [] }),
+        leave: async () => ({ members: [] }),
+      },
       rsvps: new PgNightRsvpRepository(database),
       lifecycleChanges: { record: () => undefined },
       acceptances: new PgGameSeatAcceptanceRepository(database),

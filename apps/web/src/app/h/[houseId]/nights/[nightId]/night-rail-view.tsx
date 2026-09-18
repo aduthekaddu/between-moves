@@ -1,12 +1,21 @@
 'use client';
 
-import type { NightRailSnapshotResponse } from '@between-moves/contracts';
+import {
+  nightPresenceResponseSchema,
+  realtimeTokenResponseSchema,
+  type NightPresenceCommandBody,
+  type NightPresenceResponse,
+  type NightRailSnapshotResponse,
+  type RealtimeTokenResponse,
+} from '@between-moves/contracts';
 import { useEffect, useRef, useState } from 'react';
 import { parseFenPieces, squareName, type BoardPiece } from '../../games/[gameId]/board-model';
 import { applyOrRepairNightRail } from './rail-realtime';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1] as const;
+const PRESENCE_RENEWAL_SKEW_MS = 60_000;
+const PRESENCE_RETRY_MS = 30_000;
 const glyphs: Readonly<Record<string, string>> = {
   'white-king': '♔',
   'white-queen': '♕',
@@ -88,11 +97,29 @@ function RailThumbnail({
   );
 }
 
-async function mintToken(houseId: string, nightId: string): Promise<void> {
-  await fetch(`/api/houses/${houseId}/nights/${nightId}/realtime-token`, {
+async function mintToken(houseId: string, nightId: string): Promise<RealtimeTokenResponse> {
+  const response = await fetch(`/api/houses/${houseId}/nights/${nightId}/realtime-token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
+  if (!response.ok) throw new Error('Presence identity could not be signed.');
+  return realtimeTokenResponseSchema.parse(await response.json());
+}
+
+async function changePresence(
+  houseId: string,
+  nightId: string,
+  command: NightPresenceCommandBody,
+  keepalive = false,
+): Promise<NightPresenceResponse> {
+  const response = await fetch(`/api/houses/${houseId}/nights/${nightId}/presence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+    keepalive,
+  });
+  if (!response.ok) throw new Error('Night presence could not be updated.');
+  return nightPresenceResponseSchema.parse(await response.json());
 }
 
 async function refetchRail(houseId: string, nightId: string): Promise<NightRailSnapshotResponse> {
@@ -158,9 +185,18 @@ export function NightRailView({
   useEffect(() => {
     if (!attachRealtime) return;
     const nightId = snapshot.nightId;
-    void mintToken(houseId, nightId);
+    let cancelled = false;
+    let active = true;
+    let generation = 0;
+    let signedIdentity: RealtimeTokenResponse | null = null;
+    let renewal: ReturnType<typeof setTimeout> | undefined;
     const source = new EventSource(`/api/houses/${houseId}/nights/${nightId}/rail/live`);
-    source.onopen = () => setLive(true);
+    const connected = new Promise<void>((resolve) => {
+      source.onopen = () => {
+        setLive(true);
+        resolve();
+      };
+    });
     source.onmessage = (event) => {
       const incoming = wireEvent(event.data);
       if (incoming === null) return;
@@ -171,7 +207,91 @@ export function NightRailView({
         setSnapshot(result.snapshot);
       });
     };
+    const applyPresence = (presence: NightPresenceResponse) => {
+      if (cancelled) return;
+      setSnapshot((current) => {
+        const next = {
+          ...current,
+          presence: presence.presence,
+          presenceCount: presence.presenceCount,
+        };
+        snapshotRef.current = next;
+        return next;
+      });
+    };
+    const onPresence = (event: MessageEvent<string>) => {
+      try {
+        applyPresence(nightPresenceResponseSchema.parse(JSON.parse(event.data) as unknown));
+      } catch {
+        // Ignore malformed live data and keep the last verified snapshot.
+      }
+    };
+    source.addEventListener('presence', onPresence);
+
+    const sendLeave = (identity: RealtimeTokenResponse) =>
+      changePresence(
+        houseId,
+        nightId,
+        {
+          kind: 'leave',
+          token: identity.token,
+          presence: identity.presence,
+        },
+        true,
+      );
+    const enter = async (expectedGeneration: number) => {
+      if (cancelled || !active || generation !== expectedGeneration) return;
+      try {
+        const identity = await mintToken(houseId, nightId);
+        if (cancelled || !active || generation !== expectedGeneration) return;
+        const previousIdentity = signedIdentity;
+        await changePresence(houseId, nightId, {
+          kind: 'enter',
+          token: identity.token,
+          presence: identity.presence,
+        });
+        if (cancelled || !active || generation !== expectedGeneration) {
+          await sendLeave(identity);
+          return;
+        }
+        signedIdentity = identity;
+        if (previousIdentity !== null) await sendLeave(previousIdentity).catch(() => undefined);
+        const delay = Math.max(
+          1_000,
+          new Date(identity.expiresAt).getTime() - Date.now() - PRESENCE_RENEWAL_SKEW_MS,
+        );
+        renewal = setTimeout(() => void enter(expectedGeneration), delay);
+      } catch {
+        if (!cancelled && active && generation === expectedGeneration) {
+          renewal = setTimeout(() => void enter(expectedGeneration), PRESENCE_RETRY_MS);
+        }
+      }
+    };
+
+    void connected.then(() => enter(generation));
+
+    const leave = () => {
+      active = false;
+      generation += 1;
+      if (renewal !== undefined) clearTimeout(renewal);
+      if (signedIdentity !== null) void sendLeave(signedIdentity).catch(() => undefined);
+      signedIdentity = null;
+    };
+    const reenter = () => {
+      if (cancelled || active) return;
+      active = true;
+      generation += 1;
+      void enter(generation);
+    };
+    window.addEventListener('pagehide', leave);
+    window.addEventListener('pageshow', reenter);
     return () => {
+      cancelled = true;
+      leave();
+      window.removeEventListener('pagehide', leave);
+      window.removeEventListener('pageshow', reenter);
+      source.removeEventListener('presence', onPresence);
+      source.onopen = null;
       source.close();
     };
   }, [attachRealtime, houseId, snapshot.nightId]);
@@ -191,6 +311,18 @@ export function NightRailView({
         <p className="night-rail__live" aria-live="polite">
           {live ? 'Live updates are on.' : 'Showing the last saved table.'}
         </p>
+        <section aria-labelledby="rail-presence-title">
+          <h2 id="rail-presence-title">Here now</h2>
+          {snapshot.presence.length === 0 ? (
+            <p>No one is on the rail yet.</p>
+          ) : (
+            <ul className="night-rail__presence" aria-live="polite">
+              {snapshot.presence.map((member) => (
+                <li key={member.clientId}>{member.displayName}</li>
+              ))}
+            </ul>
+          )}
+        </section>
         <section aria-labelledby="rail-boards-title">
           <h2 id="rail-boards-title">Boards in play</h2>
           {snapshot.activeBoards.length === 0 ? (

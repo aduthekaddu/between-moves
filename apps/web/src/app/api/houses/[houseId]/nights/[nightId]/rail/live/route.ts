@@ -1,8 +1,11 @@
 import type { RealtimePublishEnvelope } from '@between-moves/adapters';
+import type { NightPresenceSnapshot } from '@between-moves/domain';
 import { z } from 'zod';
 import { problemResponse } from '../../../../../../../../kernel/request';
 import { getNightRail } from '../../../../../../../../modules/nights/rail';
+import { getNightPresenceStore } from '../../../../../../../../modules/nights/presence';
 import { getRealtimeNightFanout } from '../../../../../../../../server/realtime-fanout';
+import { getRealtimeMetrics } from '../../../../../../../../server/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -37,19 +40,62 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   }
 
   const encoder = new TextEncoder();
-  let unsubscribe: (() => void) | undefined;
+  let unsubscribeRail: (() => void) | undefined;
+  let unsubscribePresence: (() => void) | undefined;
+  let poll: ReturnType<typeof setInterval> | undefined;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  let closed = false;
+  let polling = false;
+  const presenceStore = getNightPresenceStore();
+  const presenceEvent = (presence: NightPresenceSnapshot) =>
+    encoder.encode(
+      `event: presence\ndata: ${JSON.stringify({
+        presence: presence.members,
+        presenceCount: presence.members.length,
+      })}\n\n`,
+    );
   const stream = new ReadableStream({
     start(controller) {
-      unsubscribe = getRealtimeNightFanout().subscribe(
+      let lastPresence = JSON.stringify(snapshot.presence);
+      const emitPresence = (presence: NightPresenceSnapshot) => {
+        if (closed) return;
+        const fingerprint = JSON.stringify(presence.members);
+        if (fingerprint === lastPresence) return;
+        lastPresence = fingerprint;
+        getRealtimeMetrics().setPresenceCount(presence.members.length);
+        controller.enqueue(presenceEvent(presence));
+      };
+      const refreshPresence = async () => {
+        if (closed || polling) return;
+        polling = true;
+        try {
+          emitPresence(await presenceStore.readPublic(houseId, nightId, new Date()));
+        } catch {
+          // A transient shared-store failure does not terminate an authenticated rail stream.
+        } finally {
+          polling = false;
+        }
+      };
+      unsubscribeRail = getRealtimeNightFanout().subscribe(
         nightId,
         (envelope: RealtimePublishEnvelope) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(envelope)}\n\n`));
         },
       );
+      unsubscribePresence = presenceStore.subscribe?.(houseId, nightId, emitPresence);
+      // Shared-store polling carries presence changes across serverless instances.
+      poll = setInterval(() => void refreshPresence(), 2_000);
+      heartbeat = setInterval(() => {
+        if (!closed) controller.enqueue(encoder.encode(': heartbeat\n\n'));
+      }, 30_000);
       controller.enqueue(encoder.encode(': attached\n\n'));
     },
     cancel() {
-      unsubscribe?.();
+      closed = true;
+      unsubscribeRail?.();
+      unsubscribePresence?.();
+      if (poll !== undefined) clearInterval(poll);
+      if (heartbeat !== undefined) clearInterval(heartbeat);
     },
   });
 

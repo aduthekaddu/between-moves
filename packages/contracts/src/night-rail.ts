@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { signedNightPresenceSchema } from './night-presence';
 
 const isoInstant = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 const sequence = z.string().regex(/^\d+$/);
@@ -34,7 +35,7 @@ const result = z
   })
   .strict();
 
-/** [BM-038] Durable Night rail snapshot returned to Members. */
+/** [BM-038] [BM-039] Night rail snapshot with ephemeral signed presence. */
 export const nightRailSnapshotSchema = z
   .object({
     houseId: z.string().uuid(),
@@ -46,10 +47,20 @@ export const nightRailSnapshotSchema = z
     startedAt: isoInstant.nullable(),
     endedAt: isoInstant.nullable(),
     nightSequence: sequence,
+    presence: z.array(signedNightPresenceSchema),
     presenceCount: z.number().int().nonnegative(),
     activeBoards: z.array(board),
     recentResults: z.array(result),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.presenceCount !== value.presence.length) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Presence count must match the signed identity list',
+        path: ['presenceCount'],
+      });
+    }
+  });
 
 export type NightRailSnapshotResponse = z.infer<typeof nightRailSnapshotSchema>;

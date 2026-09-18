@@ -14,5 +14,16 @@ export async function readNightRail(
     request.houseId,
     request.viewer,
   );
-  return dependencies.rails.read(context, request.nightId);
+  const rail = await dependencies.rails.read(context, request.nightId);
+  if (rail === null) return null;
+  const presence = await dependencies.presence.read(
+    context,
+    request.nightId,
+    dependencies.clock.now(),
+  );
+  return {
+    ...rail,
+    presence: presence.members,
+    presenceCount: presence.members.length,
+  };
 }

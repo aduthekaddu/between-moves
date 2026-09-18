@@ -1,6 +1,10 @@
 import { realtimeChannelOperations } from '@between-moves/domain';
 import { describe, expect, it } from 'vitest';
-import { HmacRealtimeTokenIssuer, inspectRealtimeCapabilityToken } from './realtime-token';
+import {
+  HmacRealtimeTokenIssuer,
+  inspectRealtimeCapabilityToken,
+  verifyRealtimePresenceIdentity,
+} from './realtime-token';
 
 const serverKey = 'realtime-test-server-key';
 const publicKey = 'realtime-test-public-key';
@@ -127,5 +131,47 @@ describe('HmacRealtimeTokenIssuer', () => {
     expect(() =>
       inspectRealtimeCapabilityToken(issued.token, serverKey, new Date(issued.expiresAt.getTime())),
     ).toThrow(/Realtime token is invalid/);
+  });
+
+  it('[BM-039] verifies signed presence only for its identity and Night', () => {
+    const issued = issuer().issue({
+      houseId,
+      nightId,
+      gameIds: [],
+      clientId: '01941f29-7c00-7000-8000-000000000101',
+      displayName: 'Ada',
+      issuedAt,
+    });
+    const input = {
+      token: issued.token,
+      presence: issued.presence,
+      serverKey,
+      houseId,
+      nightId,
+      now: issuedAt,
+    };
+
+    expect(verifyRealtimePresenceIdentity(input)).toEqual({
+      expiresAt: issued.expiresAt,
+      leaseId: expect.stringMatching(/^[A-Za-z0-9_-]+$/),
+    });
+    expect(() =>
+      verifyRealtimePresenceIdentity({
+        ...input,
+        presence: { ...issued.presence, displayName: 'Bea' },
+      }),
+    ).toThrow(/Presence identity is invalid/);
+    expect(() => verifyRealtimePresenceIdentity({ ...input, nightId: otherNightId })).toThrow(
+      /Presence identity is invalid/,
+    );
+    expect(() =>
+      verifyRealtimePresenceIdentity({
+        ...input,
+        presence: {
+          ...issued.presence,
+          signature: `${issued.presence.signature.startsWith('A') ? 'B' : 'A'}${issued.presence.signature.slice(1)}`,
+        },
+      }),
+    ).toThrow(/Presence identity is invalid/);
   });
 });
