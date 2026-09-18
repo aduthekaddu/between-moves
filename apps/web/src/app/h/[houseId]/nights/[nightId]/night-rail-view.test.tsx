@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import {
   NightRailView,
+  retainNewerPresence,
   startNightPresence,
   type NightPresenceBrowserWindow,
   type NightPresenceSource,
@@ -137,6 +138,17 @@ describe('Night rail view', () => {
 
     expect(html).toContain('The table is quiet.');
     expect(html).toContain('No one is on the rail yet.');
+  });
+
+  it('[BM-039] does not let a stale rail refresh erase newer presence', () => {
+    const incoming = { ...snapshot, presence: [], presenceCount: 0 };
+    const latest = { ...snapshot, presence: snapshot.presence.slice(0, 1), presenceCount: 1 };
+
+    expect(retainNewerPresence(incoming, latest, 0, 1)).toMatchObject({
+      presence: latest.presence,
+      presenceCount: 1,
+    });
+    expect(retainNewerPresence(incoming, latest, 1, 1)).toBe(incoming);
   });
 
   it('[BM-039] applies the enter response before receiving the presence event', async () => {

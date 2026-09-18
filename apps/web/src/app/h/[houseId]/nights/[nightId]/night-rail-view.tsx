@@ -269,6 +269,20 @@ export function startNightPresence(options: NightPresenceLifecycleOptions): () =
   };
 }
 
+export function retainNewerPresence(
+  incoming: NightRailSnapshotResponse,
+  latest: NightRailSnapshotResponse,
+  presenceRevisionAtStart: number,
+  currentPresenceRevision: number,
+): NightRailSnapshotResponse {
+  if (presenceRevisionAtStart === currentPresenceRevision) return incoming;
+  return {
+    ...incoming,
+    presence: latest.presence,
+    presenceCount: latest.presenceCount,
+  };
+}
+
 /** [BM-038] Durable Night rail; live events attach after the snapshot is on screen. */
 export function NightRailView({
   houseId,
@@ -282,6 +296,7 @@ export function NightRailView({
   const [snapshot, setSnapshot] = useState(initial);
   const [live, setLive] = useState(false);
   const snapshotRef = useRef(snapshot);
+  const presenceRevision = useRef(0);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -296,23 +311,30 @@ export function NightRailView({
     source.onmessage = (event) => {
       const incoming = wireEvent(event.data);
       if (incoming === null) return;
+      const presenceRevisionAtStart = presenceRevision.current;
       void applyOrRepairNightRail(snapshotRef.current, incoming, () =>
         refetchRail(houseId, nightId),
       ).then((result) => {
-        snapshotRef.current = result.snapshot;
-        setSnapshot(result.snapshot);
+        const next = retainNewerPresence(
+          result.snapshot,
+          snapshotRef.current,
+          presenceRevisionAtStart,
+          presenceRevision.current,
+        );
+        snapshotRef.current = next;
+        setSnapshot(next);
       });
     };
     const applyPresence = (presence: NightPresenceResponse) => {
       if (cancelled) return;
+      const nextPresence = {
+        presence: presence.presence,
+        presenceCount: presence.presenceCount,
+      };
+      snapshotRef.current = { ...snapshotRef.current, ...nextPresence };
+      presenceRevision.current += 1;
       setSnapshot((current) => {
-        const next = {
-          ...current,
-          presence: presence.presence,
-          presenceCount: presence.presenceCount,
-        };
-        snapshotRef.current = next;
-        return next;
+        return { ...current, ...nextPresence };
       });
     };
     const stopPresence = startNightPresence({
