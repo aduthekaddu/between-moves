@@ -164,6 +164,111 @@ function wireEvent(data: string): {
   }
 }
 
+export interface NightPresenceSource {
+  addEventListener(type: 'presence', listener: (event: MessageEvent<string>) => void): void;
+  removeEventListener(type: 'presence', listener: (event: MessageEvent<string>) => void): void;
+}
+
+export interface NightPresenceBrowserWindow {
+  addEventListener(type: 'pagehide' | 'pageshow', listener: () => void): void;
+  removeEventListener(type: 'pagehide' | 'pageshow', listener: () => void): void;
+}
+
+export interface NightPresenceLifecycleOptions {
+  readonly source: NightPresenceSource;
+  readonly browserWindow: NightPresenceBrowserWindow;
+  readonly mintToken: () => Promise<RealtimeTokenResponse>;
+  readonly changePresence: (
+    command: NightPresenceCommandBody,
+    keepalive?: boolean,
+  ) => Promise<NightPresenceResponse>;
+  readonly onPresence: (presence: NightPresenceResponse) => void;
+}
+
+/** [BM-039] Keep the local lease authoritative while the SSE stream catches up. */
+export function startNightPresence(options: NightPresenceLifecycleOptions): () => void {
+  let cancelled = false;
+  let active = true;
+  let generation = 0;
+  let signedIdentity: RealtimeTokenResponse | null = null;
+  let renewal: ReturnType<typeof setTimeout> | undefined;
+
+  const onPresence = (event: MessageEvent<string>) => {
+    try {
+      options.onPresence(nightPresenceResponseSchema.parse(JSON.parse(event.data) as unknown));
+    } catch {
+      // Ignore malformed live data and keep the last verified snapshot.
+    }
+  };
+  options.source.addEventListener('presence', onPresence);
+
+  const sendLeave = (identity: RealtimeTokenResponse) =>
+    options.changePresence(
+      {
+        kind: 'leave',
+        token: identity.token,
+        presence: identity.presence,
+      },
+      true,
+    );
+  const enter = async (expectedGeneration: number) => {
+    if (cancelled || !active || generation !== expectedGeneration) return;
+    try {
+      const identity = await options.mintToken();
+      if (cancelled || !active || generation !== expectedGeneration) return;
+      const previousIdentity = signedIdentity;
+      const presence = await options.changePresence({
+        kind: 'enter',
+        token: identity.token,
+        presence: identity.presence,
+      });
+      if (cancelled || !active || generation !== expectedGeneration) {
+        await sendLeave(identity);
+        return;
+      }
+      options.onPresence(presence);
+      signedIdentity = identity;
+      if (previousIdentity !== null) await sendLeave(previousIdentity).catch(() => undefined);
+      const delay = Math.max(
+        1_000,
+        new Date(identity.expiresAt).getTime() - Date.now() - PRESENCE_RENEWAL_SKEW_MS,
+      );
+      renewal = setTimeout(() => void enter(expectedGeneration), delay);
+    } catch {
+      if (!cancelled && active && generation === expectedGeneration) {
+        renewal = setTimeout(() => void enter(expectedGeneration), PRESENCE_RETRY_MS);
+      }
+    }
+  };
+
+  const leave = () => {
+    active = false;
+    generation += 1;
+    if (renewal !== undefined) clearTimeout(renewal);
+    if (signedIdentity !== null) void sendLeave(signedIdentity).catch(() => undefined);
+    signedIdentity = null;
+  };
+  const reenter = () => {
+    if (cancelled || active) return;
+    active = true;
+    generation += 1;
+    void enter(generation);
+  };
+  options.browserWindow.addEventListener('pagehide', leave);
+  options.browserWindow.addEventListener('pageshow', reenter);
+
+  // The command response is authoritative for this tab; the stream propagates it to others.
+  void enter(generation);
+
+  return () => {
+    cancelled = true;
+    leave();
+    options.browserWindow.removeEventListener('pagehide', leave);
+    options.browserWindow.removeEventListener('pageshow', reenter);
+    options.source.removeEventListener('presence', onPresence);
+  };
+}
+
 /** [BM-038] Durable Night rail; live events attach after the snapshot is on screen. */
 export function NightRailView({
   houseId,
@@ -186,17 +291,8 @@ export function NightRailView({
     if (!attachRealtime) return;
     const nightId = snapshot.nightId;
     let cancelled = false;
-    let active = true;
-    let generation = 0;
-    let signedIdentity: RealtimeTokenResponse | null = null;
-    let renewal: ReturnType<typeof setTimeout> | undefined;
     const source = new EventSource(`/api/houses/${houseId}/nights/${nightId}/rail/live`);
-    const connected = new Promise<void>((resolve) => {
-      source.onopen = () => {
-        setLive(true);
-        resolve();
-      };
-    });
+    source.onopen = () => setLive(true);
     source.onmessage = (event) => {
       const incoming = wireEvent(event.data);
       if (incoming === null) return;
@@ -219,78 +315,16 @@ export function NightRailView({
         return next;
       });
     };
-    const onPresence = (event: MessageEvent<string>) => {
-      try {
-        applyPresence(nightPresenceResponseSchema.parse(JSON.parse(event.data) as unknown));
-      } catch {
-        // Ignore malformed live data and keep the last verified snapshot.
-      }
-    };
-    source.addEventListener('presence', onPresence);
-
-    const sendLeave = (identity: RealtimeTokenResponse) =>
-      changePresence(
-        houseId,
-        nightId,
-        {
-          kind: 'leave',
-          token: identity.token,
-          presence: identity.presence,
-        },
-        true,
-      );
-    const enter = async (expectedGeneration: number) => {
-      if (cancelled || !active || generation !== expectedGeneration) return;
-      try {
-        const identity = await mintToken(houseId, nightId);
-        if (cancelled || !active || generation !== expectedGeneration) return;
-        const previousIdentity = signedIdentity;
-        await changePresence(houseId, nightId, {
-          kind: 'enter',
-          token: identity.token,
-          presence: identity.presence,
-        });
-        if (cancelled || !active || generation !== expectedGeneration) {
-          await sendLeave(identity);
-          return;
-        }
-        signedIdentity = identity;
-        if (previousIdentity !== null) await sendLeave(previousIdentity).catch(() => undefined);
-        const delay = Math.max(
-          1_000,
-          new Date(identity.expiresAt).getTime() - Date.now() - PRESENCE_RENEWAL_SKEW_MS,
-        );
-        renewal = setTimeout(() => void enter(expectedGeneration), delay);
-      } catch {
-        if (!cancelled && active && generation === expectedGeneration) {
-          renewal = setTimeout(() => void enter(expectedGeneration), PRESENCE_RETRY_MS);
-        }
-      }
-    };
-
-    void connected.then(() => enter(generation));
-
-    const leave = () => {
-      active = false;
-      generation += 1;
-      if (renewal !== undefined) clearTimeout(renewal);
-      if (signedIdentity !== null) void sendLeave(signedIdentity).catch(() => undefined);
-      signedIdentity = null;
-    };
-    const reenter = () => {
-      if (cancelled || active) return;
-      active = true;
-      generation += 1;
-      void enter(generation);
-    };
-    window.addEventListener('pagehide', leave);
-    window.addEventListener('pageshow', reenter);
+    const stopPresence = startNightPresence({
+      source,
+      browserWindow: window,
+      mintToken: () => mintToken(houseId, nightId),
+      changePresence: (command, keepalive) => changePresence(houseId, nightId, command, keepalive),
+      onPresence: applyPresence,
+    });
     return () => {
       cancelled = true;
-      leave();
-      window.removeEventListener('pagehide', leave);
-      window.removeEventListener('pageshow', reenter);
-      source.removeEventListener('presence', onPresence);
+      stopPresence();
       source.onopen = null;
       source.close();
     };

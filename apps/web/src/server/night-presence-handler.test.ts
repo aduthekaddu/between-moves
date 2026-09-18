@@ -1,6 +1,7 @@
 import {
   AuthenticationRequiredError,
   DomainError,
+  HouseAuthorizationDeniedError,
   type AuthenticatedViewer,
 } from '@between-moves/domain';
 import { createRealtimeMetricStubs } from '@between-moves/observability';
@@ -81,7 +82,8 @@ describe('Night presence command boundary', () => {
       ).status,
     ).toBe(403);
     expect(
-      (await createChangeNightPresenceHandler(dependencies())(request({}), houseId, nightId)).status,
+      (await createChangeNightPresenceHandler(dependencies())(request({}), houseId, nightId))
+        .status,
     ).toBe(422);
     expect(
       (await createChangeNightPresenceHandler(unauthenticated)(request(), houseId, nightId)).status,
@@ -118,5 +120,56 @@ describe('Night presence command boundary', () => {
 
     expect(response.status).toBe(413);
     expect(deps.changePresence).not.toHaveBeenCalled();
+  });
+
+  it('[BM-039] rejects invalid route and JSON before changing presence', async () => {
+    const deps = dependencies();
+    const handler = createChangeNightPresenceHandler(deps);
+
+    await expect(handler(request(), 'not-a-uuid', nightId)).resolves.toMatchObject({ status: 422 });
+    await expect(
+      handler(
+        new Request(`https://app.example.test/api/houses/${houseId}/nights/${nightId}/presence`, {
+          method: 'POST',
+          headers: {
+            origin: 'https://app.example.test',
+            'content-type': 'application/json',
+          },
+          body: '{',
+        }),
+        houseId,
+        nightId,
+      ),
+    ).resolves.toMatchObject({ status: 422 });
+    expect(deps.changePresence).not.toHaveBeenCalled();
+  });
+
+  it('[BM-039] maps authorization, missing-night, and unexpected failures', async () => {
+    const denied = dependencies({
+      changePresence: vi.fn(async () => {
+        throw new HouseAuthorizationDeniedError('not_a_member', true);
+      }),
+    });
+    await expect(
+      createChangeNightPresenceHandler(denied)(request(), houseId, nightId),
+    ).resolves.toMatchObject({ status: 403 });
+
+    const missing = dependencies({
+      changePresence: vi.fn(async () => {
+        throw new DomainError('not_found', 'Night is unavailable');
+      }),
+    });
+    await expect(
+      createChangeNightPresenceHandler(missing)(request(), houseId, nightId),
+    ).resolves.toMatchObject({ status: 404 });
+
+    const unexpected = dependencies({
+      changePresence: vi.fn(async () => {
+        throw new Error('store unavailable');
+      }),
+    });
+    await expect(
+      createChangeNightPresenceHandler(unexpected)(request(), houseId, nightId),
+    ).rejects.toThrow('store unavailable');
   });
 });

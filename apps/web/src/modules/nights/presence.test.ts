@@ -5,7 +5,9 @@ import { EphemeralNightPresenceStore } from './presence';
 const houseId = '01941f29-7c00-7000-8000-000000000201';
 const nightId = '01941f29-7c00-7000-8000-000000000901';
 const userId = '01941f29-7c00-7000-8000-000000000101';
+const otherUserId = '01941f29-7c00-7000-8000-000000000102';
 const context = fakeAuthorizationContext({ viewerId: userId, houseId });
+const otherContext = fakeAuthorizationContext({ viewerId: otherUserId, houseId });
 const now = new Date('2026-09-04T14:00:00.000Z');
 const entry = {
   clientId: userId,
@@ -64,5 +66,43 @@ describe('Ephemeral Night presence store', () => {
     ).resolves.toEqual({
       members: [{ clientId: userId, displayName: 'Ada', signature: 'b'.repeat(43) }],
     });
+  });
+
+  it('[BM-039] sorts public identities and publishes public expiry pruning', async () => {
+    const store = new EphemeralNightPresenceStore();
+    const listener = vi.fn();
+    const unsubscribe = store.subscribe(houseId, nightId, listener);
+    await store.enter(context, nightId, entry, now);
+    await store.enter(
+      otherContext,
+      nightId,
+      {
+        ...entry,
+        clientId: otherUserId,
+        leaseId: 'bea-tab-one',
+        signature: 'b'.repeat(43),
+      },
+      now,
+    );
+
+    await expect(store.readPublic(houseId, nightId, now)).resolves.toEqual({
+      members: [
+        { clientId: userId, displayName: 'Ada', signature: 'a'.repeat(43) },
+        { clientId: otherUserId, displayName: 'Ada', signature: 'b'.repeat(43) },
+      ],
+    });
+    unsubscribe();
+    await expect(
+      store.leave(context, nightId, { clientId: otherUserId, leaseId: entry.leaseId }, now),
+    ).rejects.toThrow(/context mismatch/);
+
+    const expiring = new EphemeralNightPresenceStore();
+    const expiryListener = vi.fn();
+    expiring.subscribe(houseId, nightId, expiryListener);
+    await expiring.enter(context, nightId, entry, now);
+    await expect(
+      expiring.readPublic(houseId, nightId, new Date('2026-09-04T14:15:00.000Z')),
+    ).resolves.toEqual({ members: [] });
+    expect(expiryListener).toHaveBeenCalledWith({ members: [] });
   });
 });
