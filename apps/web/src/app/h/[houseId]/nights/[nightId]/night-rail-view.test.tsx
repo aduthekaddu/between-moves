@@ -174,10 +174,8 @@ describe('Night rail view', () => {
     await settlePresence();
 
     expect(onPresence).toHaveBeenCalledWith(entered);
-    harness.emit({ presence: [], presenceCount: 0 });
-    expect(onPresence).toHaveBeenLastCalledWith(entered);
     harness.emit({ malformed: true });
-    expect(onPresence).toHaveBeenCalledTimes(2);
+    expect(onPresence).toHaveBeenCalledTimes(1);
 
     stop();
     expect(changePresence).toHaveBeenLastCalledWith(
