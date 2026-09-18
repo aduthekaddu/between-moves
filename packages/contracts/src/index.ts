@@ -16,6 +16,12 @@ export {
 } from './realtime-token';
 export { nightRailSnapshotSchema, type NightRailSnapshotResponse } from './night-rail';
 export {
+  houseChatBodySchema,
+  houseChatSnapshotSchema,
+  type HouseChatBody,
+  type HouseChatSnapshotResponse,
+} from './house-chat';
+export {
   nightPresenceCommandSchema,
   nightPresenceResponseSchema,
   signedNightPresenceSchema,

@@ -64,6 +64,7 @@ async function resolveEvaluation(
     case 'view_house_content':
     case 'create_or_join_game':
     case 'write_house_chat_or_game_note':
+    case 'moderate_house_chat':
     case 'set_game_reaction':
     case 'leave_house':
     case 'create_member_invite':

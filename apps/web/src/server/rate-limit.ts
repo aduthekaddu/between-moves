@@ -2,6 +2,7 @@ import { UpstashRateLimiter } from '@between-moves/adapters';
 import type { RateLimitResult, RateLimiter } from '@between-moves/domain';
 import { createInvitationMetricStubs } from '@between-moves/observability';
 import { createMoveMetricStubs } from '@between-moves/observability';
+import { createChatMetricStubs } from '@between-moves/observability';
 import { createNoteMetricStubs } from '@between-moves/observability';
 import { createReactionMetricStubs } from '@between-moves/observability';
 import { createRealtimeMetricStubs } from '@between-moves/observability';
@@ -16,6 +17,7 @@ import {
   type InvitationRateLimit,
 } from '../kernel/invitation-rate-limit';
 import { createMoveRateLimit, type MoveRateLimit } from '../kernel/move-rate-limit';
+import { createChatRateLimit, type ChatRateLimit } from '../kernel/chat-rate-limit';
 import { createNoteRateLimit, type NoteRateLimit } from '../kernel/note-rate-limit';
 import { createReactionRateLimit, type ReactionRateLimit } from '../kernel/reaction-rate-limit';
 import {
@@ -34,6 +36,8 @@ const globalRateLimit = globalThis as typeof globalThis & {
   betweenMovesMoveMetrics?: ReturnType<typeof createMoveMetricStubs>;
   betweenMovesNoteRateLimit?: NoteRateLimit;
   betweenMovesNoteMetrics?: ReturnType<typeof createNoteMetricStubs>;
+  betweenMovesChatRateLimit?: ChatRateLimit;
+  betweenMovesChatMetrics?: ReturnType<typeof createChatMetricStubs>;
   betweenMovesReactionRateLimit?: ReactionRateLimit;
   betweenMovesReactionMetrics?: ReturnType<typeof createReactionMetricStubs>;
   betweenMovesRealtimeTokenRateLimit?: RealtimeTokenRateLimit;
@@ -251,6 +255,38 @@ export function getNoteRateLimit(): NoteRateLimit {
     });
   }
   return globalRateLimit.betweenMovesNoteRateLimit;
+}
+
+export function getChatMetrics(): ReturnType<typeof createChatMetricStubs> {
+  globalRateLimit.betweenMovesChatMetrics ??= createChatMetricStubs();
+  return globalRateLimit.betweenMovesChatMetrics;
+}
+
+/** [BM-040] Composition root for fail-open per-account and per-IP House-chat limits. */
+export function getChatRateLimit(): ChatRateLimit {
+  if (!globalRateLimit.betweenMovesChatRateLimit) {
+    const config = getConfig();
+    globalRateLimit.betweenMovesChatRateLimit = createChatRateLimit({
+      primary: createSharedRateLimiter(config),
+      fallback: new InMemoryRateLimiter(),
+      incrementRateLimitHit: () => getChatMetrics().incrementRateLimitHit(),
+      onStoreError() {
+        getLogger().log({
+          level: 'warn',
+          requestId: 'rate-limit-store',
+          actorId: 'anonymous',
+          houseId: null,
+          gameId: null,
+          commandId: null,
+          event: 'rate-limit.store-unavailable',
+          outcome: 'error',
+          durationMs: 0,
+          data: { surface: 'house-chat', fallback: 'in-process' },
+        });
+      },
+    });
+  }
+  return globalRateLimit.betweenMovesChatRateLimit;
 }
 
 /** [BM-037] Process-local realtime_token_issue_total and rate-limit counters. */

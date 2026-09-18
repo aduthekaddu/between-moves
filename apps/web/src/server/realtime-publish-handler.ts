@@ -6,6 +6,8 @@ import { realtimePublishEnvelopeSchema } from '@between-moves/contracts';
 import {
   GAME_COMPLETED_TOPIC,
   GAME_MOVE_ACCEPTED_TOPIC,
+  NIGHT_CHAT_DELETED_TOPIC,
+  NIGHT_CHAT_POSTED_TOPIC,
   NIGHT_ENDED_TOPIC,
   NIGHT_STARTED_TOPIC,
 } from '@between-moves/domain';
@@ -28,6 +30,9 @@ async function nightIdForEnvelope(
 ): Promise<string | null> {
   if (envelope.name === NIGHT_STARTED_TOPIC || envelope.name === NIGHT_ENDED_TOPIC) {
     return typeof envelope.data.aggregateId === 'string' ? envelope.data.aggregateId : null;
+  }
+  if (envelope.name === NIGHT_CHAT_POSTED_TOPIC || envelope.name === NIGHT_CHAT_DELETED_TOPIC) {
+    return typeof envelope.data.nightId === 'string' ? envelope.data.nightId : null;
   }
   if (envelope.name !== GAME_MOVE_ACCEPTED_TOPIC && envelope.name !== GAME_COMPLETED_TOPIC) {
     return null;

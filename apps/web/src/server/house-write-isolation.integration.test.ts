@@ -20,6 +20,8 @@ import {
   rsvpNight,
   revokeInvitation,
   resignGame,
+  deleteHouseChat,
+  postHouseChat,
   saveGameNote,
   setGameReaction,
   startNight,
@@ -35,6 +37,7 @@ import {
   PgGameCompletionRepository,
   PgGameReactionRepository,
   PgGameNoteRepository,
+  PgHouseChatRepository,
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
@@ -55,6 +58,7 @@ import type {
   GameCompletionRepository,
   GameReactionRepository,
   GameNoteRepository,
+  HouseChatRepository,
   IdGenerator,
   InvitationCreationRepository,
   InvitationEmailDeliveryCodec,
@@ -127,6 +131,7 @@ interface IsolationHarness {
   readonly completions: GameCompletionRepository;
   readonly reactions: GameReactionRepository;
   readonly notes: GameNoteRepository;
+  readonly chat: HouseChatRepository;
   readonly rules: RulesAdapter;
 }
 
@@ -630,6 +635,38 @@ const cases: readonly IsolationCase[] = [
         harness,
       ),
   },
+  {
+    id: 'night.chat-post',
+    name: 'House chat post',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      postHouseChat(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          body: 'Crossed House chat',
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
+  {
+    id: 'night.chat-delete',
+    name: 'House chat delete',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      deleteHouseChat(
+        {
+          houseId: harness.world.second.houseId,
+          nightId,
+          messageId: '01941f29-7c00-7000-8000-000000000980',
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
 ];
 
 function viewer(member: {
@@ -718,6 +755,12 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
            'notes', (select count(*) from game_notes n where n.game_id = g.id)
          ) order by g.id)
          from games g where g.house_id = h.id
+       ), '[]'::jsonb),
+       'house_messages', coalesce((
+         select jsonb_agg(jsonb_build_object(
+           'id', m.id::text, 'night', m.night_id::text, 'deleted', m.deleted_at
+         ) order by m.id)
+         from house_messages m where m.house_id = h.id
        ), '[]'::jsonb)
      ) as state
      from houses h where h.id = $1`,
@@ -888,6 +931,7 @@ integration('BM-017 current House write-path isolation', () => {
       completions: new PgGameCompletionRepository(database),
       reactions: new PgGameReactionRepository(database),
       notes: new PgGameNoteRepository(database),
+      chat: new PgHouseChatRepository(database),
       rules: {
         applyMove: () => {
           throw new Error('Cross-House Move must not reach the rules adapter');

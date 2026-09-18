@@ -84,6 +84,31 @@ describe('Realtime publish consumer', () => {
     expect(metrics.observeRealtimePublishDelay).not.toHaveBeenCalled();
   });
 
+  it('[BM-040] publishes a sequenced House chat event to an opaque Night channel', async () => {
+    const { consumer, publisher, channels } = harness();
+    const delivered = event({
+      topic: 'night.chat-posted',
+      aggregateId: '01941f29-7c00-7000-8000-000000000801',
+      sequence: 1n,
+      payload: {
+        nightId: '01941f29-7c00-7000-8000-000000000901',
+        messageId: '01941f29-7c00-7000-8000-000000000801',
+        body: 'Hello from the rail',
+        chatSequence: '1',
+      },
+    });
+
+    await expect(consumer.consume(delivered)).resolves.toBe('processed');
+    expect(channels.channelFor).toHaveBeenCalledWith(delivered);
+    expect(publisher.publish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: 'night.chat-posted',
+        aggregateId: delivered.aggregateId,
+        payload: delivered.payload,
+      }),
+    );
+  });
+
   it('[BM-038] skips topics that are not rail realtime events', async () => {
     const { consumer, publisher } = harness();
 

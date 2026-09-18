@@ -60,4 +60,36 @@ describe('Realtime publish HTTP seam', () => {
     expect(published.status).toBe(204);
     expect(listener).toHaveBeenCalledOnce();
   });
+
+  it('[BM-040] fans House chat out onto the Night channel from payload.nightId', async () => {
+    const chatEnvelope = {
+      ...envelope,
+      name: 'night.chat-posted',
+      data: {
+        houseId: envelope.data.houseId,
+        aggregateId: '01941f29-7c00-7000-8000-000000000801',
+        nightId: envelope.data.aggregateId,
+        body: 'Hello from the rail',
+        chatSequence: '1',
+      },
+    };
+    const body = JSON.stringify(chatEnvelope);
+    const fanout = new RealtimeNightFanout();
+    const listener = vi.fn();
+    fanout.subscribe(envelope.data.aggregateId, listener);
+    const published = await handleRealtimePublish(
+      new Request('https://app.example.test/api/internal/realtime/publish', {
+        method: 'POST',
+        headers: { 'x-realtime-signature': signRealtimePublish(serverKey, body) },
+        body,
+      }),
+      {
+        serverKey,
+        database: { query: vi.fn() } as unknown as Pool,
+        fanout,
+      },
+    );
+    expect(published.status).toBe(204);
+    expect(listener).toHaveBeenCalledOnce();
+  });
 });

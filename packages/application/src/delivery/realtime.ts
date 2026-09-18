@@ -1,6 +1,9 @@
 import {
+  CHAT_REALTIME_TOPICS,
   GAME_COMPLETED_TOPIC,
   GAME_MOVE_ACCEPTED_TOPIC,
+  NIGHT_CHAT_DELETED_TOPIC,
+  NIGHT_CHAT_POSTED_TOPIC,
   NIGHT_ENDED_TOPIC,
   NIGHT_STARTED_TOPIC,
   REALTIME_PUBLISH_TOPICS,
@@ -11,7 +14,10 @@ import {
   type RealtimePublishMetrics,
 } from '@between-moves/domain';
 
-export const REALTIME_PUBLISH_TOPIC_SET: ReadonlySet<string> = new Set(REALTIME_PUBLISH_TOPICS);
+export const REALTIME_PUBLISH_TOPIC_SET: ReadonlySet<string> = new Set([
+  ...REALTIME_PUBLISH_TOPICS,
+  ...CHAT_REALTIME_TOPICS,
+]);
 
 export interface RealtimePublishConsumerDependencies {
   readonly clock: Clock;
@@ -25,7 +31,9 @@ function isPublishableTopic(topic: string): boolean {
     topic === GAME_MOVE_ACCEPTED_TOPIC ||
     topic === GAME_COMPLETED_TOPIC ||
     topic === NIGHT_STARTED_TOPIC ||
-    topic === NIGHT_ENDED_TOPIC
+    topic === NIGHT_ENDED_TOPIC ||
+    topic === NIGHT_CHAT_POSTED_TOPIC ||
+    topic === NIGHT_CHAT_DELETED_TOPIC
   );
 }
 
