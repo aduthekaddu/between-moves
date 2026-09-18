@@ -127,8 +127,17 @@ body {
   border-bottom: 1px solid var(--bm-color-wood-light);
 }
 
-.house-masthead p {
+.house-masthead p,
+.house-masthead a {
   margin: 0;
+}
+
+.house-masthead a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--bm-color-ink);
+  text-underline-offset: 3px;
 }
 
 .house-masthead__brand {
@@ -1337,6 +1346,108 @@ body {
     margin-right: var(--bm-space-5);
     margin-left: var(--bm-space-5);
   }
+}
+
+.night-rail {
+  min-height: 100vh;
+  background: linear-gradient(rgba(107, 74, 43, 0.045) 1px, transparent 1px), var(--bm-color-paper);
+  background-size: 100% 32px;
+}
+
+.night-rail__main {
+  width: min(100% - 32px, 44rem);
+  margin: 0 auto;
+  padding: var(--bm-space-5) 0 48px;
+}
+
+.night-rail__main h1,
+.night-rail__main h2 {
+  font-family: var(--bm-font-serif);
+}
+
+.night-rail__main h1 {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 3.25rem);
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.night-rail__status,
+.night-rail__live {
+  color: var(--bm-color-ink-muted);
+}
+
+.night-rail__live {
+  margin-top: var(--bm-space-2);
+}
+
+.night-rail__main section {
+  margin-top: var(--bm-space-6);
+  padding-top: var(--bm-space-4);
+  border-top: 1px solid var(--bm-color-wood-light);
+}
+
+.night-rail__boards,
+.night-rail__results {
+  display: grid;
+  gap: var(--bm-space-4);
+  margin: var(--bm-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.night-rail__boards a,
+.night-rail__results a {
+  display: grid;
+  gap: var(--bm-space-3);
+  padding: var(--bm-space-4);
+  border: 1px solid var(--bm-color-wood-light);
+  color: inherit;
+  background: var(--bm-color-paper-raised);
+  text-decoration: none;
+}
+
+.night-rail__boards a p,
+.night-rail__results a {
+  margin: 0;
+}
+
+.rail-thumb {
+  width: min(100%, 16rem);
+  border: 3px solid var(--bm-color-wood);
+  background: var(--bm-color-wood);
+}
+
+.rail-thumb__row {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.rail-thumb__square {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.rail-thumb__square[data-color='light'] {
+  background: var(--bm-color-wood-light);
+}
+
+.rail-thumb__square[data-color='dark'] {
+  background: var(--bm-color-wood-dark);
+  color: var(--bm-color-paper-raised);
+}
+
+.night-card__rail {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: var(--bm-space-3);
+  color: var(--bm-color-ink);
+  font-weight: 700;
+  text-underline-offset: 3px;
 }
 
 /* Respect reduced-motion preference (UX-TOK-03) */

@@ -1,18 +1,24 @@
 export interface RealtimeMetricSnapshot {
   readonly realtime_token_issue_total: number;
   readonly rate_limit_hit_total: number;
+  readonly realtime_publish_delay_ms: readonly number[];
+  readonly live_reconnect_total: number;
 }
 
 export interface RealtimeMetricStubs {
   incrementRealtimeTokenIssue(): void;
   incrementRateLimitHit(): void;
+  observeRealtimePublishDelay(milliseconds: number): void;
+  incrementLiveReconnect(): void;
   snapshot(): RealtimeMetricSnapshot;
 }
 
-/** [BM-037] In-process seam for realtime_token_issue_total and rate-limit counters. */
+/** [BM-037] [BM-038] In-process seam for token, publish delay, and reconnect counters. */
 export function createRealtimeMetricStubs(): RealtimeMetricStubs {
   let tokenIssues = 0;
   let rateLimitHits = 0;
+  let liveReconnects = 0;
+  const publishDelays: number[] = [];
   return {
     incrementRealtimeTokenIssue() {
       tokenIssues += 1;
@@ -20,10 +26,18 @@ export function createRealtimeMetricStubs(): RealtimeMetricStubs {
     incrementRateLimitHit() {
       rateLimitHits += 1;
     },
+    observeRealtimePublishDelay(milliseconds) {
+      publishDelays.push(Math.max(0, milliseconds));
+    },
+    incrementLiveReconnect() {
+      liveReconnects += 1;
+    },
     snapshot() {
       return {
         realtime_token_issue_total: tokenIssues,
         rate_limit_hit_total: rateLimitHits,
+        realtime_publish_delay_ms: [...publishDelays],
+        live_reconnect_total: liveReconnects,
       };
     },
   };

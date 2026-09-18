@@ -5,9 +5,19 @@ export { SecureInvitationTokenIssuer } from './invitation-token';
 export {
   HmacRealtimeTokenIssuer,
   inspectRealtimeCapabilityToken,
+  opaqueRealtimeChannelId,
   type HmacRealtimeTokenIssuerOptions,
   type RealtimeCapabilityTokenPayload,
 } from './realtime-token';
+export {
+  HmacRealtimeChannelResolver,
+  HttpRealtimePublisher,
+  MemoryRealtimePublisher,
+  signRealtimePublish,
+  verifyRealtimePublishSignature,
+  type HttpRealtimePublisherOptions,
+  type RealtimePublishEnvelope,
+} from './realtime-publish';
 export { generateUuidV7 } from './uuid-v7';
 export { ChessJsRulesAdapter } from './chess-js-rules-adapter';
 export {

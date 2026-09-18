@@ -7,6 +7,7 @@ import {
   type IssuedRealtimeToken,
   type RateLimitResult,
 } from '@between-moves/domain';
+import { createRealtimeMetricStubs } from '@between-moves/observability';
 import { describe, expect, it, vi } from 'vitest';
 import { InMemoryRateLimiter } from '../kernel/rate-limit';
 import { createRealtimeTokenRateLimit } from '../kernel/realtime-token-rate-limit';
@@ -66,9 +67,9 @@ function dependencies(
     mintRealtimeToken: vi.fn(async () => issued),
     logger: { log: vi.fn() },
     metrics: {
+      ...createRealtimeMetricStubs(),
       incrementRealtimeTokenIssue: vi.fn(),
       incrementRateLimitHit: vi.fn(),
-      snapshot: vi.fn(),
     },
     clock: { now: () => new Date('2026-09-04T14:00:00.000Z') },
     ...overrides,

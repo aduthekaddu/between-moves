@@ -1,4 +1,6 @@
 export { createOutboxDispatcher } from './dispatcher';
+export { createRealtimePublishConsumer, REALTIME_PUBLISH_TOPIC_SET } from './realtime';
+export type { RealtimePublishConsumerDependencies } from './realtime';
 export type { DispatchSummary, OutboxDispatcher, OutboxDispatcherOptions } from './dispatcher';
 export { createNudgeEmailConsumer, NUDGE_PROVIDER_RETRY_WINDOW_MS } from './nudge-email';
 export { createInvitationEmailConsumer } from './invitation-email';

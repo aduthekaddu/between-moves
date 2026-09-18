@@ -45,5 +45,6 @@ Run from the repository root:
 
 ```text
 apps/web        Next.js App Router application and composition root
+apps/worker     Trigger.dev outbox dispatcher (email, scoring, realtime publish)
 packages/db     PostgreSQL pool, Drizzle adapter, migrations, and DB health probe
 ```
