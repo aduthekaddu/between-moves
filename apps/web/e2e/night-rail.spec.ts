@@ -215,7 +215,22 @@ test.describe('Night rail', () => {
     const guestPage = await guestContext.newPage();
     const path = `/h/${seeded.first.houseId}/nights/${nightIds[0]}`;
 
+    const memberPresenceResponse = memberPage.waitForResponse(
+      (response) => response.url().endsWith('/presence') && response.request().method() === 'POST',
+    );
     await memberPage.goto(path);
+    const memberPresenceResponseResult = await memberPresenceResponse;
+    const memberPresencePayload = await memberPresenceResponseResult.json();
+    console.log(
+      '[BM-039] member presence response',
+      JSON.stringify({
+        status: memberPresenceResponseResult.status(),
+        presenceCount: memberPresencePayload.presenceCount,
+        displayNames: memberPresencePayload.presence?.map(
+          (member: { displayName: string }) => member.displayName,
+        ),
+      }),
+    );
     await expect(memberPage.getByText('1 member at the table')).toBeVisible();
     await expect(
       memberPage.getByRole('region', { name: 'Here now' }).getByRole('listitem', { name: 'Ada' }),
