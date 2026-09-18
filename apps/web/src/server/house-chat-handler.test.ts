@@ -1,4 +1,6 @@
 import {
+  AuthenticationRequiredError,
+  DomainError,
   HouseAuthorizationDeniedError,
   type HouseChatMessage,
   type RateLimitResult,
@@ -202,5 +204,125 @@ describe('House chat HTTP boundary', () => {
     );
     const response = await createDeleteHouseChatHandler(deps)(request, houseId, nightId, messageId);
     expect(response.status).toBe(403);
+  });
+
+  it('[BM-040] rejects bad origins, invalid routes, and unauthenticated commands', async () => {
+    const deps = dependencies();
+    const post = createPostHouseChatHandler(deps);
+    const wrongOrigin = new Request('https://betweenmoves.test/chat', {
+      method: 'POST',
+      headers: { origin: 'https://evil.example', 'content-type': 'application/json' },
+      body: JSON.stringify({ body: 'blocked' }),
+    });
+    expect((await post(wrongOrigin, houseId, nightId)).status).toBe(403);
+    expect((await post(postRequest(), 'not-a-house-id', nightId)).status).toBe(422);
+
+    deps.requireViewer.mockRejectedValueOnce(new AuthenticationRequiredError());
+    expect((await post(postRequest(), houseId, nightId)).status).toBe(401);
+
+    const deleteRequest = new Request(
+      `https://betweenmoves.test/api/houses/${houseId}/nights/${nightId}/chat/${messageId}`,
+      { method: 'DELETE', headers: { origin: 'https://evil.example' } },
+    );
+    expect(
+      (await createDeleteHouseChatHandler(deps)(deleteRequest, houseId, nightId, messageId)).status,
+    ).toBe(403);
+  });
+
+  it('[BM-040] rejects oversized and malformed payloads before persistence', async () => {
+    const deps = dependencies();
+    const post = createPostHouseChatHandler(deps);
+    const oversized = new Request('https://betweenmoves.test/chat', {
+      method: 'POST',
+      headers: {
+        origin: 'https://betweenmoves.test',
+        'content-type': 'application/json',
+        'content-length': '20000',
+      },
+      body: '{}',
+    });
+    expect((await post(oversized, houseId, nightId)).status).toBe(413);
+
+    const malformed = new Request('https://betweenmoves.test/chat', {
+      method: 'POST',
+      headers: { origin: 'https://betweenmoves.test', 'content-type': 'application/json' },
+      body: '{not json',
+    });
+    expect((await post(malformed, houseId, nightId)).status).toBe(422);
+    expect(deps.postHouseChat).not.toHaveBeenCalled();
+  });
+
+  it('[BM-040] maps authorization and domain failures from the post boundary', async () => {
+    const cases = [
+      [new HouseAuthorizationDeniedError('not_a_member', true), 403],
+      [new DomainError('not_found', 'unavailable'), 404],
+      [new DomainError('validation_failed', 'invalid body'), 422],
+    ] as const;
+    for (const [error, status] of cases) {
+      const deps = dependencies();
+      deps.postHouseChat.mockRejectedValueOnce(error);
+      expect((await createPostHouseChatHandler(deps)(postRequest(), houseId, nightId)).status).toBe(
+        status,
+      );
+    }
+  });
+
+  it('[BM-040] preserves a committed post when metrics or diagnostics are unavailable', async () => {
+    const deps = dependencies();
+    deps.metrics.incrementChatSend.mockImplementation(() => {
+      throw new Error('metrics unavailable');
+    });
+    deps.logger.log.mockImplementation(() => {
+      throw new Error('logger unavailable');
+    });
+    expect((await createPostHouseChatHandler(deps)(postRequest(), houseId, nightId)).status).toBe(
+      201,
+    );
+  });
+
+  it('[BM-040] maps missing reads and validates the read route', async () => {
+    const read = createReadHouseChatHandler({ readHouseChat: vi.fn(async () => null) });
+    expect(
+      (await read(new Request('https://betweenmoves.test/chat'), 'bad-house', nightId)).status,
+    ).toBe(422);
+    expect(
+      (await read(new Request('https://betweenmoves.test/chat'), houseId, nightId)).status,
+    ).toBe(404);
+  });
+
+  it('[BM-040] maps delete authentication and not-found failures', async () => {
+    const unauthenticated = dependencies();
+    unauthenticated.requireViewer.mockRejectedValueOnce(new AuthenticationRequiredError());
+    const request = new Request('https://betweenmoves.test/chat', {
+      method: 'DELETE',
+      headers: { origin: 'https://betweenmoves.test' },
+    });
+    expect(
+      (await createDeleteHouseChatHandler(unauthenticated)(request, houseId, nightId, messageId))
+        .status,
+    ).toBe(401);
+
+    const missing = dependencies();
+    missing.deleteHouseChat.mockRejectedValueOnce(new DomainError('not_found', 'missing'));
+    expect(
+      (await createDeleteHouseChatHandler(missing)(request, houseId, nightId, messageId)).status,
+    ).toBe(404);
+  });
+
+  it('[BM-040] preserves a committed delete when metrics or diagnostics are unavailable', async () => {
+    const deps = dependencies();
+    deps.metrics.incrementChatDelete.mockImplementation(() => {
+      throw new Error('metrics unavailable');
+    });
+    deps.logger.log.mockImplementation(() => {
+      throw new Error('logger unavailable');
+    });
+    const request = new Request('https://betweenmoves.test/chat', {
+      method: 'DELETE',
+      headers: { origin: 'https://betweenmoves.test' },
+    });
+    expect(
+      (await createDeleteHouseChatHandler(deps)(request, houseId, nightId, messageId)).status,
+    ).toBe(204);
   });
 });

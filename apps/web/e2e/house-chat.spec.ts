@@ -11,6 +11,7 @@ import { makeSignature } from 'better-auth/crypto';
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const seasonId = '01941f29-7c00-7000-8000-000000000991';
+const charterId = '01941f29-7c00-7000-8000-000000000993';
 const nightId = '01941f29-7c00-7000-8000-000000000992';
 let database: Database | undefined;
 let world: TwoHousesWithMembers | undefined;
@@ -47,6 +48,37 @@ async function seedLiveNight(): Promise<void> {
     `insert into seasons (id, house_id, title, state, created_at, updated_at)
      values ($1, $2, 'Chat season', 'draft', $3, $3)`,
     [seasonId, seeded.first.houseId, startedAt],
+  );
+  await database.pool.query(
+    `insert into season_charters
+      (id, season_id, version, correspondence_pace_hours, night_recurrence, points_recipe, published_at, created_at)
+     values ($1, $2, 1, 24, $3::jsonb, $4::jsonb, $5, $5)`,
+    [
+      charterId,
+      seasonId,
+      JSON.stringify({ weekday: 5, localTime: '19:30', count: 1 }),
+      JSON.stringify({
+        completedGame: 1,
+        win: 2,
+        draw: 1,
+        nightAttendance: 1,
+        publishedPuzzle: 1,
+        caps: { games: 8, nights: 1, puzzles: 2 },
+      }),
+      startedAt,
+    ],
+  );
+  await database.pool.query(
+    `update seasons
+        set state = 'active', starts_at = $2, ends_at = $3,
+            published_charter_version = 1, updated_at = $4
+      where id = $1`,
+    [
+      seasonId,
+      new Date('2026-09-18T00:00:00.000Z'),
+      new Date('2026-09-25T00:00:00.000Z'),
+      startedAt,
+    ],
   );
   await database.pool.query(
     `insert into house_nights
