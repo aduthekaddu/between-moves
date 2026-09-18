@@ -227,9 +227,12 @@ test.describe('Night rail', () => {
       presence: [expect.objectContaining({ displayName: 'Ada' })],
     });
     await expect(memberPage.getByText('1 member at the table')).toBeVisible();
-    await expect(
-      memberPage.getByRole('region', { name: 'Here now' }).getByRole('listitem', { name: 'Ada' }),
-    ).toBeVisible();
+    const hereNow = memberPage.getByRole('region', { name: 'Here now' });
+    console.log(
+      'BM039 member Here now DOM',
+      JSON.stringify({ text: await hereNow.textContent(), html: await hereNow.innerHTML() }),
+    );
+    await expect(hereNow.getByRole('listitem', { name: 'Ada' })).toBeVisible();
 
     await guestPage.goto(path);
     await expect(memberPage.getByText('2 members at the table')).toBeVisible();
