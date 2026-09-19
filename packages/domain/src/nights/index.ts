@@ -42,6 +42,34 @@ export {
   RAIL_RECENT_RESULT_LIMIT,
   REALTIME_PUBLISH_TOPICS,
 } from './rail';
+export {
+  applyChatRealtimeEvent,
+  applyChatRealtimeEventOrRepair,
+  CHAT_REALTIME_TOPICS,
+  HOUSE_CHAT_RECENT_LIMIT,
+  MAX_HOUSE_CHAT_LENGTH,
+  NIGHT_CHAT_DELETED_TOPIC,
+  NIGHT_CHAT_POSTED_TOPIC,
+  retainNewerHouseChat,
+  validateHouseChatBody,
+} from './chat';
+export type {
+  ApplyChatRealtimeEventResult,
+  ChatRealtimeEvent,
+  ChatRealtimeTopic,
+  DeleteHouseChatDependencies,
+  DeleteHouseChatInput,
+  DeleteHouseChatRequest,
+  HouseChatMessage,
+  HouseChatRepository,
+  HouseChatSnapshot,
+  PostHouseChatDependencies,
+  PostHouseChatInput,
+  PostHouseChatRequest,
+  ReadHouseChatDependencies,
+  ReadHouseChatRequest,
+  RepairChatRealtimeEventResult,
+} from './chat';
 export type {
   ApplyRailRealtimeEventResult,
   RepairRailRealtimeEventResult,

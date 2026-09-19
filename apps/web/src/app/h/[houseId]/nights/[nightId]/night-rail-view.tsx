@@ -1,15 +1,24 @@
 'use client';
 
 import {
+  houseChatSnapshotSchema,
   nightPresenceResponseSchema,
   realtimeTokenResponseSchema,
+  type HouseChatSnapshotResponse,
   type NightPresenceCommandBody,
   type NightPresenceResponse,
   type NightRailSnapshotResponse,
   type RealtimeTokenResponse,
 } from '@between-moves/contracts';
+import { NIGHT_CHAT_DELETED_TOPIC, NIGHT_CHAT_POSTED_TOPIC } from '@between-moves/domain';
 import { useEffect, useRef, useState } from 'react';
 import { parseFenPieces, squareName, type BoardPiece } from '../../games/[gameId]/board-model';
+import {
+  applyOrRepairHouseChat,
+  postedChatWireEvent,
+  retainNewerChatSnapshot,
+} from './chat-realtime';
+import { HouseChat } from './house-chat';
 import { applyOrRepairNightRail } from './rail-realtime';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
@@ -120,6 +129,14 @@ async function changePresence(
   });
   if (!response.ok) throw new Error('Night presence could not be updated.');
   return nightPresenceResponseSchema.parse(await response.json());
+}
+
+async function refetchChat(houseId: string, nightId: string): Promise<HouseChatSnapshotResponse> {
+  const response = await fetch(`/api/houses/${houseId}/nights/${nightId}/chat?repair=1`, {
+    headers: { 'Cache-Control': 'no-store' },
+  });
+  if (!response.ok) throw new Error('House chat could not be repaired.');
+  return houseChatSnapshotSchema.parse(await response.json());
 }
 
 async function refetchRail(houseId: string, nightId: string): Promise<NightRailSnapshotResponse> {
@@ -287,15 +304,19 @@ export function retainNewerPresence(
 export function NightRailView({
   houseId,
   initial,
+  initialChat,
   attachRealtime = true,
 }: {
   readonly houseId: string;
   readonly initial: NightRailSnapshotResponse;
+  readonly initialChat?: HouseChatSnapshotResponse;
   readonly attachRealtime?: boolean;
 }) {
   const [snapshot, setSnapshot] = useState(initial);
+  const [chat, setChat] = useState(initialChat);
   const [live, setLive] = useState(false);
   const snapshotRef = useRef(snapshot);
+  const chatRef = useRef(chat);
   const presenceRevision = useRef(0);
 
   useEffect(() => {
@@ -303,14 +324,56 @@ export function NightRailView({
   }, [snapshot]);
 
   useEffect(() => {
+    chatRef.current = chat;
+  }, [chat]);
+
+  const applyChatSnapshot = (incoming: HouseChatSnapshotResponse) => {
+    const next = retainNewerChatSnapshot(incoming, chatRef.current ?? incoming);
+    chatRef.current = next;
+    setChat(next);
+  };
+
+  useEffect(() => {
     if (!attachRealtime) return;
     const nightId = snapshot.nightId;
     let cancelled = false;
+    let chatRetry: ReturnType<typeof setTimeout> | undefined;
     const source = new EventSource(`/api/houses/${houseId}/nights/${nightId}/rail/live`);
-    source.onopen = () => setLive(true);
+    const loadDurableChat = () => {
+      if (cancelled || chatRef.current === undefined) return;
+      void refetchChat(houseId, nightId)
+        .then((incoming) => {
+          if (cancelled) return;
+          applyChatSnapshot(incoming);
+          setLive(true);
+        })
+        .catch(() => {
+          if (!cancelled) chatRetry = setTimeout(loadDurableChat, PRESENCE_RETRY_MS);
+        });
+    };
+    source.onopen = () => {
+      if (chatRef.current === undefined) {
+        setLive(true);
+        return;
+      }
+      loadDurableChat();
+    };
     source.onmessage = (event) => {
       const incoming = wireEvent(event.data);
       if (incoming === null) return;
+      if (
+        incoming.topic === NIGHT_CHAT_POSTED_TOPIC ||
+        incoming.topic === NIGHT_CHAT_DELETED_TOPIC
+      ) {
+        const currentChat = chatRef.current;
+        if (currentChat === undefined) return;
+        void applyOrRepairHouseChat(currentChat, incoming, () => refetchChat(houseId, nightId))
+          .then((result) => {
+            if (!cancelled) applyChatSnapshot(result.snapshot);
+          })
+          .catch(() => loadDurableChat());
+        return;
+      }
       const presenceRevisionAtStart = presenceRevision.current;
       void applyOrRepairNightRail(snapshotRef.current, incoming, () =>
         refetchRail(houseId, nightId),
@@ -346,6 +409,7 @@ export function NightRailView({
     });
     return () => {
       cancelled = true;
+      if (chatRetry !== undefined) clearTimeout(chatRetry);
       stopPresence();
       source.onopen = null;
       source.close();
@@ -424,6 +488,39 @@ export function NightRailView({
             </ol>
           )}
         </section>
+        {chat === undefined ? null : (
+          <HouseChat
+            houseId={houseId}
+            nightId={snapshot.nightId}
+            snapshot={chat}
+            nightState={snapshot.state}
+            acceptsMessages={snapshot.state === 'live'}
+            onPosted={(message) => {
+              const current = chatRef.current;
+              if (current === undefined) return;
+              void applyOrRepairHouseChat(
+                current,
+                postedChatWireEvent(snapshot.nightId, message),
+                () => refetchChat(houseId, snapshot.nightId),
+              )
+                .then((result) => applyChatSnapshot(result.snapshot))
+                .catch(() => {
+                  void refetchChat(houseId, snapshot.nightId).then(applyChatSnapshot);
+                });
+            }}
+            onDeleted={(messageId) => {
+              const current = chatRef.current;
+              if (current === undefined) return;
+              applyChatSnapshot({
+                ...current,
+                messages: current.messages.filter((message) => message.id !== messageId),
+              });
+              void refetchChat(houseId, snapshot.nightId)
+                .then(applyChatSnapshot)
+                .catch(() => undefined);
+            }}
+          />
+        )}
       </main>
     </div>
   );

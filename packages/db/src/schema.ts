@@ -1,5 +1,5 @@
 import type { ClockPolicy } from '@between-moves/domain';
-import { sql } from 'drizzle-orm';
+import { desc, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -360,6 +360,9 @@ export const houseNights = pgTable(
     hostMembershipId: uuid('host_membership_id'),
     startedAt: timestamp('started_at', { withTimezone: true }),
     endedAt: timestamp('ended_at', { withTimezone: true }),
+    chatSequence: bigint('chat_sequence', { mode: 'bigint' })
+      .default(sql`0`)
+      .notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
@@ -396,6 +399,7 @@ export const houseNights = pgTable(
         )
       )`,
     ),
+    check('house_nights_chat_sequence_check', sql`${table.chatSequence} >= 0`),
   ],
 );
 
@@ -435,6 +439,53 @@ export const nightAudit = pgTable(
       sql`${table.previousScheduledEnd} > ${table.previousScheduledStart}`,
     ),
     check('night_audit_interval_check', sql`${table.scheduledEnd} > ${table.scheduledStart}`),
+  ],
+);
+
+/** [BM-040] Durable, House-scoped Night chat with soft-delete moderation. */
+export const houseMessages = pgTable(
+  'house_messages',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id')
+      .notNull()
+      .references(() => houses.id, { onDelete: 'restrict' }),
+    nightId: uuid('night_id').notNull(),
+    membershipId: uuid('membership_id').notNull(),
+    body: text('body').notNull(),
+    sequence: bigint('sequence', { mode: 'bigint' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    deletedByMembershipId: uuid('deleted_by_membership_id'),
+  },
+  (table) => [
+    unique('house_messages_id_house_unique').on(table.id, table.houseId),
+    uniqueIndex('house_messages_night_sequence_unique').on(table.nightId, table.sequence),
+    foreignKey({
+      columns: [table.nightId, table.houseId],
+      foreignColumns: [houseNights.id, houseNights.houseId],
+      name: 'house_messages_night_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.membershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'house_messages_membership_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.deletedByMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'house_messages_deleted_by_house_fk',
+    }).onDelete('restrict'),
+    index('house_messages_night_recent_idx').on(table.houseId, table.nightId, desc(table.sequence)),
+    check('house_messages_body_check', sql`char_length(${table.body}) between 1 and 2000`),
+    check('house_messages_sequence_check', sql`${table.sequence} > 0`),
+    check(
+      'house_messages_deletion_state_check',
+      sql`(
+        (${table.deletedAt} is null and ${table.deletedByMembershipId} is null)
+        or (${table.deletedAt} is not null and ${table.deletedByMembershipId} is not null)
+      )`,
+    ),
   ],
 );
 

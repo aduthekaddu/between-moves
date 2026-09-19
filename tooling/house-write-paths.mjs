@@ -155,6 +155,18 @@ export const houseWritePaths = Object.freeze([
     route: 'apps/web/src/app/api/houses/[houseId]/games/[gameId]/note/route.ts',
     scope: 'house-id',
   },
+  {
+    id: 'night.chat-post',
+    useCase: 'postHouseChat',
+    route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/chat/route.ts',
+    scope: 'house-id',
+  },
+  {
+    id: 'night.chat-delete',
+    useCase: 'deleteHouseChat',
+    route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/chat/[messageId]/route.ts',
+    scope: 'house-id',
+  },
 ]);
 
 /** Runtime House exports which do not mutate an existing House. */
@@ -172,6 +184,7 @@ export const nonHouseWriteExports = Object.freeze([
   'readNightHostCandidates',
   'mintRealtimeToken',
   'readNightRail',
+  'readHouseChat',
   'readCurrentGameReaction',
   'readGameNotes',
 ]);

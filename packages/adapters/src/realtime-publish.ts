@@ -1,6 +1,8 @@
 import {
   GAME_COMPLETED_TOPIC,
   GAME_MOVE_ACCEPTED_TOPIC,
+  NIGHT_CHAT_DELETED_TOPIC,
+  NIGHT_CHAT_POSTED_TOPIC,
   NIGHT_ENDED_TOPIC,
   NIGHT_STARTED_TOPIC,
   type ClaimedOutboxEvent,
@@ -69,6 +71,11 @@ export class HmacRealtimeChannelResolver implements RealtimeChannelResolver {
     }
     if (event.topic === NIGHT_STARTED_TOPIC || event.topic === NIGHT_ENDED_TOPIC) {
       return opaqueRealtimeChannelId(this.serverKey, 'night', event.houseId, event.aggregateId);
+    }
+    if (event.topic === NIGHT_CHAT_POSTED_TOPIC || event.topic === NIGHT_CHAT_DELETED_TOPIC) {
+      const nightId = event.payload.nightId;
+      if (typeof nightId !== 'string') return null;
+      return opaqueRealtimeChannelId(this.serverKey, 'night', event.houseId, nightId);
     }
     return null;
   }

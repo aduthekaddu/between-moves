@@ -1453,6 +1453,101 @@ body {
   color: var(--bm-color-paper-raised);
 }
 
+.house-chat {
+  display: grid;
+  gap: var(--bm-space-5);
+}
+
+.house-chat__list {
+  display: grid;
+  gap: var(--bm-space-3);
+}
+
+.house-chat__message {
+  padding: var(--bm-space-4);
+  border-left: 3px solid var(--bm-color-brass);
+  background: var(--bm-color-paper-raised);
+}
+
+.house-chat__message h3,
+.house-chat__message p {
+  margin: 0;
+}
+
+.house-chat__message p {
+  margin-top: var(--bm-space-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.house-chat__remove {
+  min-height: 44px;
+  margin-top: var(--bm-space-3);
+  padding: var(--bm-space-2) var(--bm-space-4);
+  border: 1px solid var(--bm-color-wood);
+  border-radius: var(--bm-radius-sm);
+  color: var(--bm-color-ink);
+  background: var(--bm-color-paper);
+  font: inherit;
+}
+
+.house-chat__form {
+  display: grid;
+  gap: var(--bm-space-2);
+}
+
+.house-chat__form label {
+  font-weight: 700;
+}
+
+.house-chat__form textarea {
+  min-height: 6rem;
+  resize: vertical;
+  padding: var(--bm-space-3);
+  border: 1px solid var(--bm-color-wood);
+  border-radius: var(--bm-radius-sm);
+  color: var(--bm-color-ink);
+  background: var(--bm-color-paper);
+  font: inherit;
+  line-height: var(--bm-leading-body);
+}
+
+.house-chat__form-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--bm-space-3);
+  color: var(--bm-color-ink-muted);
+  font-size: 0.875rem;
+}
+
+.house-chat__form button[type='submit'] {
+  min-height: 44px;
+  justify-self: start;
+  padding: var(--bm-space-2) var(--bm-space-4);
+  border: 1px solid var(--bm-color-brass-strong);
+  border-radius: var(--bm-radius-sm);
+  color: var(--bm-color-paper-raised);
+  background: var(--bm-color-brass-strong);
+  font: inherit;
+  font-weight: 700;
+}
+
+.house-chat__form button:disabled,
+.house-chat__remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.house-chat__status,
+.house-chat__error {
+  min-height: 1.5em;
+  margin: 0;
+}
+
+.house-chat__error {
+  color: var(--bm-color-danger);
+}
+
 .night-card__rail {
   display: inline-flex;
   min-height: 44px;

@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { getConfig } from '../../../../../config';
+import { getHouseChat, serializeHouseChatSnapshot } from '../../../../../modules/nights/chat';
 import { getNightRail, serializeNightRailSnapshot } from '../../../../../modules/nights/rail';
 import { NightRailView } from './night-rail-view';
 
@@ -37,5 +38,16 @@ export default async function NightRailPage({ params }: NightRailPageProps) {
   const request = new Request(url, { headers: requestHeaders });
   const snapshot = await getNightRail(request, houseId, nightId);
   if (snapshot === null) return notFound();
-  return <NightRailView houseId={houseId} initial={serializeNightRailSnapshot(snapshot)} />;
+  const chat = await getHouseChat(request, houseId, nightId);
+  const initial = serializeNightRailSnapshot(snapshot);
+  if (chat === null) {
+    return <NightRailView houseId={houseId} initial={initial} />;
+  }
+  return (
+    <NightRailView
+      houseId={houseId}
+      initial={initial}
+      initialChat={serializeHouseChatSnapshot(chat)}
+    />
+  );
 }

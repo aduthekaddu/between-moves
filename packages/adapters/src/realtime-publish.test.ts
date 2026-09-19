@@ -1,6 +1,7 @@
 import {
   GAME_COMPLETED_TOPIC,
   GAME_MOVE_ACCEPTED_TOPIC,
+  NIGHT_CHAT_POSTED_TOPIC,
   NIGHT_STARTED_TOPIC,
 } from '@between-moves/domain';
 import { describe, expect, it, vi } from 'vitest';
@@ -62,6 +63,19 @@ describe('Realtime publish adapter', () => {
         occurredAt,
       }),
     ).toBeNull();
+    expect(
+      channels.channelFor({
+        id: eventId,
+        topic: NIGHT_CHAT_POSTED_TOPIC,
+        aggregateId: '01941f29-7c00-7000-8000-000000000801',
+        sequence: 1n,
+        houseId,
+        payload: { nightId },
+        attempts: 1,
+        availableAt: occurredAt,
+        occurredAt,
+      }),
+    ).toBe(opaqueRealtimeChannelId(serverKey, 'night', houseId, nightId));
   });
 
   it('[BM-038] publishes once per event ID with a sequenced opaque envelope', async () => {
