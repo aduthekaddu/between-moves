@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { acceptedMove, conflictPosition, moveEntryPosition } from './move-entry-wire';
+import { acceptedMove, conflictPosition, flagFall, moveEntryPosition } from './move-entry-wire';
 
 describe('Move-entry wire responses', () => {
+  it('[BM-041] recognizes a flag result without treating it as an accepted Move', () => {
+    const flagged = {
+      state: 'completed',
+      result: 'black_win',
+      resultReason: 'flag',
+      ply: 0,
+      clock: { whiteMs: 0, blackMs: 300_000, turnStartedAt: null },
+    };
+    expect(flagFall(flagged)).toBe(true);
+    expect(acceptedMove(flagged)).toBeNull();
+    expect(flagFall({ ...flagged, resultReason: 'checkmate' })).toBe(false);
+  });
+
   it('[BM-027] accepts canonical submitMove and conflict shapes', () => {
     expect(
       acceptedMove({

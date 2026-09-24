@@ -179,6 +179,7 @@ async function playScenario(
       actorContext(world, currentFen),
       moveInput(gameId, expectedPly, move, run * 16 + index, rules),
     );
+    if (result.flagged) throw new Error('Correspondence Move unexpectedly flagged');
     currentFen = result.fenAfter;
     expectedPly = result.ply;
   }

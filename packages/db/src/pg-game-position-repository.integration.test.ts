@@ -102,6 +102,30 @@ integration('PostgreSQL Game position query', () => {
     });
   });
 
+  it('[BM-041] reads both server clocks and the active turn timestamp', async () => {
+    const started = new Date('2026-09-02T09:00:10.000Z');
+    await database.query(
+      `update games set mode='live', clock_policy=$2, white_clock_ms=292000,
+        black_clock_ms=300000, turn_started_at=$3, move_due_at=null where id=$1`,
+      [gameId, { kind: 'live', initialMs: 300_000, incrementMs: 2_000 }, started],
+    );
+    await expect(
+      repository.readGamePosition(
+        fakeAuthorizationContext({
+          houseId: world.first.houseId,
+          viewerId: world.first.member.userId,
+        }),
+        gameId,
+      ),
+    ).resolves.toMatchObject({
+      liveClock: {
+        whiteMs: 292_000,
+        blackMs: 300_000,
+        turnStartedAt: started,
+      },
+    });
+  });
+
   it('[BM-027] [DR-SEC-01] hides cross-House and inactive-membership reads', async () => {
     await expect(
       repository.readGamePosition(

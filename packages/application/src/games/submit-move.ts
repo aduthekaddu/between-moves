@@ -25,6 +25,7 @@ export async function submitMove(
     completedEventId: dependencies.ids.generate(),
     analysisEventId: dependencies.ids.generate(),
     receivedAt: dependencies.clock.now(),
+    turnStartAt: () => dependencies.clock.now(),
     rules: dependencies.rules,
   };
   return retryTransaction(() => dependencies.moves.submit(context, input));

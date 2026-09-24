@@ -10,6 +10,8 @@ export type {
   SideToMove,
 } from './rules-adapter';
 export type { ClockPolicy, CorrespondenceClockPolicy, LiveClockPolicy } from './clock-policy';
+export { advanceLiveClock, validateLiveClockPolicy, MINIMUM_LIVE_INITIAL_MS } from './live-clock';
+export type { LiveClockState, LiveClockTransition } from './live-clock';
 export type {
   CompletedGameResult,
   DrawGameInput,
@@ -44,6 +46,8 @@ export type {
 export { MoveConflictError } from './submit-move';
 export type {
   AcceptedMoveClock,
+  AcceptedSubmitMoveResult,
+  FlagFallResult,
   MoveConflictSnapshot,
   SubmitMoveDependencies,
   SubmitMoveInput,

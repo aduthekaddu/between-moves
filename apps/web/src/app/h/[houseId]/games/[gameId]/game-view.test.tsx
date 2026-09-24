@@ -22,6 +22,27 @@ const position: GamePosition = {
 };
 
 describe('Game view', () => {
+  it('[BM-041] renders live Move entry using the same server-owned command path', () => {
+    const html = renderToStaticMarkup(
+      <GameView
+        houseId="01941f29-7c00-7000-8000-000000000701"
+        position={{
+          ...position,
+          mode: 'live',
+          moveDueAt: null,
+          liveClock: {
+            whiteMs: 180_000,
+            blackMs: 180_000,
+            turnStartedAt: new Date('2026-09-02T09:00:00.000Z'),
+          },
+        }}
+      />,
+    );
+    expect(html).toContain('Live Game');
+    expect(html).toContain('Live board');
+    expect(html).toContain('Submit Move');
+  });
+
   it('[BM-027] [UX-CMP-01] renders an accessible canonical board and move controls', () => {
     const html = renderToStaticMarkup(
       <GameView houseId="01941f29-7c00-7000-8000-000000000701" position={position} />,

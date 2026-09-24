@@ -48,4 +48,20 @@ describe('BM-022 Game seat command contract', () => {
       expect(createGameSeatBodySchema.safeParse(body).success).toBe(false);
     }
   });
+
+  it('[BM-041] accepts live controls for a Night and rejects a shorter control', () => {
+    const body = {
+      mode: 'live',
+      nightId: '01941f29-7c00-7000-8000-000000000901',
+      clockPolicy: { kind: 'live', initialMs: 180_000, incrementMs: 2_000 },
+      offeredColor: 'any',
+    };
+    expect(createGameSeatBodySchema.safeParse(body).success).toBe(true);
+    expect(
+      createGameSeatBodySchema.safeParse({
+        ...body,
+        clockPolicy: { ...body.clockPolicy, initialMs: 179_999 },
+      }).success,
+    ).toBe(false);
+  });
 });

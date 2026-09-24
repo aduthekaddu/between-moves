@@ -14,6 +14,7 @@ const seasonId = '01941f29-7c00-7000-8000-000000000701';
 const charterId = '01941f29-7c00-7000-8000-000000000702';
 const gameId = '01941f29-7c00-7000-8000-000000000703';
 const openSeatId = '01941f29-7c00-7000-8000-000000000704';
+const nightId = '01941f29-7c00-7000-8000-000000000705';
 const now = new Date('2026-09-02T08:00:00.000Z');
 
 function context(world: TwoHousesWithMembers) {
@@ -30,7 +31,9 @@ function ownerContext(world: TwoHousesWithMembers) {
   });
 }
 
-function input(overrides: Partial<GameSeatCreationInput> = {}): GameSeatCreationInput {
+function input(
+  overrides: Partial<Extract<GameSeatCreationInput, { mode: 'correspondence' }>> = {},
+): GameSeatCreationInput {
   return {
     gameId,
     openSeatId,
@@ -233,5 +236,58 @@ integration('PostgreSQL Game seat repository', () => {
       expect.objectContaining({ gameId, openSeatId }),
       expect.objectContaining({ gameId: ownerGameId, openSeatId: ownerSeatId }),
     ]);
+  });
+
+  it('[BM-041] creates a live Game only within an active Night with at least three minutes', async () => {
+    await database.query(
+      `insert into house_nights (id, house_id, season_id, scheduled_start, scheduled_end,
+        state, started_at) values ($1,$2,$3,$4,$5,'live',$4)`,
+      [nightId, world.first.houseId, seasonId, now, new Date('2026-09-02T11:00:00.000Z')],
+    );
+    const live: GameSeatCreationInput = {
+      ...input(),
+      mode: 'live',
+      nightId,
+      clockPolicy: { kind: 'live', initialMs: 180_000, incrementMs: 2_000 },
+    };
+    await expect(repository.create(context(world), live)).resolves.toMatchObject({ gameId });
+    await expect(
+      database.query(
+        `select night_id::text, mode, clock_policy, white_clock_ms, black_clock_ms
+        from games where id=$1`,
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          night_id: nightId,
+          mode: 'live',
+          clock_policy: live.clockPolicy,
+          white_clock_ms: 180_000,
+          black_clock_ms: 180_000,
+        },
+      ],
+    });
+    await expect(
+      repository.create(context(world), {
+        ...live,
+        gameId: '01941f29-7c00-7000-8000-000000000715',
+        openSeatId: '01941f29-7c00-7000-8000-000000000716',
+        idempotencyKey: null,
+        clockPolicy: { kind: 'live', initialMs: 179_999, incrementMs: 2_000 },
+      }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
+    await database.query("update house_nights set state='ended', ended_at=$2 where id=$1", [
+      nightId,
+      new Date('2026-09-02T12:00:00.000Z'),
+    ]);
+    await expect(
+      repository.create(context(world), {
+        ...live,
+        gameId: '01941f29-7c00-7000-8000-000000000717',
+        openSeatId: '01941f29-7c00-7000-8000-000000000718',
+        idempotencyKey: null,
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
   });
 });

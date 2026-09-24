@@ -42,6 +42,16 @@ export function acceptedMove(value: unknown): AcceptedMoveBody | null {
   return body as unknown as AcceptedMoveBody;
 }
 
+export function flagFall(value: unknown): boolean {
+  if (value === null || typeof value !== 'object') return false;
+  const body = value as Record<string, unknown>;
+  return (
+    body.state === 'completed' &&
+    body.resultReason === 'flag' &&
+    (body.result === 'white_win' || body.result === 'black_win')
+  );
+}
+
 export function conflictPosition(value: unknown) {
   if (value === null || typeof value !== 'object') return null;
   const problem = value as Record<string, unknown>;

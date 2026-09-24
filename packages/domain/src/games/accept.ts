@@ -12,6 +12,8 @@ export interface AcceptGameSeatRequest {
 export interface GameSeatAcceptanceInput {
   readonly gameId: string;
   readonly acceptedAt: Date;
+  /** Sample the server clock after the Game lock is acquired. */
+  readonly startLiveClockAt?: () => Date;
 }
 
 export interface GameSeatAcceptanceResult {
@@ -19,7 +21,8 @@ export interface GameSeatAcceptanceResult {
   readonly houseId: string;
   readonly whiteMembershipId: string;
   readonly blackMembershipId: string;
-  readonly moveDueAt: Date;
+  readonly moveDueAt: Date | null;
+  readonly turnStartedAt?: Date;
   readonly state: 'active';
 }
 

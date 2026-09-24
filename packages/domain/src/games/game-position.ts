@@ -31,6 +31,11 @@ export interface GamePosition {
   readonly viewerColor: SideToMove | null;
   readonly canMove: boolean;
   readonly moveDueAt: Date | null;
+  readonly liveClock?: {
+    readonly whiteMs: number;
+    readonly blackMs: number;
+    readonly turnStartedAt: Date | null;
+  };
   readonly result: GamePositionResult | null;
   readonly inCheck: boolean;
   readonly moves: readonly GamePositionMove[];
