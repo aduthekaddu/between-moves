@@ -21,6 +21,7 @@ type PositionReader = (
 function responseBody(position: GamePosition) {
   return {
     ...position,
+    ...(position.mode === 'live' ? { serverNow: new Date().toISOString() } : {}),
     moveDueAt: position.moveDueAt?.toISOString() ?? null,
     ...(position.liveClock === undefined
       ? {}
@@ -58,7 +59,8 @@ export async function createGamePositionResponse(
 
   const etag = `"${position.version}"`;
   const headers = { 'Cache-Control': 'private, no-store', ETag: etag };
-  if (matchesIfNoneMatch(request.headers.get('if-none-match'), etag)) {
+  // A live clock changes with server time even when the board version is unchanged.
+  if (position.mode !== 'live' && matchesIfNoneMatch(request.headers.get('if-none-match'), etag)) {
     return new Response(null, { status: 304, headers });
   }
   return Response.json(responseBody(position), { headers });

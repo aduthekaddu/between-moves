@@ -1569,3 +1569,71 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* [BM-042] Keep the clocks visible while players review and submit a Move. */
+.game-shell--live .game-title {
+  padding-top: var(--bm-space-5);
+  padding-bottom: var(--bm-space-4);
+}
+
+.game-shell--live .game-title h1 {
+  font-size: clamp(2rem, 6vw, 2.5rem);
+}
+
+/* Quiet clock cards use the board's paper, wood and brass palette. */
+.live-clocks {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--bm-space-2) 0;
+  background: var(--bm-color-paper);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--bm-space-3);
+  width: min(calc(100% - 32px), 40rem);
+  margin: 0 auto var(--bm-space-4);
+}
+
+.live-clock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bm-space-3);
+  min-width: 0;
+  padding: var(--bm-space-4);
+  border: 1px solid var(--bm-color-wood-light);
+  border-radius: var(--bm-radius-sm);
+  background: var(--bm-color-paper-raised);
+}
+
+.live-clock[data-running='true'] {
+  border-color: var(--bm-color-brass-strong);
+  box-shadow: inset 0 -3px var(--bm-color-brass-strong);
+}
+
+.live-clock__player {
+  display: grid;
+  gap: var(--bm-space-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.live-clock__turn {
+  color: var(--bm-color-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.live-clock [role='timer'] {
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+@media (max-width: 479px) {
+  .live-clock {
+    align-items: start;
+    flex-direction: column;
+  }
+}

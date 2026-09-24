@@ -3,7 +3,7 @@ import { GameNotes } from './game-notes';
 import { MoveEntry } from './move-entry';
 import { ReactionControl } from './reaction-control';
 
-/** House-scoped Game page for both modes; live countdown display follows in BM-042. */
+/** House-scoped Game page for both modes with server-anchored live clocks. */
 export function GameView({
   houseId,
   position,
@@ -16,7 +16,7 @@ export function GameView({
   readonly gameNotes?: GameNotesView | null;
 }) {
   return (
-    <div className="game-shell">
+    <div className={position.mode === 'live' ? 'game-shell game-shell--live' : 'game-shell'}>
       <header className="game-masthead">
         <a href={`/h/${encodeURIComponent(houseId)}`}>← Move shelf</a>
         <span>{position.mode === 'live' ? 'Live Game' : 'Correspondence Game'}</span>
@@ -35,7 +35,14 @@ export function GameView({
             {position.white.name} plays White. {position.black.name} plays Black.
           </p>
         </header>
-        <MoveEntry houseId={houseId} gameId={position.gameId} initial={position} />
+        <MoveEntry
+          houseId={houseId}
+          gameId={position.gameId}
+          initial={{
+            ...position,
+            ...(position.mode === 'live' ? { serverNow: new Date().toISOString() } : {}),
+          }}
+        />
         {position.state === 'completed' ? (
           <>
             <ReactionControl

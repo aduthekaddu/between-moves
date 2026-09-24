@@ -1,6 +1,13 @@
 import type { GamePositionMove, SideToMove } from '@between-moves/domain';
 
 export interface MoveEntryPosition {
+  readonly mode?: 'correspondence' | 'live';
+  readonly serverNow?: string;
+  readonly liveClock?: {
+    readonly whiteMs: number;
+    readonly blackMs: number;
+    readonly turnStartedAt: Date | string | null;
+  };
   readonly currentFen: string;
   readonly currentPly: number;
   readonly sideToMove: SideToMove;
@@ -113,6 +120,26 @@ export function moveEntryPosition(value: unknown): MoveEntryPosition | null {
     !Array.isArray(body.moves)
   ) {
     return null;
+  }
+  if (body.mode === 'live') {
+    const clock = body.liveClock as Record<string, unknown> | null;
+    if (
+      typeof body.serverNow !== 'string' ||
+      Number.isNaN(Date.parse(body.serverNow)) ||
+      clock === null ||
+      typeof clock !== 'object' ||
+      typeof clock.whiteMs !== 'number' ||
+      !Number.isSafeInteger(clock.whiteMs) ||
+      clock.whiteMs < 0 ||
+      typeof clock.blackMs !== 'number' ||
+      !Number.isSafeInteger(clock.blackMs) ||
+      clock.blackMs < 0 ||
+      (clock.turnStartedAt !== null &&
+        (typeof clock.turnStartedAt !== 'string' ||
+          Number.isNaN(Date.parse(clock.turnStartedAt)))) ||
+      (body.state === 'active' && clock.turnStartedAt === null)
+    )
+      return null;
   }
   const moves = body.moves.map((candidate) => {
     if (candidate === null || typeof candidate !== 'object') return null;
