@@ -60,10 +60,14 @@ function dependencies(
 ): SubmitMoveHandlerDependencies {
   const metrics: MoveMetricStubs = {
     observeMoveAcceptLatency: vi.fn(),
+    observeLiveMoveLatency: vi.fn(),
+    incrementLiveFlagFall: vi.fn(),
     incrementMoveConflict: vi.fn(),
     incrementRateLimitHit: vi.fn(),
     snapshot: vi.fn(() => ({
       move_accept_latency_ms: [],
+      live_move_latency_ms: [],
+      live_flag_fall_total: 0,
       move_conflict_total: 0,
       rate_limit_hit_total: 0,
     })),
@@ -86,6 +90,34 @@ function dependencies(
 }
 
 describe('BM-024 submit Move HTTP boundary', () => {
+  it('[BM-041] reports a server flag with no accepted Move and records live metrics', async () => {
+    const deps = dependencies();
+    vi.mocked(deps.submitMove).mockResolvedValue({
+      flagged: true,
+      gameId,
+      houseId,
+      ply: 0,
+      sideToMove: 'white',
+      version: 1,
+      result: 'black_win',
+      clock: { kind: 'live', whiteMs: 0, blackMs: 300_000, turnStartedAt: null },
+      completedNow: true,
+      replayed: false,
+    });
+    const response = await createSubmitMoveHandler(deps)(request(), houseId, gameId);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      state: 'completed',
+      result: 'black_win',
+      resultReason: 'flag',
+      ply: 0,
+      clock: { whiteMs: 0, blackMs: 300_000, turnStartedAt: null },
+    });
+    expect(deps.metrics.incrementLiveFlagFall).toHaveBeenCalledOnce();
+    expect(deps.metrics.observeLiveMoveLatency).toHaveBeenCalledWith(25);
+    expect(deps.metrics.observeMoveAcceptLatency).not.toHaveBeenCalled();
+  });
+
   it('[BM-024] returns and observes the server-derived canonical Move', async () => {
     const deps = dependencies();
     const response = await createSubmitMoveHandler(deps)(request(), houseId, gameId);

@@ -17,5 +17,6 @@ export async function acceptGameSeat(
   return dependencies.acceptances.accept(context, {
     gameId: request.gameId,
     acceptedAt: dependencies.clock.now(),
+    startLiveClockAt: () => dependencies.clock.now(),
   });
 }

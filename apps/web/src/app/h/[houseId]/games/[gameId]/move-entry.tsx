@@ -8,6 +8,7 @@ import { generateClientCommandId } from './client-command-id';
 import {
   acceptedMove,
   conflictPosition,
+  flagFall,
   moveEntryPosition,
   type MoveEntryPosition,
 } from './move-entry-wire';
@@ -205,6 +206,19 @@ export function MoveEntry({
         if (refreshed === null) {
           setAlert('The Move was saved, but the full Game could not be refreshed.');
         }
+        return;
+      }
+
+      if (response.ok && flagFall(body)) {
+        setShownPieces(canonicalPieces);
+        clearProposal();
+        setCanonicalFresh(false);
+        const refreshed = await refreshCanonicalPosition();
+        setMessage(
+          refreshed === null ? 'Time expired. Refresh the Game.' : 'Time expired. Game complete.',
+        );
+        if (refreshed === null)
+          setAlert('The Game completed, but the board could not be refreshed.');
         return;
       }
 

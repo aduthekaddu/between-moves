@@ -24,6 +24,9 @@ interface GamePositionRow extends QueryResultRow {
   readonly black_name: unknown;
   readonly viewer_membership_id: unknown;
   readonly move_due_at: unknown;
+  readonly white_clock_ms: unknown;
+  readonly black_clock_ms: unknown;
+  readonly turn_started_at: unknown;
   readonly result: unknown;
   readonly moves: unknown;
 }
@@ -105,6 +108,7 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
     const gameResult = await this.database.query<GamePositionRow>(
       `select g.id::text as game_id, g.mode, g.state, g.current_fen, g.current_ply,
               g.side_to_move, g.version, g.move_due_at, g.result,
+              g.white_clock_ms, g.black_clock_ms, g.turn_started_at,
               white_member.id::text as white_membership_id,
               coalesce(white_member.display_name_snapshot, white_user.display_name) as white_name,
               black_member.id::text as black_membership_id,
@@ -167,6 +171,15 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
       viewerColor,
       canMove: gameState === 'active' && viewerColor === sideToMove,
       moveDueAt: date(row.move_due_at),
+      ...(row.mode === 'live'
+        ? {
+            liveClock: {
+              whiteMs: integer(row.white_clock_ms, 'white clock'),
+              blackMs: integer(row.black_clock_ms, 'black clock'),
+              turnStartedAt: date(row.turn_started_at),
+            },
+          }
+        : {}),
       result: result(row.result),
       inCheck: lastSan?.endsWith('+') === true || lastSan?.endsWith('#') === true,
       moves,

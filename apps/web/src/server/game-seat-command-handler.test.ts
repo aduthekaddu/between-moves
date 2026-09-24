@@ -62,6 +62,32 @@ const body = {
 };
 
 describe('BM-022 Game seat HTTP boundary', () => {
+  it('[BM-041] accepts a live seat for an identified Night', async () => {
+    const deps = dependencies();
+    const live = {
+      mode: 'live',
+      nightId: '01941f29-7c00-7000-8000-000000000901',
+      clockPolicy: { kind: 'live', initialMs: 180_000, incrementMs: 2_000 },
+      offeredColor: 'white',
+    };
+    expect((await createGameSeatCommandHandler(deps)(request(live), houseId)).status).toBe(201);
+    expect(deps.createGameSeat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...live,
+        houseId,
+        viewer,
+      }),
+    );
+    expect(
+      (
+        await createGameSeatCommandHandler(deps)(
+          request({ ...live, clockPolicy: { ...live.clockPolicy, initialMs: 179_999 } }),
+          houseId,
+        )
+      ).status,
+    ).toBe(422);
+  });
+
   it('creates a direct challenge and logs seat.created without Member details', async () => {
     const deps = dependencies();
     const response = await createGameSeatCommandHandler(deps)(request(body), houseId);

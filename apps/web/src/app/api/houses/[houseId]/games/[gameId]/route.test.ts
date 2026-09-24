@@ -50,6 +50,32 @@ describe('GET /api/houses/{houseId}/games/{gameId}', () => {
     expect(await response.text()).toBe('');
   });
 
+  it('[BM-041] returns the durable live clock snapshot', async () => {
+    const live = {
+      ...position,
+      mode: 'live' as const,
+      moveDueAt: null,
+      liveClock: {
+        whiteMs: 292_000,
+        blackMs: 300_000,
+        turnStartedAt: new Date('2026-09-02T09:00:10.000Z'),
+      },
+    };
+    const response = await createGamePositionResponse(
+      new Request(url),
+      houseId,
+      gameId,
+      vi.fn(async () => live),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      liveClock: {
+        whiteMs: 292_000,
+        blackMs: 300_000,
+        turnStartedAt: '2026-09-02T09:00:10.000Z',
+      },
+    });
+  });
+
   it('[BM-027] returns one neutral problem for an unavailable Game', async () => {
     const response = await createGamePositionResponse(
       new Request(url),

@@ -145,15 +145,23 @@ export function createGameSeatCommandHandler(dependencies: GameSeatCommandHandle
     }
     const idempotencyKey = parsedKey === null ? null : parsedKey.data;
     try {
-      const result = await dependencies.createGameSeat({
+      const common = {
         houseId,
-        mode: parsedBody.data.mode,
-        clockPolicy: parsedBody.data.clockPolicy,
         offeredColor: parsedBody.data.offeredColor,
         intendedMembershipId: parsedBody.data.intendedMembershipId ?? null,
         idempotencyKey,
         viewer,
-      });
+      };
+      const result = await dependencies.createGameSeat(
+        parsedBody.data.mode === 'live'
+          ? {
+              ...common,
+              mode: 'live',
+              nightId: parsedBody.data.nightId,
+              clockPolicy: parsedBody.data.clockPolicy,
+            }
+          : { ...common, mode: 'correspondence', clockPolicy: parsedBody.data.clockPolicy },
+      );
       logCreated(dependencies, request, viewer, result, idempotencyKey, startedAt);
       return Response.json(
         { gameId: result.gameId, openSeatId: result.openSeatId },

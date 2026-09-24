@@ -204,6 +204,8 @@ export type {
   MoveTerminalState,
   PendingDrawOffer,
   AcceptedMoveClock,
+  AcceptedSubmitMoveResult,
+  FlagFallResult,
   MoveConflictSnapshot,
   RulesAdapter,
   RulesAdapterResult,
@@ -220,10 +222,13 @@ export type {
   ResignGameRequest,
 } from './games';
 export {
+  advanceLiveClock,
   creatorColorForOffer,
+  MINIMUM_LIVE_INITIAL_MS,
   MoveConflictError,
   nextMoveDueAt,
   OPEN_SEAT_LIFETIME_MS,
+  validateLiveClockPolicy,
 } from './games';
 export type {
   AcceptGameSeatRequest,

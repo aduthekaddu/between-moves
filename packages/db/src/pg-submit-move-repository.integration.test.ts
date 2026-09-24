@@ -382,7 +382,7 @@ integration('PostgreSQL durable Move repository', () => {
     ).rejects.toMatchObject({ code: 'conflict' });
   });
 
-  it('[BM-024] [DR-MOVE-01] uses the same durable path for a live Game without clock decrement', async () => {
+  it('[BM-041] decrements and increments a live clock in the durable Move transaction', async () => {
     await database.query(
       `update games
           set mode='live', clock_policy=$2, white_clock_ms=300000, black_clock_ms=300000,
@@ -401,7 +401,7 @@ integration('PostgreSQL durable Move repository', () => {
       ply: 1,
       clock: {
         kind: 'live',
-        whiteMs: 300_000,
+        whiteMs: 285_000,
         blackMs: 300_000,
         turnStartedAt: new Date('2026-09-02T09:00:12.000Z'),
       },
@@ -417,9 +417,287 @@ integration('PostgreSQL durable Move repository', () => {
         {
           turn_started_at: new Date('2026-09-02T09:00:12.000Z'),
           move_due_at: null,
-          clock_snapshot: { whiteMs: 300_000, blackMs: 300_000 },
+          clock_snapshot: { whiteMs: 285_000, blackMs: 300_000 },
         },
       ],
+    });
+  });
+
+  it('[BM-041] starts the opponent clock and spends it on the next live Move', async () => {
+    const clock = new FakeClock(receivedAt);
+    await database.query(
+      `update games set mode='live', clock_policy=$2, white_clock_ms=300000,
+        black_clock_ms=300000, turn_started_at=$3, move_due_at=null where id=$1`,
+      [gameId, { kind: 'live', initialMs: 300_000, incrementMs: 2_000 }, clock.now()],
+    );
+    clock.advance(10_000);
+    const first = await repository.submit(context(world, 'white'), {
+      ...input(60, 0, { from: 'e2', to: 'e4' }),
+      receivedAt: clock.now(),
+    });
+    expect(first.clock).toEqual({
+      kind: 'live',
+      whiteMs: 292_000,
+      blackMs: 300_000,
+      turnStartedAt: clock.now(),
+    });
+    clock.advance(25_000);
+    const second = await repository.submit(context(world, 'black'), {
+      ...input(61, 1, { from: 'e7', to: 'e5' }),
+      receivedAt: clock.now(),
+    });
+    expect(second.clock).toEqual({
+      kind: 'live',
+      whiteMs: 292_000,
+      blackMs: 277_000,
+      turnStartedAt: clock.now(),
+    });
+    await expect(
+      database.query(
+        `select white_clock_ms, black_clock_ms, turn_started_at from games where id=$1`,
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [{ white_clock_ms: 292_000, black_clock_ms: 277_000, turn_started_at: clock.now() }],
+    });
+  });
+
+  it('[BM-041] flags at zero without recording or incrementing a late Move', async () => {
+    const clock = new FakeClock(receivedAt);
+    await database.query(
+      `update games set mode='live', clock_policy=$2, white_clock_ms=3000,
+        black_clock_ms=300000, turn_started_at=$3, move_due_at=null where id=$1`,
+      [gameId, { kind: 'live', initialMs: 300_000, incrementMs: 2_000 }, clock.now()],
+    );
+    clock.advance(3_000);
+    await expect(
+      repository.submit(context(world, 'white'), {
+        ...input(62, 0, { from: 'e2', to: 'e4' }),
+        receivedAt: clock.now(),
+      }),
+    ).resolves.toMatchObject({
+      flagged: true,
+      result: 'black_win',
+      clock: { whiteMs: 0, blackMs: 300_000, turnStartedAt: null },
+    });
+    await expect(
+      database.query(
+        `select state, result, result_reason, version, current_ply, white_clock_ms,
+        turn_started_at, season_completion_sequence::text from games where id=$1`,
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          state: 'completed',
+          result: 'black_win',
+          result_reason: 'flag',
+          version: 1,
+          current_ply: 0,
+          white_clock_ms: 0,
+          turn_started_at: null,
+          season_completion_sequence: '1',
+        },
+      ],
+    });
+    await expect(
+      database.query('select count(*)::int as count from moves where game_id=$1', [gameId]),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+    await expect(
+      database.query('select topic from outbox_events where aggregate_id=$1 order by sequence', [
+        gameId,
+      ]),
+    ).resolves.toMatchObject({
+      rows: [{ topic: 'game.completed' }, { topic: 'game.analysis-requested' }],
+    });
+  });
+
+  it('[BM-041] leaves both live clocks untouched when a Move is illegal', async () => {
+    await database.query(
+      `update games set mode='live', clock_policy=$2, white_clock_ms=300000,
+        black_clock_ms=300000, turn_started_at=$3, move_due_at=null where id=$1`,
+      [gameId, { kind: 'live', initialMs: 300_000, incrementMs: 2_000 }, receivedAt],
+    );
+    await expect(
+      repository.submit(context(world, 'white'), input(68, 0, { from: 'e2', to: 'e5' })),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+    });
+    await expect(
+      database.query(
+        'select white_clock_ms, black_clock_ms, turn_started_at from games where id=$1',
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [{ white_clock_ms: 300_000, black_clock_ms: 300_000, turn_started_at: receivedAt }],
+    });
+  });
+
+  it('[BM-041] serializes a live same-turn race so only one clock update wins', async () => {
+    await database.query(
+      `update games set mode='live', clock_policy=$2, white_clock_ms=300000,
+        black_clock_ms=300000, turn_started_at=$3, move_due_at=null where id=$1`,
+      [gameId, { kind: 'live', initialMs: 300_000, incrementMs: 2_000 }, receivedAt],
+    );
+    const outcomes = await Promise.allSettled([
+      repository.submit(context(world, 'white'), input(63, 0, { from: 'e2', to: 'e4' })),
+      repository.submit(context(world, 'white'), input(64, 0, { from: 'd2', to: 'd4' })),
+    ]);
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1);
+    const winning = outcomes.find(
+      (outcome): outcome is PromiseFulfilledResult<Awaited<ReturnType<typeof repository.submit>>> =>
+        outcome.status === 'fulfilled',
+    );
+    if (winning === undefined) throw new Error('No winning live Move');
+    await expect(
+      database.query('select white_clock_ms, current_ply from games where id=$1', [gameId]),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          white_clock_ms: winning.value.clock.kind === 'live' ? winning.value.clock.whiteMs : -1,
+          current_ply: 1,
+        },
+      ],
+    });
+  });
+
+  it('[BM-041] rejects an opponent proposal received before the prior Move commits', async () => {
+    await database.query(
+      `update games set mode='live', clock_policy=$2, white_clock_ms=300000,
+        black_clock_ms=300000, turn_started_at=$3, move_due_at=null where id=$1`,
+      [gameId, { kind: 'live', initialMs: 300_000, incrementMs: 2_000 }, receivedAt],
+    );
+    const blocker = await database.connect();
+    try {
+      await blocker.query('begin');
+      await blocker.query('select id from games where id=$1 for update', [gameId]);
+      const whiteOutcome = repository
+        .submit(context(world, 'white'), input(65, 0, { from: 'e2', to: 'e4' }))
+        .then(
+          (value) => ({ accepted: value }),
+          (error: unknown) => ({ error }),
+        );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const blackOutcome = repository
+        .submit(context(world, 'black'), input(66, 1, { from: 'e7', to: 'e5' }))
+        .then(
+          (value) => ({ accepted: value }),
+          (error: unknown) => ({ error }),
+        );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await blocker.query('commit');
+      expect(await whiteOutcome).toMatchObject({ accepted: { ply: 1 } });
+      expect(await blackOutcome).toMatchObject({
+        error: { code: 'conflict', message: 'Live Move arrived before the turn began' },
+      });
+      await expect(
+        database.query(
+          'select current_ply, white_clock_ms, black_clock_ms from games where id=$1',
+          [gameId],
+        ),
+      ).resolves.toMatchObject({
+        rows: [{ current_ply: 1, white_clock_ms: 237_000, black_clock_ms: 300_000 }],
+      });
+    } finally {
+      await blocker.query('rollback').catch(() => undefined);
+      blocker.release();
+    }
+  });
+
+  it('[BM-041] starts the opponent clock after Move processing and rejects a queued premove', async () => {
+    await database.query(
+      `update games set mode='live', clock_policy=$2, white_clock_ms=300000,
+        black_clock_ms=300000, turn_started_at=$3, move_due_at=null where id=$1`,
+      [gameId, { kind: 'live', initialMs: 300_000, incrementMs: 2_000 }, receivedAt],
+    );
+    const whiteReceived = new Date(receivedAt.getTime() + 10_000);
+    const whiteProcessed = new Date(receivedAt.getTime() + 20_000);
+    const first = await repository.submit(context(world, 'white'), {
+      ...input(69, 0, { from: 'e2', to: 'e4' }),
+      receivedAt: whiteReceived,
+      turnStartAt: () => whiteProcessed,
+    });
+    expect(first.clock).toMatchObject({
+      kind: 'live',
+      whiteMs: 292_000,
+      blackMs: 300_000,
+      turnStartedAt: whiteProcessed,
+    });
+    await expect(
+      database.query(
+        `select g.turn_started_at, m.server_received_at, m.clock_snapshot, o.payload
+         from games g join moves m on m.game_id=g.id
+         join outbox_events o on o.aggregate_id=g.id and o.topic='game.move-accepted'
+        where g.id=$1`,
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          turn_started_at: whiteProcessed,
+          server_received_at: whiteReceived,
+          clock_snapshot: {
+            whiteMs: 292_000,
+            blackMs: 300_000,
+            turnStartedAt: whiteProcessed.toISOString(),
+          },
+          payload: { turnStartedAt: whiteProcessed.toISOString() },
+        },
+      ],
+    });
+    await expect(
+      repository.submit(context(world, 'black'), {
+        ...input(70, 1, { from: 'e7', to: 'e5' }),
+        receivedAt: new Date(receivedAt.getTime() + 15_000),
+      }),
+    ).rejects.toMatchObject({
+      code: 'conflict',
+      message: 'Live Move arrived before the turn began',
+    });
+    await expect(
+      repository.submit(context(world, 'black'), {
+        ...input(71, 1, { from: 'e7', to: 'e5' }),
+        receivedAt: new Date(receivedAt.getTime() + 21_000),
+      }),
+    ).resolves.toMatchObject({ clock: { blackMs: 301_000 } });
+  });
+
+  it('[BM-041] stops the returned clock when a legal live Move ends the Game', async () => {
+    await database.query(
+      `update games set mode='live', clock_policy=$2, white_clock_ms=300000,
+        black_clock_ms=300000, turn_started_at=$3, move_due_at=null where id=$1`,
+      [gameId, { kind: 'live', initialMs: 300_000, incrementMs: 2_000 }, receivedAt],
+    );
+    const command = input(
+      67,
+      0,
+      { from: 'e2', to: 'e4' },
+      id(867),
+      terminalRules(terminalCases[0]),
+    );
+    const accepted = await repository.submit(context(world, 'white'), command);
+    expect(accepted).toMatchObject({
+      completedNow: true,
+      clock: { kind: 'live', whiteMs: 235_000, blackMs: 300_000, turnStartedAt: null },
+    });
+    await expect(
+      database.query(
+        `select turn_started_at, m.clock_snapshot from games g
+        join moves m on m.game_id=g.id where g.id=$1`,
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        {
+          turn_started_at: null,
+          clock_snapshot: { whiteMs: 235_000, blackMs: 300_000, turnStartedAt: null },
+        },
+      ],
+    });
+    await expect(repository.submit(context(world, 'white'), command)).resolves.toMatchObject({
+      replayed: true,
+      clock: { turnStartedAt: null },
     });
   });
 

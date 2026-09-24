@@ -51,7 +51,11 @@ describe('BM-023 Open-seat acceptance', () => {
       houseId,
       viewer,
     );
-    expect(deps.acceptances.accept).toHaveBeenCalledWith(context, { gameId, acceptedAt });
+    expect(deps.acceptances.accept).toHaveBeenCalledWith(context, {
+      gameId,
+      acceptedAt,
+      startLiveClockAt: expect.any(Function),
+    });
   });
 
   it('[BM-023] denies a non-Member before the acceptance repository runs', async () => {

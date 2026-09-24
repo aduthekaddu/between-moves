@@ -3,7 +3,7 @@ import { GameNotes } from './game-notes';
 import { MoveEntry } from './move-entry';
 import { ReactionControl } from './reaction-control';
 
-/** [BM-027] [UX-RESP-02] Narrow-first correspondence Game page. */
+/** House-scoped Game page for both modes; live countdown display follows in BM-042. */
 export function GameView({
   houseId,
   position,
@@ -19,11 +19,13 @@ export function GameView({
     <div className="game-shell">
       <header className="game-masthead">
         <a href={`/h/${encodeURIComponent(houseId)}`}>← Move shelf</a>
-        <span>Correspondence Game</span>
+        <span>{position.mode === 'live' ? 'Live Game' : 'Correspondence Game'}</span>
       </header>
       <main className="game-main">
         <header className="game-title">
-          <p className="house-home__eyebrow">Correspondence board</p>
+          <p className="house-home__eyebrow">
+            {position.mode === 'live' ? 'Live board' : 'Correspondence board'}
+          </p>
           <h1>
             {position.white.name} <span aria-hidden="true">—</span>{' '}
             <span className="visually-hidden">versus </span>
@@ -33,14 +35,7 @@ export function GameView({
             {position.white.name} plays White. {position.black.name} plays Black.
           </p>
         </header>
-        {position.mode === 'correspondence' ? (
-          <MoveEntry houseId={houseId} gameId={position.gameId} initial={position} />
-        ) : (
-          <section className="game-live-notice" aria-labelledby="live-title">
-            <h2 id="live-title">Live Game</h2>
-            <p>Live Move entry is available on wider screens during Between Moves Night.</p>
-          </section>
-        )}
+        <MoveEntry houseId={houseId} gameId={position.gameId} initial={position} />
         {position.state === 'completed' ? (
           <>
             <ReactionControl

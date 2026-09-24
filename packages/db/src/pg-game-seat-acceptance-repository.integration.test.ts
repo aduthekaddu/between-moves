@@ -15,6 +15,7 @@ const seasonId = '01941f29-7c00-7000-8000-000000000701';
 const charterId = '01941f29-7c00-7000-8000-000000000702';
 const gameId = '01941f29-7c00-7000-8000-000000000703';
 const openSeatId = '01941f29-7c00-7000-8000-000000000704';
+const nightId = '01941f29-7c00-7000-8000-000000000705';
 const createdAt = new Date('2026-09-02T08:00:00.000Z');
 const acceptedAt = new Date('2026-09-02T09:00:00.000Z');
 
@@ -28,7 +29,9 @@ function context(world: TwoHousesWithMembers, actor: 'creator' | 'owner' | 'swit
   return fakeAuthorizationContext({ viewerId, houseId: world.first.houseId });
 }
 
-function creationInput(overrides: Partial<GameSeatCreationInput> = {}): GameSeatCreationInput {
+function creationInput(
+  overrides: Partial<Extract<GameSeatCreationInput, { mode: 'correspondence' }>> = {},
+): GameSeatCreationInput {
   return {
     gameId,
     openSeatId,
@@ -196,5 +199,35 @@ integration('PostgreSQL Game seat acceptance repository', () => {
         [gameId],
       ),
     ).resolves.toMatchObject({ rows: [{ game_state: 'waiting', seat_state: 'open' }] });
+  });
+
+  it('[BM-041] starts the white live clock when the second seat is accepted', async () => {
+    await database.query(
+      `insert into house_nights (id, house_id, season_id, scheduled_start, scheduled_end,
+        state, started_at) values ($1,$2,$3,$4,$5,'live',$4)`,
+      [nightId, world.first.houseId, seasonId, createdAt, new Date('2026-09-02T11:00:00.000Z')],
+    );
+    await creation.create(context(world, 'creator'), {
+      ...creationInput(),
+      mode: 'live',
+      nightId,
+      clockPolicy: { kind: 'live', initialMs: 300_000, incrementMs: 2_000 },
+    });
+    const activatedAt = new Date(acceptedAt.getTime() + 7_000);
+    await expect(
+      acceptance.accept(context(world, 'owner'), {
+        gameId,
+        acceptedAt,
+        startLiveClockAt: () => activatedAt,
+      }),
+    ).resolves.toMatchObject({ moveDueAt: null, turnStartedAt: activatedAt });
+    await expect(
+      database.query(
+        'select turn_started_at, white_clock_ms, black_clock_ms from games where id=$1',
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [{ turn_started_at: activatedAt, white_clock_ms: 300_000, black_clock_ms: 300_000 }],
+    });
   });
 });

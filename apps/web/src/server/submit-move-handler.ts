@@ -93,7 +93,7 @@ function responseClock(result: SubmitMoveResult): Readonly<Record<string, unknow
     : {
         whiteMs: result.clock.whiteMs,
         blackMs: result.clock.blackMs,
-        turnStartedAt: result.clock.turnStartedAt.toISOString(),
+        turnStartedAt: result.clock.turnStartedAt?.toISOString() ?? null,
       };
 }
 
@@ -166,7 +166,11 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
     try {
       const result = await dependencies.submitMove(command);
       const durationMs = Math.max(0, dependencies.clock.now().getTime() - startedAt.getTime());
-      dependencies.metrics.observeMoveAcceptLatency(durationMs);
+      if (result.clock.kind === 'live') {
+        dependencies.metrics.observeLiveMoveLatency(durationMs);
+      }
+      if (result.flagged) dependencies.metrics.incrementLiveFlagFall();
+      else dependencies.metrics.observeMoveAcceptLatency(durationMs);
       try {
         dependencies.logger.log({
           level: 'info',
@@ -175,7 +179,7 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
           houseId: result.houseId,
           gameId: result.gameId,
           commandId: command.clientCommandId,
-          event: 'game.move-accepted',
+          event: result.flagged ? 'game.flag-fall' : 'game.move-accepted',
           outcome: 'success',
           durationMs,
           data: { ply: result.ply, replayed: result.replayed },
@@ -195,12 +199,25 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
             event: 'game.completed',
             outcome: 'success',
             durationMs,
-            data: { source: 'move' },
+            data: { source: result.flagged ? 'flag' : 'move' },
           });
         } catch {
           // A committed completion remains successful when diagnostics are unavailable.
         }
       }
+      if (result.flagged)
+        return Response.json(
+          {
+            state: 'completed',
+            result: result.result,
+            resultReason: 'flag',
+            ply: result.ply,
+            sideToMove: result.sideToMove,
+            version: result.version,
+            clock: responseClock(result),
+          },
+          { status: 200, headers: { 'Cache-Control': 'private, no-store' } },
+        );
       return Response.json(
         {
           ply: result.ply,

@@ -81,6 +81,7 @@ describe('BM-024 durable Move command', () => {
       completedEventId: '01941f29-7c00-7000-8000-000000000503',
       analysisEventId: '01941f29-7c00-7000-8000-000000000504',
       receivedAt,
+      turnStartAt: expect.any(Function),
       rules: deps.rules,
     });
   });

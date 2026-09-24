@@ -14,6 +14,8 @@ interface AcceptanceRow extends QueryResultRow {
   readonly white_membership_id: unknown;
   readonly black_membership_id: unknown;
   readonly clock_policy: unknown;
+  readonly mode: unknown;
+  readonly night_id: unknown;
   readonly seat_state: unknown;
   readonly creator_membership_id: unknown;
   readonly intended_membership_id: unknown;
@@ -55,6 +57,7 @@ async function lockedAcceptanceRow(
   const result = await client.query<AcceptanceRow>(
     `select actor.id::text as actor_membership_id, g.state as game_state,
             g.white_membership_id::text, g.black_membership_id::text, g.clock_policy,
+            g.mode, g.night_id::text,
             s.state as seat_state, s.creator_membership_id::text,
             s.intended_membership_id::text, s.expires_at
        from games g
@@ -109,17 +112,38 @@ async function acceptInTransaction(
   }
   const whiteMembershipId = priorWhite ?? actorMembershipId;
   const blackMembershipId = priorBlack ?? actorMembershipId;
-  const moveDueAt = new Date(
-    input.acceptedAt.getTime() + perMoveHours(row.clock_policy) * 60 * 60 * 1_000,
-  );
-  if (Number.isNaN(moveDueAt.getTime())) throw new Error('Invalid Game move deadline');
+  const moveDueAt =
+    row.mode === 'correspondence'
+      ? new Date(input.acceptedAt.getTime() + perMoveHours(row.clock_policy) * 60 * 60 * 1_000)
+      : null;
+  if (moveDueAt !== null && Number.isNaN(moveDueAt.getTime()))
+    throw new Error('Invalid Game move deadline');
+  if (row.mode === 'live') {
+    const night = await client.query(
+      `select 1 from house_nights where id=$1 and house_id=$2 and state='live' for share`,
+      [row.night_id, context.houseId],
+    );
+    if (night.rowCount !== 1) throw new DomainError('conflict', 'Night is no longer live');
+  }
+  const turnStartedAt =
+    row.mode === 'live'
+      ? new Date(
+          Math.max(
+            input.acceptedAt.getTime(),
+            (input.startLiveClockAt?.() ?? input.acceptedAt).getTime(),
+          ),
+        )
+      : null;
+  if (turnStartedAt !== null && Number.isNaN(turnStartedAt.getTime())) {
+    throw new Error('Invalid live Game start time');
+  }
 
   await client.query(
     `update games
         set state = 'active', white_membership_id = $3, black_membership_id = $4,
-            move_due_at = $5
+            move_due_at = $5, turn_started_at = $6
       where id = $1 and house_id = $2 and state = 'waiting'`,
-    [input.gameId, context.houseId, whiteMembershipId, blackMembershipId, moveDueAt],
+    [input.gameId, context.houseId, whiteMembershipId, blackMembershipId, moveDueAt, turnStartedAt],
   );
   await client.query(
     `update open_seats set state = 'accepted'
@@ -132,6 +156,7 @@ async function acceptInTransaction(
     whiteMembershipId,
     blackMembershipId,
     moveDueAt,
+    ...(turnStartedAt === null ? {} : { turnStartedAt }),
     state: 'active',
   };
 }

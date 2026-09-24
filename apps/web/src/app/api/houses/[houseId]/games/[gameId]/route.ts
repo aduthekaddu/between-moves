@@ -22,6 +22,15 @@ function responseBody(position: GamePosition) {
   return {
     ...position,
     moveDueAt: position.moveDueAt?.toISOString() ?? null,
+    ...(position.liveClock === undefined
+      ? {}
+      : {
+          liveClock: {
+            whiteMs: position.liveClock.whiteMs,
+            blackMs: position.liveClock.blackMs,
+            turnStartedAt: position.liveClock.turnStartedAt?.toISOString() ?? null,
+          },
+        }),
   };
 }
 

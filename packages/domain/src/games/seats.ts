@@ -2,7 +2,7 @@ import type { AuthenticatedViewer } from '../identity';
 import type { AuthorizeHouseAction, IdGenerator } from '../houses';
 import type { AuthorizationContext } from '../shared/authorization-context';
 import type { Clock } from '../shared/clock';
-import type { CorrespondenceClockPolicy } from './clock-policy';
+import type { CorrespondenceClockPolicy, LiveClockPolicy } from './clock-policy';
 
 export type GameColor = 'white' | 'black';
 export type OfferedGameColor = GameColor | 'any';
@@ -11,21 +11,27 @@ export interface GameSeatColorChooser {
   choose(): GameColor;
 }
 
-export interface CreateGameSeatRequest {
+interface CreateGameSeatBase {
   readonly houseId: string;
-  readonly mode: 'correspondence';
-  readonly clockPolicy: CorrespondenceClockPolicy;
   readonly offeredColor: OfferedGameColor;
   readonly intendedMembershipId: string | null;
   readonly idempotencyKey: string | null;
   readonly viewer: AuthenticatedViewer;
 }
 
-export interface GameSeatCreationInput {
+export type CreateGameSeatRequest = CreateGameSeatBase &
+  (
+    | {
+        readonly mode: 'correspondence';
+        readonly clockPolicy: CorrespondenceClockPolicy;
+        readonly nightId?: never;
+      }
+    | { readonly mode: 'live'; readonly clockPolicy: LiveClockPolicy; readonly nightId: string }
+  );
+
+interface GameSeatCreationBase {
   readonly gameId: string;
   readonly openSeatId: string;
-  readonly mode: 'correspondence';
-  readonly clockPolicy: CorrespondenceClockPolicy;
   readonly offeredColor: OfferedGameColor;
   readonly creatorColor: GameColor;
   readonly intendedMembershipId: string | null;
@@ -34,6 +40,16 @@ export interface GameSeatCreationInput {
   readonly createdAt: Date;
   readonly expiresAt: Date;
 }
+
+export type GameSeatCreationInput = GameSeatCreationBase &
+  (
+    | {
+        readonly mode: 'correspondence';
+        readonly clockPolicy: CorrespondenceClockPolicy;
+        readonly nightId?: never;
+      }
+    | { readonly mode: 'live'; readonly clockPolicy: LiveClockPolicy; readonly nightId: string }
+  );
 
 export interface GameSeatCreationResult {
   readonly gameId: string;

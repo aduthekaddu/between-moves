@@ -3,6 +3,7 @@ import {
   DomainError,
   MoveConflictError,
   RetryableTransactionError,
+  advanceLiveClock,
   nextMoveDueAt,
   type AcceptedMoveClock,
   type AuthorizationContext,
@@ -12,6 +13,7 @@ import {
   type SubmitMoveInput,
   type SubmitMoveRepository,
   type SubmitMoveResult,
+  type FlagFallResult,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { enqueueOutboxEvent } from './enqueue-outbox-event';
@@ -123,7 +125,13 @@ async function loadGame(
   return row;
 }
 
-function clockAfterMove(row: LockedGameRow, clockPolicy: ClockPolicy, at: Date): AcceptedMoveClock {
+function clockAfterMove(
+  row: LockedGameRow,
+  clockPolicy: ClockPolicy,
+  at: Date,
+  nextTurnAt: Date,
+  turn: SideToMove,
+): AcceptedMoveClock {
   if (clockPolicy.kind === 'correspondence') {
     return {
       kind: 'correspondence',
@@ -133,11 +141,23 @@ function clockAfterMove(row: LockedGameRow, clockPolicy: ClockPolicy, at: Date):
   if (!(row.turn_started_at instanceof Date)) {
     throw new Error('Invalid live Game turn timestamp');
   }
+  const advanced = advanceLiveClock(
+    {
+      whiteMs: integer(row.white_clock_ms, 'white clock'),
+      blackMs: integer(row.black_clock_ms, 'black clock'),
+      turnStartedAt: row.turn_started_at,
+    },
+    turn,
+    at,
+    clockPolicy.incrementMs,
+    true,
+    nextTurnAt,
+  );
   return {
     kind: 'live',
-    whiteMs: integer(row.white_clock_ms, 'white clock'),
-    blackMs: integer(row.black_clock_ms, 'black clock'),
-    turnStartedAt: at,
+    whiteMs: advanced.whiteMs,
+    blackMs: advanced.blackMs,
+    turnStartedAt: advanced.turnStartedAt,
   };
 }
 
@@ -178,17 +198,33 @@ async function replay(
     clock =
       game.state === 'completed' && ply === integer(game.current_ply, 'current ply')
         ? { kind: 'correspondence', moveDueAt: null }
-        : clockAfterMove(game, clockPolicy, row.server_received_at);
+        : clockAfterMove(
+            game,
+            clockPolicy,
+            row.server_received_at,
+            row.server_received_at,
+            side(game.side_to_move),
+          );
   } else {
     if (row.clock_snapshot === null || typeof row.clock_snapshot !== 'object') {
       throw new Error('Invalid live Move clock snapshot');
     }
     const snapshot = row.clock_snapshot as Record<string, unknown>;
+    const storedTurn = snapshot.turnStartedAt;
+    const turnStartedAt =
+      storedTurn === null
+        ? null
+        : typeof storedTurn === 'string'
+          ? new Date(storedTurn)
+          : row.server_received_at;
+    if (turnStartedAt !== null && Number.isNaN(turnStartedAt.getTime())) {
+      throw new Error('Invalid live Move turn timestamp');
+    }
     clock = {
       kind: 'live',
       whiteMs: integer(snapshot.whiteMs, 'white clock'),
       blackMs: integer(snapshot.blackMs, 'black clock'),
-      turnStartedAt: row.server_received_at,
+      turnStartedAt,
     };
   }
   return {
@@ -231,11 +267,79 @@ async function positionHistory(
   return [initialFen, ...result.rows.map((row) => text(row.fen_after, 'history FEN'))];
 }
 
+async function flagFall(
+  client: PoolClient,
+  context: AuthorizationContext,
+  input: SubmitMoveInput,
+  game: LockedGameRow,
+  clock: { readonly whiteMs: number; readonly blackMs: number; readonly turnStartedAt: Date },
+  turn: SideToMove,
+  version: number,
+  currentPly: number,
+): Promise<FlagFallResult> {
+  const result = turn === 'white' ? 'black_win' : 'white_win';
+  const firstSequence = bigInteger(game.outbox_sequence, 'outbox sequence') + 1n;
+  const completionSequence = await allocateGameCompletionSequence(
+    client,
+    context.houseId,
+    text(game.season_id, 'Season id'),
+  );
+  await client.query(
+    `update games set state='completed', result=$3, result_reason='flag', completed_at=$4,
+      version=$5, white_clock_ms=$6, black_clock_ms=$7, turn_started_at=null,
+      draw_offer_membership_id=null, draw_offer_ply=null,
+      outbox_sequence=$8, season_completion_sequence=$9
+      where id=$1 and house_id=$2`,
+    [
+      input.gameId,
+      context.houseId,
+      result,
+      clock.turnStartedAt,
+      version + 1,
+      clock.whiteMs,
+      clock.blackMs,
+      (firstSequence + 1n).toString(),
+      completionSequence.toString(),
+    ],
+  );
+  await enqueueGameCompletionEvents(
+    context,
+    {
+      gameId: input.gameId,
+      completedEventId: input.completedEventId,
+      analysisEventId: input.analysisEventId,
+      result,
+      resultReason: 'flag',
+      completedAt: clock.turnStartedAt,
+      firstSequence,
+    },
+    client,
+  );
+  return {
+    flagged: true,
+    gameId: input.gameId,
+    houseId: context.houseId,
+    ply: currentPly,
+    sideToMove: turn,
+    version: version + 1,
+    result,
+    clock: { kind: 'live', whiteMs: clock.whiteMs, blackMs: clock.blackMs, turnStartedAt: null },
+    completedNow: true,
+    replayed: false,
+  };
+}
+
 async function submitInTransaction(
   client: PoolClient,
   context: AuthorizationContext,
   input: SubmitMoveInput,
 ): Promise<SubmitMoveResult> {
+  // A live proposal must observe its turn before waiting on another Move's row lock.
+  // The locked read alone could otherwise turn a queued opponent proposal into a premove.
+  const observed = await client.query<{ readonly mode: unknown; readonly current_ply: unknown }>(
+    'select mode, current_ply from games where id=$1 and house_id=$2',
+    [input.gameId, context.houseId],
+  );
   const game = await loadGame(client, context, input.gameId);
   const clockPolicy = policy(game.clock_policy);
   if (game.mode !== clockPolicy.kind) throw new Error('Game mode and clock policy do not match');
@@ -247,6 +351,13 @@ async function submitInTransaction(
   }
   const repeated = await replay(client, context, input, game, clockPolicy);
   if (repeated !== null) return repeated;
+
+  if (
+    observed.rows[0]?.mode === 'live' &&
+    input.expectedPly > integer(observed.rows[0].current_ply, 'observed ply')
+  ) {
+    throw new DomainError('conflict', 'Live Move arrived before the turn began');
+  }
 
   const currentPly = integer(game.current_ply, 'current ply');
   const version = integer(game.version, 'version');
@@ -261,6 +372,29 @@ async function submitInTransaction(
   const expectedActor = side(game.side_to_move) === 'white' ? whiteMembershipId : blackMembershipId;
   if (actorMembershipId !== expectedActor) {
     throw new AuthorizationDeniedError('Only the seated Member on turn can submit a Move');
+  }
+
+  const turn = side(game.side_to_move);
+  if (clockPolicy.kind === 'live') {
+    if (!(game.turn_started_at instanceof Date))
+      throw new Error('Invalid live Game turn timestamp');
+    if (input.receivedAt.getTime() < game.turn_started_at.getTime()) {
+      throw new DomainError('conflict', 'Live Move arrived before the turn began');
+    }
+    const advanced = advanceLiveClock(
+      {
+        whiteMs: integer(game.white_clock_ms, 'white clock'),
+        blackMs: integer(game.black_clock_ms, 'black clock'),
+        turnStartedAt: game.turn_started_at,
+      },
+      turn,
+      input.receivedAt,
+      clockPolicy.incrementMs,
+      false,
+    );
+    if (advanced.flagged) {
+      return flagFall(client, context, input, game, advanced, turn, version, currentPly);
+    }
   }
 
   const applied = input.rules.applyMove(
@@ -279,16 +413,7 @@ async function submitInTransaction(
     throw new Error('Rules adapter returned inconsistent terminal state');
   }
 
-  const acceptedClock = clockAfterMove(game, clockPolicy, input.receivedAt);
   const terminal = completion(applied.terminalReason, applied.sideToMove);
-  const moveDueAt =
-    acceptedClock.kind === 'correspondence' && terminal.state === 'active'
-      ? acceptedClock.moveDueAt
-      : null;
-  const clockSnapshot =
-    acceptedClock.kind === 'live'
-      ? { whiteMs: acceptedClock.whiteMs, blackMs: acceptedClock.blackMs }
-      : null;
   const nextVersion = version + 1;
   const firstEventSequence = bigInteger(game.outbox_sequence, 'outbox sequence') + 1n;
   const lastEventSequence = firstEventSequence + (terminal.state === 'completed' ? 2n : 0n);
@@ -299,6 +424,25 @@ async function submitInTransaction(
           context.houseId,
           text(game.season_id, 'Season id'),
         )
+      : null;
+
+  const acceptedClock = clockAfterMove(game, clockPolicy, input.receivedAt, input.receivedAt, turn);
+  const eventAt = input.receivedAt;
+  const resultClock: AcceptedMoveClock =
+    acceptedClock.kind === 'live' && terminal.state === 'completed'
+      ? { ...acceptedClock, turnStartedAt: null }
+      : acceptedClock;
+  const moveDueAt =
+    acceptedClock.kind === 'correspondence' && terminal.state === 'active'
+      ? acceptedClock.moveDueAt
+      : null;
+  const clockSnapshot =
+    acceptedClock.kind === 'live'
+      ? {
+          whiteMs: acceptedClock.whiteMs,
+          blackMs: acceptedClock.blackMs,
+          turnStartedAt: null,
+        }
       : null;
 
   await client.query(
@@ -328,7 +472,8 @@ async function submitInTransaction(
             move_due_at=$11,
             draw_offer_membership_id=null, draw_offer_ply=null,
             turn_started_at=case when mode='live' and $7='active' then $12::timestamptz else null end,
-            outbox_sequence=$13, season_completion_sequence=$14
+            white_clock_ms=$13, black_clock_ms=$14,
+            outbox_sequence=$15, season_completion_sequence=$16
       where id=$1 and house_id=$2`,
     [
       input.gameId,
@@ -340,9 +485,11 @@ async function submitInTransaction(
       terminal.state,
       terminal.result,
       terminal.resultReason,
-      terminal.state === 'completed' ? input.receivedAt : null,
+      terminal.state === 'completed' ? eventAt : null,
       moveDueAt,
-      input.receivedAt,
+      null,
+      acceptedClock.kind === 'live' ? acceptedClock.whiteMs : null,
+      acceptedClock.kind === 'live' ? acceptedClock.blackMs : null,
       lastEventSequence.toString(),
       completionSequence?.toString() ?? null,
     ],
@@ -357,7 +504,11 @@ async function submitInTransaction(
       ? moveDueAt === null
         ? {}
         : { moveDueAt: moveDueAt.toISOString() }
-      : { whiteMs: acceptedClock.whiteMs, blackMs: acceptedClock.blackMs }),
+      : {
+          whiteMs: acceptedClock.whiteMs,
+          blackMs: acceptedClock.blackMs,
+          turnStartedAt: null,
+        }),
   };
   await enqueueOutboxEvent(
     {
@@ -367,8 +518,8 @@ async function submitInTransaction(
       sequence: firstEventSequence,
       houseId: context.houseId,
       payload,
-      availableAt: input.receivedAt,
-      occurredAt: input.receivedAt,
+      availableAt: eventAt,
+      occurredAt: eventAt,
     },
     client,
   );
@@ -381,11 +532,40 @@ async function submitInTransaction(
         analysisEventId: input.analysisEventId,
         result: terminal.result,
         resultReason: terminal.resultReason,
-        completedAt: input.receivedAt,
+        completedAt: eventAt,
         firstSequence: firstEventSequence + 1n,
       },
       client,
     );
+  }
+  let finalClock: AcceptedMoveClock = resultClock;
+  if (terminal.state === 'active' && resultClock.kind === 'live') {
+    const sampled = input.turnStartAt?.() ?? input.receivedAt;
+    const turnStartedAt = new Date(Math.max(input.receivedAt.getTime(), sampled.getTime()));
+    if (Number.isNaN(turnStartedAt.getTime())) throw new Error('Invalid live Game turn start');
+    // Stamp all public snapshots as the final write before commit.
+    const stamped = await client.query(
+      `with game_clock as (
+         update games set turn_started_at=$3
+           where id=$1 and house_id=$2 returning id
+       ), move_clock as (
+         update moves set clock_snapshot=jsonb_set(clock_snapshot, '{turnStartedAt}', to_jsonb($4::text))
+           where id=$5 and game_id=$1 and house_id=$2 returning id
+       )
+       update outbox_events
+          set payload=jsonb_set(payload, '{turnStartedAt}', to_jsonb($4::text))
+        where id=$6 and aggregate_id=$1 and house_id=$2`,
+      [
+        input.gameId,
+        context.houseId,
+        turnStartedAt,
+        turnStartedAt.toISOString(),
+        input.moveId,
+        input.outboxEventId,
+      ],
+    );
+    if (stamped.rowCount !== 1) throw new Error('Live Move clock event was not stamped');
+    finalClock = { ...resultClock, turnStartedAt };
   }
   return {
     gameId: input.gameId,
@@ -397,9 +577,7 @@ async function submitInTransaction(
     sideToMove: applied.sideToMove,
     version: nextVersion,
     clock:
-      acceptedClock.kind === 'correspondence'
-        ? { kind: 'correspondence', moveDueAt }
-        : acceptedClock,
+      acceptedClock.kind === 'correspondence' ? { kind: 'correspondence', moveDueAt } : finalClock,
     completedNow: terminal.state === 'completed',
     replayed: false,
   };

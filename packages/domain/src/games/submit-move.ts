@@ -24,6 +24,8 @@ export interface SubmitMoveInput {
   readonly completedEventId: string;
   readonly analysisEventId: string;
   readonly receivedAt: Date;
+  /** Sample server time near the end of a successful live Move transaction. */
+  readonly turnStartAt?: () => Date;
   readonly rules: RulesAdapter;
 }
 
@@ -33,10 +35,11 @@ export type AcceptedMoveClock =
       readonly kind: 'live';
       readonly whiteMs: number;
       readonly blackMs: number;
-      readonly turnStartedAt: Date;
+      readonly turnStartedAt: Date | null;
     };
 
-export interface SubmitMoveResult {
+export interface AcceptedSubmitMoveResult {
+  readonly flagged?: false;
   readonly gameId: string;
   readonly houseId: string;
   readonly ply: number;
@@ -49,6 +52,26 @@ export interface SubmitMoveResult {
   readonly completedNow: boolean;
   readonly replayed: boolean;
 }
+
+export interface FlagFallResult {
+  readonly flagged: true;
+  readonly gameId: string;
+  readonly houseId: string;
+  readonly ply: number;
+  readonly sideToMove: SideToMove;
+  readonly version: number;
+  readonly result: 'white_win' | 'black_win';
+  readonly clock: {
+    readonly kind: 'live';
+    readonly whiteMs: number;
+    readonly blackMs: number;
+    readonly turnStartedAt: null;
+  };
+  readonly completedNow: true;
+  readonly replayed: false;
+}
+
+export type SubmitMoveResult = AcceptedSubmitMoveResult | FlagFallResult;
 
 export interface MoveConflictSnapshot {
   readonly version: number;

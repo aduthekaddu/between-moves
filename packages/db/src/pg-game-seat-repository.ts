@@ -99,8 +99,31 @@ async function createInTransaction(
   );
   const seasonRow = season.rows[0];
   if (seasonRow === undefined) throw new DomainError('conflict', 'House has no active Season');
-  if (seasonRow.correspondence_pace_hours !== input.clockPolicy.perMoveHours) {
+  if (
+    input.mode === 'correspondence' &&
+    seasonRow.correspondence_pace_hours !== input.clockPolicy.perMoveHours
+  ) {
     throw new DomainError('validation_failed', 'Clock policy must match the active Charter');
+  }
+  if (input.mode === 'live') {
+    if (
+      !Number.isInteger(input.clockPolicy.initialMs) ||
+      input.clockPolicy.initialMs < 180_000 ||
+      input.clockPolicy.initialMs > 2_147_483_647 ||
+      !Number.isInteger(input.clockPolicy.incrementMs) ||
+      input.clockPolicy.incrementMs < 0 ||
+      input.clockPolicy.incrementMs > 2_147_483_647
+    ) {
+      throw new DomainError('validation_failed', 'Live clock control is invalid');
+    }
+    const night = await client.query<{ readonly season_id: string }>(
+      `select season_id::text from house_nights
+        where id=$1 and house_id=$2 and state='live' for share`,
+      [input.nightId, context.houseId],
+    );
+    if (night.rows[0]?.season_id !== seasonRow.id) {
+      throw new DomainError('conflict', 'Live Game requires an active Night in this Season');
+    }
   }
   if (input.intendedMembershipId !== null && !lockedMembershipIds.has(input.intendedMembershipId)) {
     throw new DomainError('not_found', 'Intended Member is unavailable');
@@ -110,16 +133,19 @@ async function createInTransaction(
   const blackMembershipId = input.creatorColor === 'black' ? creatorMembershipId : null;
   await client.query(
     `insert into games
-      (id, house_id, season_id, mode, state, white_membership_id, black_membership_id,
-       clock_policy, created_at)
-     values ($1, $2, $3, 'correspondence', 'waiting', $4, $5, $6, $7)`,
+      (id, house_id, season_id, night_id, mode, state, white_membership_id, black_membership_id,
+       clock_policy, white_clock_ms, black_clock_ms, created_at)
+     values ($1, $2, $3, $4, $5, 'waiting', $6, $7, $8, $9, $9, $10)`,
     [
       input.gameId,
       context.houseId,
       stringValue(seasonRow.id, 'Season id'),
+      input.mode === 'live' ? input.nightId : null,
+      input.mode,
       whiteMembershipId,
       blackMembershipId,
       input.clockPolicy,
+      input.mode === 'live' ? input.clockPolicy.initialMs : null,
       input.createdAt,
     ],
   );
