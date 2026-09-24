@@ -55,3 +55,47 @@ describe('Move-entry wire responses', () => {
     expect(moveEntryPosition({ ...snapshot, moves: [{ ply: 'one' }] })).toBeNull();
   });
 });
+
+describe('[BM-042] live snapshot validation', () => {
+  const snapshot = {
+    mode: 'live',
+    serverNow: '2026-09-24T12:00:10.000Z',
+    currentFen: '8/8/8/8/4P3/8/8/8 b - - 0 1',
+    currentPly: 1,
+    sideToMove: 'black',
+    version: 1,
+    state: 'active',
+    viewerColor: 'white',
+    white: { name: 'Ada' },
+    black: { name: 'Bea' },
+    moveDueAt: null,
+    result: null,
+    inCheck: false,
+    moves: [],
+    liveClock: { whiteMs: 180_000, blackMs: 180_000, turnStartedAt: '2026-09-24T12:00:00.000Z' },
+  };
+  it('preserves the server clock anchor and completed balances', () => {
+    expect(moveEntryPosition(snapshot)).toEqual(snapshot);
+    expect(
+      moveEntryPosition({
+        ...snapshot,
+        state: 'completed',
+        liveClock: { ...snapshot.liveClock, turnStartedAt: null },
+      }),
+    ).not.toBeNull();
+  });
+  it.each([
+    { serverNow: undefined },
+    { serverNow: 'invalid' },
+    { liveClock: undefined },
+    { liveClock: null },
+    ...[-1, NaN, Infinity, 0.5].map((whiteMs) => ({
+      liveClock: { ...snapshot.liveClock, whiteMs },
+    })),
+    { liveClock: { ...snapshot.liveClock, blackMs: -1 } },
+    { liveClock: { ...snapshot.liveClock, turnStartedAt: 'invalid' } },
+    { liveClock: { ...snapshot.liveClock, turnStartedAt: null } },
+  ])('rejects unsafe or incomplete clock state: %j', (patch) => {
+    expect(moveEntryPosition({ ...snapshot, ...patch })).toBeNull();
+  });
+});

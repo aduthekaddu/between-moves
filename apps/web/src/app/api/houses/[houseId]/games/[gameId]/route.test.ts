@@ -62,12 +62,14 @@ describe('GET /api/houses/{houseId}/games/{gameId}', () => {
       },
     };
     const response = await createGamePositionResponse(
-      new Request(url),
+      new Request(url, { headers: { 'If-None-Match': '"7"' } }),
       houseId,
       gameId,
       vi.fn(async () => live),
     );
+    expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
+      serverNow: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       liveClock: {
         whiteMs: 292_000,
         blackMs: 300_000,

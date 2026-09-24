@@ -40,6 +40,9 @@ describe('Game view', () => {
     );
     expect(html).toContain('Live Game');
     expect(html).toContain('Live board');
+    expect(html.match(/role="timer"/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="White time remaining"');
+    expect(html).toContain('aria-live="off"');
     expect(html).toContain('Submit Move');
   });
 

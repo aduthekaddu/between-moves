@@ -1,10 +1,19 @@
 'use client';
 
 import type { ChessMoveProposal, ChessSquare, SideToMove } from '@between-moves/domain';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { applyOptimisticMove, parseFenPieces, type BoardPieces } from './board-model';
 import { ChessBoard } from './chess-board';
 import { generateClientCommandId } from './client-command-id';
+import { LiveClocks } from './live/live-clocks';
 import {
   acceptedMove,
   conflictPosition,
@@ -54,7 +63,13 @@ function subscribeToConnectivity(change: () => void): () => void {
   };
 }
 
-/** [BM-027] [PR-JRN-05] Client proposal flow reconciled only from submitMove responses. */
+function subscribeToLiveViewport(change: () => void): () => void {
+  const query = window.matchMedia('(min-width: 768px)');
+  query.addEventListener('change', change);
+  return () => query.removeEventListener('change', change);
+}
+
+/** [BM-027] [BM-042] Proposals and clocks reconcile from authoritative server snapshots. */
 export function MoveEntry({
   houseId,
   gameId,
@@ -65,6 +80,18 @@ export function MoveEntry({
   readonly initial: MoveEntryPosition;
 }) {
   const [position, setPosition] = useState(initial);
+  const live = initial.mode === 'live';
+  const liveViewport = useSyncExternalStore(
+    subscribeToLiveViewport,
+    () => window.matchMedia('(min-width: 768px)').matches,
+    () => true,
+  );
+  const refreshRequest = useRef<{
+    controller: AbortController;
+    promise: Promise<MoveEntryPosition | null>;
+  } | null>(null);
+  const commandInFlight = useRef(false);
+  const positionVersion = useRef(initial.version);
   const [canonicalPieces, setCanonicalPieces] = useState(() => parseFenPieces(initial.currentFen));
   const [shownPieces, setShownPieces] = useState(canonicalPieces);
   const [from, setFrom] = useState<ChessSquare | null>(null);
@@ -85,6 +112,7 @@ export function MoveEntry({
   const confirmRef = useRef<HTMLButtonElement>(null);
 
   const canMove =
+    (!live || liveViewport) &&
     canonicalFresh &&
     position.state === 'active' &&
     position.viewerColor === position.sideToMove &&
@@ -134,33 +162,91 @@ export function MoveEntry({
     setMessage(`Move proposed from ${from} to ${square}. Review and submit.`);
   }
 
-  async function refreshCanonicalPosition(): Promise<MoveEntryPosition | null> {
-    setCanonicalFresh(false);
-    setRefreshNeeded(false);
-    try {
-      const response = await fetch(
-        `/api/houses/${encodeURIComponent(houseId)}/games/${encodeURIComponent(gameId)}`,
-        { cache: 'no-store' },
-      );
-      const body: unknown = await response.json();
-      const refreshed = response.ok ? moveEntryPosition(body) : null;
-      if (refreshed === null) throw new Error('Canonical Game response is invalid');
-      const pieces = parseFenPieces(refreshed.currentFen);
-      setPosition(refreshed);
-      setCanonicalPieces(pieces);
-      setShownPieces(pieces);
-      setCanonicalFresh(true);
-      setAlert((current) =>
-        current === 'The Move was saved, but the full Game could not be refreshed.' ? '' : current,
-      );
-      return refreshed;
-    } catch {
-      setRefreshNeeded(true);
-      return null;
-    }
-  }
+  const refreshCanonicalPosition = useCallback(
+    (background = false): Promise<MoveEntryPosition | null> => {
+      if (refreshRequest.current !== null) return refreshRequest.current.promise;
+      const controller = new AbortController();
+      if (!background) setCanonicalFresh(false);
+      setRefreshNeeded(false);
+      const promise = (async () => {
+        try {
+          const response = await fetch(
+            `/api/houses/${encodeURIComponent(houseId)}/games/${encodeURIComponent(gameId)}`,
+            {
+              cache: 'no-store',
+              signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
+            },
+          );
+          const body: unknown = await response.json();
+          const refreshed = response.ok ? moveEntryPosition(body) : null;
+          if (refreshed === null || (live && refreshed.mode !== 'live')) {
+            throw new Error('Canonical Game response is invalid');
+          }
+          if (controller.signal.aborted) return null;
+          if (refreshed.version < positionVersion.current) throw new Error('Stale Game snapshot');
+          const pieces = parseFenPieces(refreshed.currentFen);
+          if (!background || refreshed.version !== positionVersion.current) {
+            setFrom(null);
+            setTo(null);
+            setPromotion('q');
+            setRetry(null);
+          }
+          positionVersion.current = refreshed.version;
+          setPosition(refreshed);
+          setCanonicalPieces(pieces);
+          setShownPieces(pieces);
+          setCanonicalFresh(true);
+          setAlert((current) =>
+            current === 'The Move was saved, but the full Game could not be refreshed.' ||
+            current === 'Could not sync the Game. Refresh before moving.'
+              ? ''
+              : current,
+          );
+          return refreshed;
+        } catch {
+          if (controller.signal.aborted) return null;
+          setCanonicalFresh(false);
+          setRefreshNeeded(true);
+          setAlert('Could not sync the Game. Refresh before moving.');
+          return null;
+        } finally {
+          if (refreshRequest.current?.controller === controller) refreshRequest.current = null;
+        }
+      })();
+      refreshRequest.current = { controller, promise };
+      return promise;
+    },
+    [gameId, houseId, live],
+  );
+
+  const reconcileLive = useEffectEvent((background: boolean) => {
+    if (document.visibilityState === 'hidden' || commandInFlight.current || !navigator.onLine)
+      return;
+    void refreshCanonicalPosition(background);
+  });
+
+  useEffect(() => {
+    if (!live) return;
+    const refocus = () => reconcileLive(false);
+    refocus(); // Replace the SSR snapshot after hydration, including any delivery delay.
+    window.addEventListener('focus', refocus);
+    document.addEventListener('visibilitychange', refocus);
+    const timer =
+      position.state === 'active' ? window.setInterval(() => reconcileLive(true), 3000) : undefined;
+    return () => {
+      window.removeEventListener('focus', refocus);
+      document.removeEventListener('visibilitychange', refocus);
+      window.clearInterval(timer);
+      refreshRequest.current?.controller.abort();
+      refreshRequest.current = null;
+    };
+  }, [live, position.state]);
 
   async function sendMove(command: SubmitCommand) {
+    if (commandInFlight.current || (live && !liveViewport)) return;
+    commandInFlight.current = true;
+    refreshRequest.current?.controller.abort();
+    refreshRequest.current = null;
     setPending(true);
     setAlert('');
     setRetry(null);
@@ -182,17 +268,25 @@ export function MoveEntry({
       const body: unknown = await response.json();
       const accepted = response.ok ? acceptedMove(body) : null;
       if (accepted !== null) {
+        positionVersion.current = accepted.version;
         const pieces = parseFenPieces(accepted.fenAfter);
         setCanonicalPieces(pieces);
         setShownPieces(pieces);
-        setPosition((current) => ({
-          ...current,
-          currentFen: accepted.fenAfter,
-          currentPly: accepted.ply,
-          sideToMove: accepted.sideToMove,
-          version: accepted.version,
-          moves: [...current.moves, { ply: accepted.ply, uci: accepted.uci, san: accepted.san }],
-        }));
+        setPosition((current) =>
+          live
+            ? current
+            : {
+                ...current,
+                currentFen: accepted.fenAfter,
+                currentPly: accepted.ply,
+                sideToMove: accepted.sideToMove,
+                version: accepted.version,
+                moves: [
+                  ...current.moves,
+                  { ply: accepted.ply, uci: accepted.uci, san: accepted.san },
+                ],
+              },
+        );
         clearProposal();
         setCanonicalFresh(false);
         const refreshed = await refreshCanonicalPosition();
@@ -228,7 +322,7 @@ export function MoveEntry({
           const pieces = parseFenPieces(conflict.currentFen);
           setCanonicalPieces(pieces);
           setShownPieces(pieces);
-          setPosition((current) => ({ ...current, ...conflict }));
+          setPosition((current) => (live ? current : { ...current, ...conflict }));
         } else {
           setShownPieces(canonicalPieces);
         }
@@ -255,6 +349,7 @@ export function MoveEntry({
       setRetry(command);
       setAlert("Something went wrong. Your last change wasn't saved — try again.");
     } finally {
+      commandInFlight.current = false;
       setPending(false);
     }
   }
@@ -293,7 +388,7 @@ export function MoveEntry({
             <button
               type="button"
               onClick={() => void sendMove(retry)}
-              disabled={pending || offline}
+              disabled={pending || offline || (live && !liveViewport)}
             >
               Try again
             </button>
@@ -305,6 +400,15 @@ export function MoveEntry({
           )}
         </div>
       )}
+
+      {live ? (
+        <LiveClocks key={`${position.serverNow}:${position.version}`} position={position} />
+      ) : null}
+      {live && !liveViewport ? (
+        <p className="game-live-notice">
+          Live play needs a screen at least 768 px wide. You can follow the Game here.
+        </p>
+      ) : null}
 
       <ChessBoard
         pieces={shownPieces}
@@ -325,6 +429,8 @@ export function MoveEntry({
           <p>{"Only seated players can move. You're spectating."}</p>
         ) : position.state !== 'active' ? (
           <p>This Game is no longer accepting Moves.</p>
+        ) : live && !liveViewport ? (
+          <p>Widen your window to make a Move.</p>
         ) : !canonicalFresh ? (
           <p>Refreshing the canonical Game before Move entry resumes.</p>
         ) : !canMove && !offline ? (
