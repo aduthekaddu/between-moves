@@ -1,6 +1,6 @@
 import { HmacRealtimeTokenIssuer, inspectRealtimeCapabilityToken } from '@between-moves/adapters';
 import { createRealtimeMetricStubs } from '@between-moves/observability';
-import type { GamePosition } from '@between-moves/domain';
+import { AuthenticationRequiredError, type GamePosition } from '@between-moves/domain';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createGameRealtimeStreamHandler,
@@ -79,6 +79,26 @@ function streamRequest(token: string) {
 }
 
 describe('BM-043 Game subscriptions', () => {
+  it('rejects invalid token requests before issuing a capability', async () => {
+    const deps = setup();
+    const handler = createGameRealtimeTokenHandler(deps);
+    const wrongOrigin = new Request(tokenRequest(), {
+      headers: { origin: 'https://other.example.test' },
+    });
+    expect((await handler(wrongOrigin, houseId, gameId)).status).toBe(403);
+    expect((await handler(tokenRequest(), 'bad-house', gameId)).status).toBe(404);
+
+    vi.mocked(deps.requireViewer).mockRejectedValueOnce(new AuthenticationRequiredError());
+    expect((await handler(tokenRequest(), houseId, gameId)).status).toBe(401);
+    vi.mocked(deps.limitToken).mockResolvedValueOnce({ allowed: false, retryAfterSeconds: 12 });
+    const limited = await handler(tokenRequest(), houseId, gameId);
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get('retry-after')).toBe('12');
+    vi.mocked(deps.readPosition).mockResolvedValueOnce({ ...position, mode: 'correspondence' });
+    expect((await handler(tokenRequest(), houseId, gameId)).status).toBe(404);
+    expect(deps.metrics.snapshot().realtime_token_issue_total).toBe(0);
+  });
+
   it('issues a subscribe-only token to a non-seated House Member and streams a Game event', async () => {
     const deps = setup();
     const response = await createGameRealtimeTokenHandler(deps)(tokenRequest(), houseId, gameId);
@@ -172,5 +192,30 @@ describe('BM-043 Game subscriptions', () => {
         )
       ).status,
     ).toBe(403);
+  });
+
+  it('rejects an absent, expired, or forged stream capability', async () => {
+    const deps = setup();
+    const handler = createGameRealtimeStreamHandler(deps);
+    expect(
+      (
+        await handler(
+          new Request(`https://app.example.test/api/houses/${houseId}/games/${gameId}/live`),
+          houseId,
+          gameId,
+        )
+      ).status,
+    ).toBe(403);
+    expect((await handler(streamRequest('forged'), houseId, gameId)).status).toBe(403);
+    const expired = deps.issueToken({
+      houseId,
+      gameId,
+      clientId: userId,
+      displayName: 'Mira',
+      issuedAt: new Date(now.getTime() - 60 * 60_000),
+    });
+    expect((await handler(streamRequest(expired.token), houseId, gameId)).status).toBe(403);
+    vi.mocked(deps.requireViewer).mockRejectedValueOnce(new AuthenticationRequiredError());
+    expect((await handler(streamRequest(expired.token), houseId, gameId)).status).toBe(401);
   });
 });
