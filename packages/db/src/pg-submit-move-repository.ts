@@ -2,6 +2,7 @@ import {
   AuthorizationDeniedError,
   DomainError,
   MoveConflictError,
+  NonSeatedMoveError,
   RetryableTransactionError,
   advanceLiveClock,
   nextMoveDueAt,
@@ -347,7 +348,7 @@ async function submitInTransaction(
   const whiteMembershipId = nullableText(game.white_membership_id, 'white membership id');
   const blackMembershipId = nullableText(game.black_membership_id, 'black membership id');
   if (actorMembershipId !== whiteMembershipId && actorMembershipId !== blackMembershipId) {
-    throw new AuthorizationDeniedError('Only a seated Member can submit a Move');
+    throw new NonSeatedMoveError();
   }
   const repeated = await replay(client, context, input, game, clockPolicy);
   if (repeated !== null) return repeated;

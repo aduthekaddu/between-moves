@@ -2,7 +2,7 @@ import type { AuthenticatedViewer } from '../identity';
 import type { AuthorizeHouseAction, IdGenerator } from '../houses';
 import type { AuthorizationContext } from '../shared/authorization-context';
 import type { Clock } from '../shared/clock';
-import { DomainError } from '../shared/errors';
+import { AuthorizationDeniedError, DomainError } from '../shared/errors';
 import type { ChessMoveProposal, RulesAdapter, SideToMove } from './rules-adapter';
 
 export interface SubmitMoveRequest {
@@ -85,6 +85,13 @@ export class MoveConflictError extends DomainError {
 
   constructor(readonly current: MoveConflictSnapshot) {
     super('move_conflict', 'Move was submitted against a stale Game position');
+  }
+}
+
+/** A House Member who has no seat on this Game cannot submit or replay Moves. */
+export class NonSeatedMoveError extends AuthorizationDeniedError {
+  constructor() {
+    super('Only a seated Member can submit a Move');
   }
 }
 

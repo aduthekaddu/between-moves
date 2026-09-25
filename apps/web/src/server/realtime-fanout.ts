@@ -2,17 +2,21 @@ import type { RealtimePublishEnvelope } from '@between-moves/adapters';
 
 export type RealtimeFanoutListener = (envelope: RealtimePublishEnvelope) => void;
 
-/** [BM-038] Process-local Night subscribers; hosted providers replace this in production scale-out. */
+/** [BM-038] [BM-043] Process-local Night and Game subscribers. */
 export class RealtimeNightFanout {
   private readonly listeners = new Map<string, Set<RealtimeFanoutListener>>();
+  private readonly gameListeners = new Map<string, Set<RealtimeFanoutListener>>();
   private readonly seen = new Set<string>();
 
-  publish(nightId: string, envelope: RealtimePublishEnvelope): 'published' | 'duplicate' {
+  publish(nightId: string | null, envelope: RealtimePublishEnvelope): 'published' | 'duplicate' {
     if (this.seen.has(envelope.id)) return 'duplicate';
     this.seen.add(envelope.id);
-    const listeners = this.listeners.get(nightId);
+    const listeners = nightId === null ? undefined : this.listeners.get(nightId);
     if (listeners !== undefined) {
       for (const listener of listeners) listener(envelope);
+    }
+    if (envelope.name === 'game.move-accepted' || envelope.name === 'game.completed') {
+      for (const listener of this.gameListeners.get(envelope.channel) ?? []) listener(envelope);
     }
     return 'published';
   }
@@ -24,6 +28,16 @@ export class RealtimeNightFanout {
     return () => {
       listeners.delete(listener);
       if (listeners.size === 0) this.listeners.delete(nightId);
+    };
+  }
+
+  subscribeGame(channel: string, listener: RealtimeFanoutListener): () => void {
+    const listeners = this.gameListeners.get(channel) ?? new Set<RealtimeFanoutListener>();
+    listeners.add(listener);
+    this.gameListeners.set(channel, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) this.gameListeners.delete(channel);
     };
   }
 }

@@ -39,7 +39,9 @@ async function seedActiveGame(): Promise<void> {
   await database.pool.query(
     `insert into sessions (id, user_id, token, expires_at)
      values ($1, $2, $3, '2099-01-01T00:00:00.000Z'),
-            ($4, $5, $6, '2099-01-01T00:00:00.000Z')`,
+            ($4, $5, $6, '2099-01-01T00:00:00.000Z'),
+            ($7, $8, $9, '2099-01-01T00:00:00.000Z'),
+            ($10, $11, $12, '2099-01-01T00:00:00.000Z')`,
     [
       seeded.first.member.sessionId,
       seeded.first.member.userId,
@@ -47,6 +49,12 @@ async function seedActiveGame(): Promise<void> {
       seeded.first.nonOwner.sessionId,
       seeded.first.nonOwner.userId,
       seeded.first.nonOwner.sessionToken,
+      seeded.switchingMember.sessionId,
+      seeded.switchingMember.userId,
+      seeded.switchingMember.sessionToken,
+      seeded.second.member.sessionId,
+      seeded.second.member.userId,
+      seeded.second.member.sessionToken,
     ],
   );
   await database.pool.query(
@@ -198,6 +206,83 @@ test.describe('[BM-042] live board', () => {
     await expectNoBlockingAxeViolations(page);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: testInfo.outputPath('live-after-move.png'), fullPage: true });
+  });
+
+  test('[BM-043] a spectator subscribes and sees live moves without move controls', async ({
+    page,
+  }, testInfo) => {
+    const seeded = fixture();
+    await page.setViewportSize({ width: 768, height: 900 });
+    await page.setExtraHTTPHeaders({
+      cookie: await signedCookie(seeded.switchingMember.sessionToken),
+    });
+    const tokenResponse = page.waitForResponse((response) =>
+      response.url().endsWith(`/api/houses/${seeded.first.houseId}/games/${gameId}/realtime-token`),
+    );
+    const streamResponse = page.waitForResponse((response) =>
+      response.url().includes(`/api/houses/${seeded.first.houseId}/games/${gameId}/live?token=`),
+    );
+    const response = await page.goto(`/h/${seeded.first.houseId}/games/${gameId}/live`);
+    expect(response?.status()).toBe(200);
+    expect((await tokenResponse).status()).toBe(200);
+    expect((await streamResponse).status()).toBe(200);
+    await expect(page.getByText("Only seated players can move. You're spectating.")).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Submit Move' })).toHaveCount(0);
+    await expect(page.locator('[role="gridcell"][aria-disabled="true"]')).toHaveCount(64);
+    await page.screenshot({
+      path: testInfo.outputPath('spectator-before-move.png'),
+      fullPage: true,
+    });
+
+    const rejected = await page.request.post(
+      `/api/houses/${seeded.first.houseId}/games/${gameId}/moves`,
+      {
+        headers: {
+          cookie: await signedCookie(seeded.switchingMember.sessionToken),
+          origin: 'http://127.0.0.1:3100',
+        },
+        data: {
+          expectedPly: 0,
+          clientCommandId: '01941f29-7c00-7000-8000-000000000953',
+          move: { from: 'e2', to: 'e4' },
+        },
+      },
+    );
+    expect(rejected.status()).toBe(403);
+    await seedMoveThroughCommand(page, {
+      sessionToken: seeded.first.member.sessionToken,
+      expectedPly: 0,
+      clientCommandId: '01941f29-7c00-7000-8000-000000000954',
+      from: 'e2',
+      to: 'e4',
+    });
+    await expect(page.locator('[data-square="e4"]')).toHaveAttribute(
+      'aria-label',
+      'e4, white pawn',
+      { timeout: 7000 },
+    );
+    await expect(page.getByRole('button', { name: 'Submit Move' })).toHaveCount(0);
+    await page.screenshot({
+      path: testInfo.outputPath('spectator-after-move.png'),
+      fullPage: true,
+    });
+    const saved = await database!.pool.query('select current_ply from games where id = $1', [
+      gameId,
+    ]);
+    expect(saved.rows[0].current_ply).toBe(1);
+  });
+
+  test('[BM-043] another House cannot spectate or subscribe to the live Game', async ({ page }) => {
+    const seeded = fixture();
+    const cookie = await signedCookie(seeded.second.member.sessionToken);
+    await page.setExtraHTTPHeaders({ cookie });
+    const pageResponse = await page.goto(`/h/${seeded.first.houseId}/games/${gameId}/live`);
+    expect(pageResponse?.status()).toBe(404);
+    const token = await page.request.post(
+      `/api/houses/${seeded.first.houseId}/games/${gameId}/realtime-token`,
+      { headers: { cookie, origin: 'http://127.0.0.1:3100' } },
+    );
+    expect(token.status()).toBe(404);
   });
 
   test('refocus replaces a drifted clock with server time despite a wrong device date', async ({

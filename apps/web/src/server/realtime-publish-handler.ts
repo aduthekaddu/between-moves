@@ -85,7 +85,11 @@ export async function handleRealtimePublish(
     return new Response(null, { status: 422 });
   }
   const nightId = await nightIdForEnvelope(parsed.data, dependencies.database);
-  if (nightId === null) {
+  if (
+    nightId === null &&
+    parsed.data.name !== GAME_MOVE_ACCEPTED_TOPIC &&
+    parsed.data.name !== GAME_COMPLETED_TOPIC
+  ) {
     return new Response(null, { status: 204 });
   }
   const result = dependencies.fanout.publish(nightId, parsed.data);

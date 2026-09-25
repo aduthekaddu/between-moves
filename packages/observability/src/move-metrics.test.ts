@@ -9,6 +9,7 @@ describe('BM-024 Move metrics', () => {
     metrics.observeLiveMoveLatency(31);
     metrics.incrementLiveFlagFall();
     metrics.incrementMoveConflict();
+    metrics.incrementRejectedMoveFromSpectator();
     metrics.incrementRateLimitHit();
 
     expect(metrics.snapshot()).toEqual({
@@ -16,6 +17,7 @@ describe('BM-024 Move metrics', () => {
       live_move_latency_ms: [31],
       live_flag_fall_total: 1,
       move_conflict_total: 1,
+      rejected_move_from_spectator_total: 1,
       rate_limit_hit_total: 1,
     });
   });

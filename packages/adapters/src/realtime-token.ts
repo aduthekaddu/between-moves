@@ -226,6 +226,30 @@ export class HmacRealtimeTokenIssuer implements RealtimeTokenIssuer {
     this.random = options.random ?? (() => randomBytes(16));
   }
 
+  /** [BM-043] A Game subscription has no Night presence or publish capability. */
+  issueGame(input: {
+    readonly houseId: string;
+    readonly gameId: string;
+    readonly clientId: string;
+    readonly displayName: string;
+    readonly issuedAt: Date;
+  }): { readonly token: string; readonly expiresAt: Date; readonly channel: string } {
+    const iat = unixSeconds(input.issuedAt);
+    const expiresAt = new Date(input.issuedAt.getTime() + this.ttlMs);
+    const channel = opaqueRealtimeChannelId(this.serverKey, 'game', input.houseId, input.gameId);
+    const token = encodeToken(this.serverKey, {
+      v: TOKEN_VERSION,
+      appId: this.appId,
+      clientId: input.clientId,
+      iat,
+      exp: unixSeconds(expiresAt),
+      nonce: this.random().toString('base64url'),
+      capability: { [channel]: realtimeChannelOperations('game') },
+      presence: { displayName: input.displayName },
+    });
+    return { token, expiresAt, channel };
+  }
+
   issue(input: RealtimeTokenIssueInput): IssuedRealtimeToken {
     const iat = unixSeconds(input.issuedAt);
     const expiresAt = new Date(input.issuedAt.getTime() + this.ttlMs);

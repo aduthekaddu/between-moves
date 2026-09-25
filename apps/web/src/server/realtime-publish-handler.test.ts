@@ -92,4 +92,31 @@ describe('Realtime publish HTTP seam', () => {
     expect(published.status).toBe(204);
     expect(listener).toHaveBeenCalledOnce();
   });
+
+  it('[BM-043] fans out a Game Move even when the Game has no Night', async () => {
+    const gameId = '01941f29-7c00-7000-8000-000000000942';
+    const gameEnvelope = {
+      ...envelope,
+      name: 'game.move-accepted',
+      data: { houseId: envelope.data.houseId, aggregateId: gameId, san: 'e4' },
+    };
+    const fanout = new RealtimeNightFanout();
+    const listener = vi.fn();
+    fanout.subscribeGame(gameEnvelope.channel, listener);
+    const body = JSON.stringify(gameEnvelope);
+    const response = await handleRealtimePublish(
+      new Request('https://app.example.test/api/internal/realtime/publish', {
+        method: 'POST',
+        headers: { 'x-realtime-signature': signRealtimePublish(serverKey, body) },
+        body,
+      }),
+      {
+        serverKey,
+        database: { query: vi.fn(async () => ({ rows: [{ night_id: null }] })) } as unknown as Pool,
+        fanout,
+      },
+    );
+    expect(response.status).toBe(204);
+    expect(listener).toHaveBeenCalledWith(gameEnvelope);
+  });
 });

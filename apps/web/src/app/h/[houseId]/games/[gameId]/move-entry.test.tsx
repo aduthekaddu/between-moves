@@ -39,6 +39,17 @@ let matches: boolean;
 let changeViewport: (() => void) | undefined;
 let fetchMock: ReturnType<typeof vi.fn>;
 
+class FakeEventSource {
+  static instances: FakeEventSource[] = [];
+  onopen: (() => void) | null = null;
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  close = vi.fn();
+
+  constructor(readonly url: string) {
+    FakeEventSource.instances.push(this);
+  }
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -47,6 +58,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 beforeEach(() => {
+  FakeEventSource.instances = [];
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   matches = true;
   vi.stubGlobal('matchMedia', () => ({
@@ -92,6 +104,56 @@ async function proposeMove() {
 }
 
 describe('live move entry', () => {
+  it('[BM-043] subscribes a spectator and reconciles only scoped Game events', async () => {
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const token = {
+      token: 'scoped-spectator-token',
+      channel: 'opaque-game-channel',
+      expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+    };
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        json(url.endsWith('/realtime-token') ? token : { ...initial, viewerColor: null }),
+      ),
+    );
+    await mount({ ...initial, viewerColor: null });
+
+    const source = FakeEventSource.instances[0];
+    expect(source?.url).toContain('/games/game/live?token=scoped-spectator-token');
+    expect(container.textContent).toContain("Only seated players can move. You're spectating.");
+    expect(container.querySelector('.move-entry__submit')).toBeNull();
+    expect(container.querySelectorAll('[role="gridcell"][aria-disabled="true"]')).toHaveLength(64);
+
+    const readsOnAttach = fetchMock.mock.calls.length;
+    await act(async () => source?.onopen?.());
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(readsOnAttach);
+
+    const event = (channel: string, houseId = 'house', gameId = 'game') =>
+      new MessageEvent<string>('message', {
+        data: JSON.stringify({
+          channel,
+          name: 'game.move-accepted',
+          data: { houseId, aggregateId: gameId },
+        }),
+      });
+    const readsBefore = fetchMock.mock.calls.length;
+    await act(async () => source?.onmessage?.(event('wrong-channel')));
+    await act(async () => source?.onmessage?.(event(token.channel, 'other-house')));
+    await act(async () => source?.onmessage?.(new MessageEvent('message', { data: '{' })));
+    expect(fetchMock).toHaveBeenCalledTimes(readsBefore);
+
+    fetchMock.mockResolvedValue(json({ ...afterMove, viewerColor: null }));
+    await act(async () => source?.onmessage?.(event(token.channel)));
+    expect(container.querySelector('[data-square="e4"]')?.getAttribute('aria-label')).toBe(
+      'e4, white pawn',
+    );
+    expect(container.textContent).toContain('Move list (1)');
+    expect(container.querySelector('.move-entry__submit')).toBeNull();
+
+    await act(async () => root.render(<></>));
+    expect(source?.close).toHaveBeenCalledOnce();
+  });
+
   it('reconciles an opponent move and clears an outdated selection', async () => {
     await mount();
     await click('[data-square="e2"]');

@@ -28,4 +28,15 @@ describe('Realtime Night fan-out', () => {
     ).toBe('published');
     expect(listener).toHaveBeenCalledOnce();
   });
+
+  it('[BM-043] delivers Game updates to Game subscribers without a Night', () => {
+    const fanout = new RealtimeNightFanout();
+    const listener = vi.fn();
+    const unsubscribe = fanout.subscribeGame(envelope.channel, listener);
+    expect(fanout.publish(null, envelope)).toBe('published');
+    expect(listener).toHaveBeenCalledWith(envelope);
+    unsubscribe();
+    fanout.publish(null, { ...envelope, id: '01941f29-7c00-7000-8000-000000000503' });
+    expect(listener).toHaveBeenCalledOnce();
+  });
 });
