@@ -3,6 +3,7 @@ import {
   AuthorizationDeniedError,
   DomainError,
   MoveConflictError,
+  NonSeatedMoveError,
   type AuthenticatedViewer,
 } from '@between-moves/domain';
 import type { MoveMetricStubs, StructuredLogger } from '@between-moves/observability';
@@ -63,12 +64,14 @@ function dependencies(
     observeLiveMoveLatency: vi.fn(),
     incrementLiveFlagFall: vi.fn(),
     incrementMoveConflict: vi.fn(),
+    incrementRejectedMoveFromSpectator: vi.fn(),
     incrementRateLimitHit: vi.fn(),
     snapshot: vi.fn(() => ({
       move_accept_latency_ms: [],
       live_move_latency_ms: [],
       live_flag_fall_total: 0,
       move_conflict_total: 0,
+      rejected_move_from_spectator_total: 0,
       rate_limit_hit_total: 0,
     })),
   };
@@ -208,6 +211,20 @@ describe('BM-024 submit Move HTTP boundary', () => {
     expect(limitedResponse.status).toBe(429);
     expect(limitedResponse.headers.get('retry-after')).toBe('12');
     expect(limited.submitMove).not.toHaveBeenCalled();
+  });
+
+  it('[BM-043] counts a non-seated Move rejection without accepting the command', async () => {
+    const deps = dependencies({
+      submitMove: vi.fn(async () => {
+        throw new NonSeatedMoveError();
+      }),
+    });
+    const response = await createSubmitMoveHandler(deps)(request(), houseId, gameId);
+    expect(response.status).toBe(403);
+    expect(deps.metrics.incrementRejectedMoveFromSpectator).toHaveBeenCalledOnce();
+    expect(deps.logger.log).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'game.move-rejected', outcome: 'rejected' }),
+    );
   });
 
   it('[BM-024] [DR-SEC-03] rejects bad origin, anonymous, and malformed Move input', async () => {

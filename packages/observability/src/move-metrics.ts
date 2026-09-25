@@ -3,6 +3,7 @@ export interface MoveMetricSnapshot {
   readonly live_move_latency_ms: readonly number[];
   readonly live_flag_fall_total: number;
   readonly move_conflict_total: number;
+  readonly rejected_move_from_spectator_total: number;
   readonly rate_limit_hit_total: number;
 }
 
@@ -11,6 +12,7 @@ export interface MoveMetricStubs {
   observeLiveMoveLatency(milliseconds: number): void;
   incrementLiveFlagFall(): void;
   incrementMoveConflict(): void;
+  incrementRejectedMoveFromSpectator(): void;
   incrementRateLimitHit(): void;
   snapshot(): MoveMetricSnapshot;
 }
@@ -21,6 +23,7 @@ export function createMoveMetricStubs(): MoveMetricStubs {
   const liveLatencies: number[] = [];
   let flags = 0;
   let conflicts = 0;
+  let spectatorRejections = 0;
   let rateLimitHits = 0;
   return {
     observeMoveAcceptLatency(milliseconds) {
@@ -35,6 +38,9 @@ export function createMoveMetricStubs(): MoveMetricStubs {
     incrementMoveConflict() {
       conflicts += 1;
     },
+    incrementRejectedMoveFromSpectator() {
+      spectatorRejections += 1;
+    },
     incrementRateLimitHit() {
       rateLimitHits += 1;
     },
@@ -44,6 +50,7 @@ export function createMoveMetricStubs(): MoveMetricStubs {
         live_move_latency_ms: [...liveLatencies],
         live_flag_fall_total: flags,
         move_conflict_total: conflicts,
+        rejected_move_from_spectator_total: spectatorRejections,
         rate_limit_hit_total: rateLimitHits,
       };
     },

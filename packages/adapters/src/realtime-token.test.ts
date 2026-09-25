@@ -25,6 +25,19 @@ function issuer() {
 }
 
 describe('HmacRealtimeTokenIssuer', () => {
+  it('[BM-043] scopes a spectator token to one Game subscription', () => {
+    const issued = issuer().issueGame({
+      houseId,
+      gameId,
+      clientId: '01941f29-7c00-7000-8000-000000000101',
+      displayName: 'Mira',
+      issuedAt,
+    });
+    const payload = inspectRealtimeCapabilityToken(issued.token, serverKey, issuedAt);
+    expect(payload.capability).toEqual({ [issued.channel]: ['subscribe'] });
+    expect(issued.channel).not.toContain(gameId);
+    expect(issued.channel).not.toContain(houseId);
+  });
   it('[BM-037] mints a token scoped to opaque Night and Game channels', () => {
     const issued = issuer().issue({
       houseId,

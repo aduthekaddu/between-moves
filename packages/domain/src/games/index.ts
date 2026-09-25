@@ -43,7 +43,7 @@ export type {
   GameSeatCreationResult,
   OfferedGameColor,
 } from './seats';
-export { MoveConflictError } from './submit-move';
+export { MoveConflictError, NonSeatedMoveError } from './submit-move';
 export type {
   AcceptedMoveClock,
   AcceptedSubmitMoveResult,

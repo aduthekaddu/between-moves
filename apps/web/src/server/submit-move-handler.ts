@@ -4,6 +4,7 @@ import {
   DomainError,
   HouseAuthorizationDeniedError,
   MoveConflictError,
+  NonSeatedMoveError,
   type AuthenticatedViewer,
   type ChessMoveProposal,
   type SubmitMoveRequest,
@@ -43,6 +44,9 @@ function requestId(request: Request): string {
 }
 
 function commandError(request: Request, error: unknown, metrics: MoveMetricStubs): Response | null {
+  if (error instanceof NonSeatedMoveError) {
+    metrics.incrementRejectedMoveFromSpectator();
+  }
   if (error instanceof MoveConflictError) {
     metrics.incrementMoveConflict();
     return problem(

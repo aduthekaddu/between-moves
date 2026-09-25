@@ -1,5 +1,6 @@
 import {
   MoveConflictError,
+  NonSeatedMoveError,
   type ChessMoveProposal,
   type ChessSquare,
   type RulesAdapter,
@@ -355,7 +356,7 @@ integration('PostgreSQL durable Move repository', () => {
     ).rejects.toMatchObject({ code: 'authorization_denied' });
     await expect(
       repository.submit(context(world, 'spectator'), input(8, 0, { from: 'e2', to: 'e4' })),
-    ).rejects.toMatchObject({ code: 'authorization_denied' });
+    ).rejects.toBeInstanceOf(NonSeatedMoveError);
     const otherHouse = fakeAuthorizationContext({
       viewerId: world.second.member.userId,
       houseId: world.second.houseId,

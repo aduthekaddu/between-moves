@@ -226,6 +226,7 @@ export {
   creatorColorForOffer,
   MINIMUM_LIVE_INITIAL_MS,
   MoveConflictError,
+  NonSeatedMoveError,
   nextMoveDueAt,
   OPEN_SEAT_LIFETIME_MS,
   validateLiveClockPolicy,

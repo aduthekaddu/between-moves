@@ -242,6 +242,76 @@ export function MoveEntry({
     };
   }, [live, position.state]);
 
+  useEffect(() => {
+    if (!live) return;
+    let stopped = false;
+    let source: EventSource | undefined;
+    let renewal: ReturnType<typeof setTimeout> | undefined;
+    const subscribe = async () => {
+      source?.close();
+      try {
+        const response = await fetch(
+          `/api/houses/${encodeURIComponent(houseId)}/games/${encodeURIComponent(gameId)}/realtime-token`,
+          { method: 'POST' },
+        );
+        if (!response.ok) throw new Error('Game subscription unavailable');
+        const issued: unknown = await response.json();
+        if (
+          issued === null ||
+          typeof issued !== 'object' ||
+          !('token' in issued) ||
+          typeof issued.token !== 'string' ||
+          !('channel' in issued) ||
+          typeof issued.channel !== 'string' ||
+          !('expiresAt' in issued) ||
+          typeof issued.expiresAt !== 'string'
+        ) {
+          throw new Error('Game subscription invalid');
+        }
+        if (stopped) return;
+        const channel = issued.channel;
+        source = new EventSource(
+          `/api/houses/${encodeURIComponent(houseId)}/games/${encodeURIComponent(gameId)}/live?token=${encodeURIComponent(issued.token)}`,
+        );
+        source.onopen = () => reconcileLive(true);
+        source.onmessage = (event) => {
+          try {
+            const envelope: unknown = JSON.parse(event.data);
+            if (
+              envelope !== null &&
+              typeof envelope === 'object' &&
+              'channel' in envelope &&
+              envelope.channel === channel &&
+              'name' in envelope &&
+              (envelope.name === 'game.move-accepted' || envelope.name === 'game.completed') &&
+              'data' in envelope &&
+              envelope.data !== null &&
+              typeof envelope.data === 'object' &&
+              'houseId' in envelope.data &&
+              envelope.data.houseId === houseId &&
+              'aggregateId' in envelope.data &&
+              envelope.data.aggregateId === gameId
+            ) {
+              reconcileLive(true);
+            }
+          } catch {
+            // The periodic canonical read repairs malformed or missing events.
+          }
+        };
+        const delay = Math.max(1_000, Date.parse(issued.expiresAt) - Date.now() - 60_000);
+        renewal = setTimeout(() => void subscribe(), delay);
+      } catch {
+        if (!stopped) renewal = setTimeout(() => void subscribe(), 30_000);
+      }
+    };
+    void subscribe();
+    return () => {
+      stopped = true;
+      source?.close();
+      if (renewal !== undefined) clearTimeout(renewal);
+    };
+  }, [gameId, houseId, live]);
+
   async function sendMove(command: SubmitCommand) {
     if (commandInFlight.current || (live && !liveViewport)) return;
     commandInFlight.current = true;
