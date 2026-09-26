@@ -911,6 +911,7 @@ export const puzzleCandidates = pgTable(
       name: 'puzzle_candidates_reviewer_house_fk',
     }).onDelete('restrict'),
     unique('puzzle_candidates_game_ply_unique').on(table.gameId, table.sourcePly),
+    unique('puzzle_candidates_id_house_unique').on(table.id, table.houseId),
     index('puzzle_candidates_house_season_state_idx').on(
       table.houseId,
       table.seasonId,
@@ -928,6 +929,57 @@ export const puzzleCandidates = pgTable(
       'puzzle_candidates_state_check',
       sql`${table.state} in ('pending', 'confirmed', 'rejected')`,
     ),
+  ],
+);
+
+/** [BM-046] A confirmed, House-visible position and prompt. */
+export const housePuzzles = pgTable(
+  'house_puzzles',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    candidateId: uuid('candidate_id').notNull().unique(),
+    houseId: uuid('house_id').notNull(),
+    seasonId: uuid('season_id').notNull(),
+    gameId: uuid('game_id').notNull(),
+    positionFen: text('position_fen').notNull(),
+    prompt: text('prompt').notNull(),
+    contributorMembershipId: uuid('contributor_membership_id').notNull(),
+    confirmedByMembershipId: uuid('confirmed_by_membership_id').notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique('house_puzzles_house_id_unique').on(table.id, table.houseId),
+    foreignKey({
+      columns: [table.candidateId, table.houseId],
+      foreignColumns: [puzzleCandidates.id, puzzleCandidates.houseId],
+      name: 'house_puzzles_candidate_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.seasonId, table.houseId],
+      foreignColumns: [seasons.id, seasons.houseId],
+      name: 'house_puzzles_season_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'house_puzzles_game_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.contributorMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'house_puzzles_contributor_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.confirmedByMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'house_puzzles_reviewer_house_fk',
+    }).onDelete('restrict'),
+    index('house_puzzles_house_published_idx').on(table.houseId, desc(table.publishedAt)),
+    check(
+      'house_puzzles_position_fen_check',
+      sql`char_length(${table.positionFen}) between 1 and 200`,
+    ),
+    check('house_puzzles_prompt_check', sql`char_length(${table.prompt}) between 1 and 280`),
   ],
 );
 

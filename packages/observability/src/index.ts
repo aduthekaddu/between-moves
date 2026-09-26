@@ -52,3 +52,5 @@ export { createSeasonScoringEventRecorder } from './season-scoring-event-logger'
 export type { SeasonScoringEventRecorderOptions } from './season-scoring-event-logger';
 export { createAnalysisMetricStubs } from './analysis-metrics';
 export type { AnalysisMetricSnapshot } from './analysis-metrics';
+export { createPuzzleMetricStubs } from './puzzle-metrics';
+export type { PuzzleMetricSnapshot } from './puzzle-metrics';
