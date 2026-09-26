@@ -26,6 +26,7 @@ import {
 } from '@between-moves/application';
 import {
   createDatabase,
+  PgAnalysisJobRepository,
   PgNudgeEmailReader,
   PgNudgeRepository,
   PgOutboxRepository,
@@ -41,10 +42,12 @@ import {
 } from '@between-moves/domain';
 import {
   createDeliveryMetricStubs,
+  createAnalysisMetricStubs,
   createRealtimeMetricStubs,
   createSeasonScoringEventRecorder,
   createStructuredLogger,
 } from '@between-moves/observability';
+import { dispatchAnalysisJob, enqueueAnalysisRequest } from './modules/stories/analysis';
 
 function requiredEnvironment(key: string): string {
   const value = process.env[key];
@@ -62,6 +65,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
 
   try {
     const fallback = new IdempotentLoggingConsumer(logger);
+    const analysisJobs = new PgAnalysisJobRepository(database.pool);
     const secret = requiredEnvironment('BETTER_AUTH_SECRET');
     const apiKey = requiredEnvironment('RESEND_API_KEY');
     const magicLink = createMagicLinkEmailConsumer({
@@ -123,6 +127,13 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
     const consumer: OutboxConsumer = {
       async consume(event) {
         if (emailTopics.has(event.topic)) return email.consume(event);
+        if (event.topic === 'game.analysis-requested') {
+          return enqueueAnalysisRequest(event, analysisJobs, {
+            enabled: process.env.ANALYSIS_ENABLED !== 'false',
+            engineVersion: process.env.ANALYSIS_ENGINE_VERSION || 'v1',
+            now: clock.now(),
+          });
+        }
         const scoringResult = scoringTopics.has(event.topic) ? await scoring.consume(event) : null;
         const realtimeResult =
           realtime !== null && REALTIME_PUBLISH_TOPIC_SET.has(event.topic)
@@ -154,6 +165,45 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       data: { ...summary, ...metrics.snapshot(), ...realtimeMetrics.snapshot() },
     });
     return summary;
+  } finally {
+    await database.close();
+  }
+}
+
+/** [BM-044] Independent lease poller; engine health cannot delay Game completion. */
+export async function runAnalysisWorker(): Promise<'disabled' | 'idle' | 'submitted' | 'retried'> {
+  if (process.env.ANALYSIS_ENABLED === 'false') return 'disabled';
+  const database = createDatabase(requiredEnvironment('DATABASE_URL'));
+  const clock = new SystemClock();
+  const metrics = createAnalysisMetricStubs();
+  const logger = createStructuredLogger({ clock, sink: (line) => console.log(line) });
+  const startedAt = clock.now();
+  try {
+    const outcome = await dispatchAnalysisJob({
+      jobs: new PgAnalysisJobRepository(database.pool),
+      engineUrl: new URL(requiredEnvironment('ANALYSIS_WORKER_URL')),
+      callbackUrl: new URL('/api/internal/analysis/callback', requiredEnvironment('APP_ORIGIN')),
+      secret: requiredEnvironment('ANALYSIS_WORKER_SECRET'),
+      now: () => clock.now(),
+      fetch,
+      metrics,
+    });
+    logger.log({
+      level: 'info',
+      requestId: 'worker',
+      actorId: 'anonymous',
+      houseId: null,
+      gameId: null,
+      commandId: null,
+      event: 'analysis.job-dispatch',
+      outcome: outcome === 'retried' ? 'error' : 'success',
+      durationMs: Math.max(0, clock.now().getTime() - startedAt.getTime()),
+      data: {
+        result: outcome,
+        analysis_job_failure_total: metrics.snapshot().analysis_job_failure_total,
+      },
+    });
+    return outcome;
   } finally {
     await database.close();
   }

@@ -818,6 +818,59 @@ export const games = pgTable(
   ],
 );
 
+/** [BM-044] Durable engine work, separate from the completed Game. */
+export const analysisJobs = pgTable(
+  'analysis_jobs',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    sourceEventId: uuid('source_event_id').notNull().unique('analysis_jobs_source_event_id_unique'),
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id').notNull(),
+    engineVersion: text('engine_version').notNull(),
+    state: text('state').default('pending').notNull(),
+    attempts: integer('attempts').default(0).notNull(),
+    leaseToken: uuid('lease_token'),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
+    availableAt: timestamp('available_at', { withTimezone: true }).defaultNow().notNull(),
+    result: jsonb('result'),
+    lastError: text('last_error'),
+    lastFailureToken: uuid('last_failure_token'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'analysis_jobs_game_house_fk',
+    }).onDelete('restrict'),
+    index('analysis_jobs_claim_idx')
+      .on(table.availableAt, table.id)
+      .where(sql`${table.state} in ('pending', 'leased')`),
+    check(
+      'analysis_jobs_engine_version_check',
+      sql`char_length(${table.engineVersion}) between 1 and 100`,
+    ),
+    check(
+      'analysis_jobs_state_check',
+      sql`${table.state} in ('pending', 'leased', 'completed', 'failed')`,
+    ),
+    check('analysis_jobs_attempts_check', sql`${table.attempts} >= 0`),
+    check(
+      'analysis_jobs_lease_shape_check',
+      sql`(${table.state} = 'leased' and ${table.leaseToken} is not null and ${table.leaseUntil} is not null) or (${table.state} <> 'leased' and ${table.leaseToken} is null and ${table.leaseUntil} is null)`,
+    ),
+    check(
+      'analysis_jobs_completion_shape_check',
+      sql`(${table.state} = 'completed' and ${table.result} is not null and ${table.completedAt} is not null) or (${table.state} <> 'completed' and ${table.result} is null and ${table.completedAt} is null)`,
+    ),
+    check(
+      'analysis_jobs_error_length_check',
+      sql`${table.lastError} is null or char_length(${table.lastError}) between 1 and 2000`,
+    ),
+  ],
+);
+
 /** [BM-029] [DR-CORR-04] One durable delivery record per Nudge natural key. */
 export const nudgeDeliveries = pgTable(
   'nudge_deliveries',

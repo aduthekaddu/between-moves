@@ -57,3 +57,4 @@ export {
   type NightPresenceRedisClient,
   type UpstashNightPresenceStoreOptions,
 } from './upstash-night-presence';
+export { signAnalysisCallback, verifyAnalysisCallback } from './analysis-signature';
