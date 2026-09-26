@@ -79,7 +79,11 @@ export async function getHouseSeason(
   });
 }
 
-/** [BM-047] Member-scoped final standings for the most recently closed Season. */
+/**
+ * [BM-047] Member-scoped final standings for the most recently closed Season.
+ * Return null when the repository finds no available closed Season; viewer resolution,
+ * authorization, and database failures propagate.
+ */
 export async function getLastClosedSeason(
   request: Request,
   houseId: string,

@@ -18,6 +18,10 @@ interface SeasonPageProps {
   readonly params: Promise<{ readonly houseId: string }>;
 }
 
+/**
+ * Render the House Season page, including the last closed Season when none is underway.
+ * Show the not-found page when the House is unavailable; other read failures propagate.
+ */
 export default async function SeasonPage({ params }: SeasonPageProps) {
   const { houseId } = await params;
   const requestHeaders = await headers();

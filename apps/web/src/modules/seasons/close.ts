@@ -35,6 +35,7 @@ export interface CloseSeasonHandlerDependencies {
   readonly clock: { now(): Date };
 }
 
+/** Record a successful close without allowing diagnostic failures to reach the caller. */
 function logClosedSeason(
   dependencies: CloseSeasonHandlerDependencies,
   request: Request,
@@ -64,7 +65,13 @@ function logClosedSeason(
   }
 }
 
-/** [BM-047] POST /api/houses/{houseId}/seasons/{seasonId}/close. */
+/**
+ * [BM-047] Build the handler for POST /api/houses/{houseId}/seasons/{seasonId}/close.
+ * Require the expected Origin, UUID route identifiers, and an authenticated viewer.
+ * Return private, non-cacheable JSON with final standings and an ISO close time on success.
+ * Map authentication, authorization, validation, missing-Season, and conflict failures to
+ * problem responses; unexpected failures propagate to the platform error boundary.
+ */
 export function createCloseSeasonHandler(dependencies: CloseSeasonHandlerDependencies) {
   return async (request: Request, houseId: string, seasonId: string): Promise<Response> => {
     const startedAt = dependencies.clock.now();

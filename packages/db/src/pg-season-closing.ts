@@ -27,11 +27,13 @@ interface ClosedSeasonRow extends QueryResultRow {
   readonly closed_at: unknown;
 }
 
+/** Return a string unchanged, or throw an Error identifying the invalid database field. */
 function stringValue(value: unknown, field: string): string {
   if (typeof value !== 'string') throw new Error(`Invalid Season closing ${field}`);
   return value;
 }
 
+/** Return an integer unchanged, or throw an Error identifying the invalid database field. */
 function integerValue(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value)) {
     throw new Error(`Invalid Season closing ${field}`);
@@ -39,6 +41,7 @@ function integerValue(value: unknown, field: string): number {
   return value;
 }
 
+/** Return the same valid Date instance, or throw an Error identifying the invalid field. */
 export function closingDate(value: unknown, field: string): Date {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
     throw new Error(`Invalid Season closing ${field}`);
@@ -73,7 +76,10 @@ async function ledgerTotals(
   );
 }
 
-/** Read an already finalized snapshot in rank order. */
+/**
+ * Read the snapshot by rank, then membership ID; return an empty array if none exists.
+ * The caller must authorize access. Query failures and invalid database fields propagate.
+ */
 export async function readFinalStandings(
   database: Queryable,
   houseId: string,
@@ -93,7 +99,13 @@ export async function readFinalStandings(
   }));
 }
 
-/** [BM-047] Snapshot standings, mark the Season closing, and enqueue `season.closing`. */
+/**
+ * [BM-047] Snapshot standings, mark the Season closing, and enqueue `season.closing`.
+ * Use the caller's transaction after it has authorized and locked the active Season.
+ * Return the ranked snapshot, including active Members with zero points. `closingAt` timestamps
+ * the snapshot, state change, and event; `actorMembershipId` identifies the actor in the event.
+ * Query and row-validation failures propagate; throw if the active Season cannot be updated.
+ */
 export async function snapshotAndEnqueueClosing(
   client: PoolClient,
   context: AuthorizationContext,
@@ -150,7 +162,12 @@ export async function snapshotAndEnqueueClosing(
   return standings;
 }
 
-/** [BM-047] Latest closed Season plus named final standings for an active House Member. */
+/**
+ * [BM-047] Latest closed Season plus named final standings for an active House Member.
+ * Select by close time, then Season ID, descending; order standings by rank, name, then ID.
+ * Return null if the House or membership is inactive or no closed Season exists.
+ * Query failures and invalid database fields propagate.
+ */
 export async function readLatestClosedSeason(
   database: Pool,
   context: AuthorizationContext,

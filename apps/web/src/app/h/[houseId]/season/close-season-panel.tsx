@@ -7,7 +7,10 @@ interface ProblemDetails {
   readonly detail?: string;
 }
 
-/** [BM-047] Owner/Steward close control with an inline, non-modal confirmation step. */
+/**
+ * [BM-047] Owner/Steward close control with an inline, non-modal confirmation step.
+ * A Season already in `closing` offers a direct retry without another confirmation.
+ */
 export function CloseSeasonPanel({
   houseId,
   seasonId,
@@ -23,6 +26,7 @@ export function CloseSeasonPanel({
   const [error, setError] = useState<string | null>(null);
   const resuming = state === 'closing';
 
+  /** Refresh after a successful close; display caught failures and re-enable retry controls. */
   async function close() {
     setSubmitting(true);
     setError(null);

@@ -18,6 +18,10 @@ function nightLabel(recurrence: NightRecurrence): string {
   return `${weekdays[recurrence.weekday] ?? 'Weekly'} at ${recurrence.localTime}`;
 }
 
+/**
+ * Render Season details and role-appropriate controls, or nothing if its Charter or dates
+ * are missing. Owners and Stewards can close an active Season or resume a closing one.
+ */
 function ActiveSeason({
   houseId,
   membershipRole,
@@ -73,7 +77,10 @@ function ActiveSeason({
   );
 }
 
-/** [BM-019] Season status for Members and Charter authoring for Owner/Steward. */
+/**
+ * [BM-019] Season status for Members and Charter authoring for Owner/Steward.
+ * Show the supplied closed-Season recap only when the current Season is absent or a draft.
+ */
 export function SeasonView({
   houseId,
   membershipRole,

@@ -102,6 +102,10 @@ async function authorizedHouse(client: PoolClient, context: AuthorizationContext
   if (result.rowCount !== 1) throw new DomainError('not_found', 'Season is unavailable');
 }
 
+/**
+ * Lock and return the scoped Season for an active Owner or Steward in the caller's transaction.
+ * Throw `DomainError('not_found')` if no authorized row exists; query failures propagate.
+ */
 async function authorizedSeason(
   client: PoolClient,
   context: AuthorizationContext,
@@ -155,11 +159,22 @@ export class PgSeasonRepository
 {
   constructor(private readonly database: Pool) {}
 
+  /**
+   * Read the latest closed Season and named standings, or null if unavailable to this viewer.
+   * Database and row-validation failures propagate.
+   */
   readLatestClosed(context: AuthorizationContext): Promise<ClosedSeasonView | null> {
     return readLatestClosedSeason(this.database, context);
   }
 
-  /** [BM-047] Enter `closing` with a standings snapshot; replays report the current state. */
+  /**
+   * [BM-047] Enter `closing` with a standings snapshot; replays report the current state.
+   * Atomically freeze standings and enqueue one closing event. A closing or closed Season
+   * returns its existing snapshot with `closingNow: false` and ignores the new event ID and time.
+   * Require an active House and Owner/Steward membership; unavailable access throws
+   * `DomainError('not_found')`, and a draft throws `DomainError('conflict')`.
+   * Database and row-validation failures propagate.
+   */
   async beginClosing(
     context: AuthorizationContext,
     input: SeasonClosingInput,
@@ -189,7 +204,14 @@ export class PgSeasonRepository
     });
   }
 
-  /** [BM-047] Finalize a closing Season; a closed Season replays its original close time. */
+  /**
+   * [BM-047] Finalize a closing Season; a closed Season replays its original close time.
+   * Return the frozen standings, which may be empty, and whether this call changed the state.
+   * `closedAt` is stored only on the first finalization; Closing Book generation is not awaited.
+   * Require an active House and Owner/Steward membership; unavailable access throws
+   * `DomainError('not_found')`, and states other than closing or closed throw
+   * `DomainError('conflict')`. Database and row-validation failures propagate.
+   */
   async finalize(
     context: AuthorizationContext,
     input: SeasonFinalizeInput,

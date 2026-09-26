@@ -20,7 +20,11 @@ export async function readHouseSeason(
   return dependencies.seasons.readCurrent(context);
 }
 
-/** [BM-047] Read the latest closed Season's final standings for any active House Member. */
+/**
+ * [BM-047] Read the latest closed Season's final standings for any active House Member.
+ * Return the repository's view or null when unavailable. Authorization denial and repository
+ * failures propagate rather than being converted to null.
+ */
 export async function readLastClosedSeason(
   request: ReadLastClosedSeasonRequest,
   dependencies: ReadLastClosedSeasonDependencies,

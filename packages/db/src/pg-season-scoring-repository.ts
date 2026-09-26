@@ -373,6 +373,11 @@ export class PgSeasonScoringRepository implements SeasonScoringRepository {
     });
   }
 
+  /**
+   * Return live ledger totals, or the frozen snapshot with `finalized: true` for a closing
+   * or closed Season. Return null if the Season is unavailable to an active House Member.
+   * Database and row-validation failures propagate.
+   */
   async readStandings(
     context: AuthorizationContext,
     seasonId: string,

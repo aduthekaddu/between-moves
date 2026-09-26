@@ -30,6 +30,10 @@ function deny(
   throw new HouseAuthorizationDeniedError(reason, crossHouse);
 }
 
+/**
+ * Resolve host assignment or a removal target's role when the permission check needs it.
+ * Return other actions unchanged; propagate membership and host lookup failures.
+ */
 async function resolveEvaluation(
   action: HouseAction,
   membership: HouseAuthorizationMembership,

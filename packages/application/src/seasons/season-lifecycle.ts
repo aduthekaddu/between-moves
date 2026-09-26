@@ -25,6 +25,7 @@ function errorOutcome(error: unknown): 'rejected' | 'error' {
 
 type TransitionDependencies = Pick<SeasonDependencies, 'transitions'>;
 
+/** Record a transition while suppressing recorder failures. */
 function recordTransition(
   dependencies: TransitionDependencies,
   observation: Parameters<SeasonDependencies['transitions']['record']>[0],
@@ -36,6 +37,10 @@ function recordTransition(
   }
 }
 
+/**
+ * Return the operation's result or rethrow its failure; recorder failures are suppressed.
+ * `recordSuccess` can suppress a success observation by returning false, as on a replay.
+ */
 async function observeTransition<T>(input: {
   readonly actorId: string;
   readonly houseId: string;
@@ -174,6 +179,10 @@ export async function publishSeason(
 /**
  * [BM-047] Close an active Season: lock it into `closing` with a standings snapshot and the
  * `season.closing` event, then finalize it as `closed`. A retry resumes a stranded closing.
+ * Require Owner/Steward authorization. Return final standings and the close time; a closed
+ * Season returns its saved standings and original close time with `closedNow: false`.
+ * Authorization and repository errors propagate, including unavailable-Season and invalid-state
+ * errors. A finalization failure can leave the committed closing step available for retry.
  */
 export async function closeSeason(
   request: CloseSeasonRequest,

@@ -52,7 +52,10 @@ export interface SeasonClosingRepository {
     context: AuthorizationContext,
     input: SeasonClosingInput,
   ): Promise<SeasonClosingResult>;
-  /** Move a closing Season to closed once its standings snapshot exists. */
+  /**
+   * Move a closing Season to closed and return its saved standings, which may be empty.
+   * A closed Season replays its original close time with `closedNow: false`.
+   */
   finalize(context: AuthorizationContext, input: SeasonFinalizeInput): Promise<SeasonCloseResult>;
 }
 
