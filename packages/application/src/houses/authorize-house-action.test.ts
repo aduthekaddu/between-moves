@@ -79,6 +79,7 @@ const actions = [
   { action: { kind: 'create_member_invite' }, roles: ['owner', 'steward'] },
   { action: { kind: 'revoke_invite' }, roles: ['owner', 'steward'] },
   { action: { kind: 'draft_or_publish_charter' }, roles: ['owner', 'steward'] },
+  { action: { kind: 'close_season' }, roles: ['owner', 'steward'] },
   { action: { kind: 'schedule_night' }, roles: ['owner', 'steward'] },
   {
     action: { kind: 'start_or_end_assigned_night', nightId: assignedNightId },

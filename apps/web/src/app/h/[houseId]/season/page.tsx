@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { getConfig } from '../../../../config';
 import { getNightHostCandidates } from '../../../../modules/nights/lifecycle';
 import { getHouseHome } from '../../../../server/house-home';
-import { getHouseSeason } from '../../../../server/seasons';
+import { getHouseSeason, getLastClosedSeason } from '../../../../server/seasons';
 import { getScheduledNights } from '../../../../server/nights';
 import { SeasonView } from './season-view';
 
@@ -26,6 +26,10 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
   const home = await getHouseHome(request, houseId);
   if (home === null) notFound();
   const season = await getHouseSeason(request, houseId);
+  const lastClosed =
+    season?.state === 'draft' || season === null
+      ? await getLastClosedSeason(request, houseId)
+      : null;
   const nights = await getScheduledNights(request, houseId);
   const hostCandidates =
     home.membershipRole === 'member' ? [] : await getNightHostCandidates(request, houseId);
@@ -41,6 +45,7 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
         nights={nights}
         hostCandidates={hostCandidates}
         season={season}
+        lastClosed={lastClosed}
         timeZone={home.timeZone}
       />
     </main>

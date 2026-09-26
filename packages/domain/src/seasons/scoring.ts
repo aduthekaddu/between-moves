@@ -62,6 +62,8 @@ export interface SeasonStanding {
 export interface SeasonStandings {
   readonly houseId: string;
   readonly seasonId: string;
+  /** [BM-047] True once closing froze the standings snapshot; later ledger rows do not count. */
+  readonly finalized: boolean;
   readonly standings: readonly SeasonStanding[];
 }
 

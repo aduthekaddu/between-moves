@@ -11,7 +11,7 @@ const viewer = {
   displayName: 'Ada',
   imageUrl: null,
 } as const;
-const result: SeasonStandings = { houseId, seasonId, standings: [] };
+const result: SeasonStandings = { houseId, seasonId, finalized: false, standings: [] };
 const now = new Date('2026-09-12T12:00:00.000Z');
 
 function request(): Request {

@@ -1,4 +1,5 @@
 import type {
+  ClosedSeasonView,
   HouseNightView,
   HouseSeasonView,
   MembershipRole,
@@ -6,6 +7,8 @@ import type {
   NightRecurrence,
 } from '@between-moves/domain';
 import { CharterAuthoringForm } from './charter-authoring-form';
+import { CloseSeasonPanel } from './close-season-panel';
+import { FinalStandings } from './final-standings';
 import { NightSchedule } from './night-schedule';
 import { PointsRecipe } from './points-recipe';
 
@@ -63,6 +66,9 @@ function ActiveSeason({
         initialNights={nights}
         hostCandidates={hostCandidates}
       />
+      {membershipRole !== 'member' && (season.state === 'active' || season.state === 'closing') ? (
+        <CloseSeasonPanel houseId={houseId} seasonId={season.seasonId} state={season.state} />
+      ) : null}
     </article>
   );
 }
@@ -74,6 +80,7 @@ export function SeasonView({
   nights = [],
   hostCandidates = [],
   season,
+  lastClosed = null,
   timeZone = 'UTC',
 }: {
   readonly houseId: string;
@@ -81,6 +88,7 @@ export function SeasonView({
   readonly nights?: readonly HouseNightView[];
   readonly hostCandidates?: readonly NightHostCandidate[];
   readonly season: HouseSeasonView | null;
+  readonly lastClosed?: ClosedSeasonView | null;
   readonly timeZone?: string;
 }) {
   if (season !== null && season.state !== 'draft') {
@@ -95,24 +103,31 @@ export function SeasonView({
       />
     );
   }
+  const recap = lastClosed === null ? null : <FinalStandings season={lastClosed} />;
   if (membershipRole === 'member') {
     return (
-      <section className="season-passive" aria-labelledby="season-passive-title">
-        <p className="season-eyebrow">Season</p>
-        <h1 id="season-passive-title">The table is waiting.</h1>
-        <p>Your House is quiet. Publish a Charter to start the season.</p>
-      </section>
+      <>
+        {recap}
+        <section className="season-passive" aria-labelledby="season-passive-title">
+          <p className="season-eyebrow">Season</p>
+          <h1 id="season-passive-title">The table is waiting.</h1>
+          <p>Your House is quiet. Publish a Charter to start the season.</p>
+        </section>
+      </>
     );
   }
   return (
-    <CharterAuthoringForm
-      houseId={houseId}
-      draftSeasonId={season?.seasonId}
-      initialTitle={season?.title}
-      initialPaceHours={season?.charter?.correspondencePaceHours}
-      initialWeekday={season?.charter?.nightRecurrence.weekday}
-      initialLocalTime={season?.charter?.nightRecurrence.localTime}
-      initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
-    />
+    <>
+      {recap}
+      <CharterAuthoringForm
+        houseId={houseId}
+        draftSeasonId={season?.seasonId}
+        initialTitle={season?.title}
+        initialPaceHours={season?.charter?.correspondencePaceHours}
+        initialWeekday={season?.charter?.nightRecurrence.weekday}
+        initialLocalTime={season?.charter?.nightRecurrence.localTime}
+        initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
+      />
+    </>
   );
 }

@@ -148,6 +148,7 @@ integration('PostgreSQL Season scoring ledger', () => {
     ).resolves.toEqual({
       houseId: world.first.houseId,
       seasonId,
+      finalized: false,
       standings: [
         { membershipId: world.first.member.membershipId, points: 30 },
         { membershipId: world.first.nonOwner.membershipId, points: 8 },

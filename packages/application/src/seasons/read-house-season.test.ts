@@ -1,11 +1,13 @@
 import type {
   AuthenticatedViewer,
+  ClosedSeasonReadRepository,
+  ClosedSeasonView,
   HouseSeasonView,
   SeasonReadRepository,
 } from '@between-moves/domain';
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { readHouseSeason } from './read-house-season';
+import { readHouseSeason, readLastClosedSeason } from './read-house-season';
 
 const houseId = '01941f29-7c00-7000-8000-000000000201';
 const viewer: AuthenticatedViewer = {
@@ -50,5 +52,37 @@ describe('readHouseSeason', () => {
       viewer,
     );
     expect(seasons.readCurrent).toHaveBeenCalledWith(context);
+  });
+});
+
+describe('readLastClosedSeason', () => {
+  it('[BM-047] returns final standings through a member context', async () => {
+    const closed: ClosedSeasonView = {
+      seasonId: '01941f29-7c00-7000-8000-000000000701',
+      title: 'Autumn tables',
+      startsAt: new Date('2026-09-04T00:00:00.000Z'),
+      endsAt: new Date('2026-10-02T00:00:00.000Z'),
+      closedAt: new Date('2026-10-02T09:00:00.000Z'),
+      standings: [
+        {
+          membershipId: '01941f29-7c00-7000-8000-000000000202',
+          displayName: 'Ada',
+          points: 6,
+          rank: 1,
+        },
+      ],
+    };
+    const seasons: ClosedSeasonReadRepository = { readLatestClosed: vi.fn(async () => closed) };
+    const authorizeHouseAction = vi.fn(async () => context);
+
+    await expect(
+      readLastClosedSeason({ houseId, viewer }, { authorizeHouseAction, seasons }),
+    ).resolves.toEqual(closed);
+    expect(authorizeHouseAction).toHaveBeenCalledWith(
+      { kind: 'view_house_content' },
+      houseId,
+      viewer,
+    );
+    expect(seasons.readLatestClosed).toHaveBeenCalledWith(context);
   });
 });

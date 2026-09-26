@@ -66,6 +66,12 @@ export const houseWritePaths = Object.freeze([
     scope: 'house-id',
   },
   {
+    id: 'season.close',
+    useCase: 'closeSeason',
+    route: 'apps/web/src/app/api/houses/[houseId]/seasons/[seasonId]/close/route.ts',
+    scope: 'house-id',
+  },
+  {
     id: 'night.schedule-change',
     useCase: 'changeNightSchedule',
     route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/route.ts',
@@ -181,6 +187,7 @@ export const nonHouseWriteExports = Object.freeze([
   'createHouse',
   'inspectInvitation',
   'readHouseSeason',
+  'readLastClosedSeason',
   'readSeasonStandings',
   'createSeasonScoringConsumer',
   'readHouseHome',

@@ -5,9 +5,11 @@ import {
   draftSeasonCharter as draftSeasonCharterUseCase,
   publishSeason as publishSeasonUseCase,
   readHouseSeason as readHouseSeasonUseCase,
+  readLastClosedSeason as readLastClosedSeasonUseCase,
 } from '@between-moves/application';
 import { PgHouseAuthorizationMembershipRepository, PgSeasonRepository } from '@between-moves/db';
 import type {
+  ClosedSeasonView,
   HouseSeasonView,
   ReadHouseSeasonRequest,
   SeasonDependencies,
@@ -75,4 +77,19 @@ export async function getHouseSeason(
     authorizeHouseAction: dependencies.authorizeHouseAction,
     seasons: new PgSeasonRepository(getDatabase().pool),
   });
+}
+
+/** [BM-047] Member-scoped final standings for the most recently closed Season. */
+export async function getLastClosedSeason(
+  request: Request,
+  houseId: string,
+): Promise<ClosedSeasonView | null> {
+  const dependencies = seasonDependencies(readSeasonRequestId(request));
+  return readLastClosedSeasonUseCase(
+    { houseId, viewer: await getViewer(request) },
+    {
+      authorizeHouseAction: dependencies.authorizeHouseAction,
+      seasons: new PgSeasonRepository(getDatabase().pool),
+    },
+  );
 }

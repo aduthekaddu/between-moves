@@ -4,8 +4,15 @@ import {
   type AuthorizationContext,
   type CharterDraftInput,
   type CharterDraftResult,
+  type ClosedSeasonReadRepository,
+  type ClosedSeasonView,
+  type SeasonCloseResult,
+  type SeasonClosingInput,
+  type SeasonClosingRepository,
+  type SeasonClosingResult,
   type SeasonDraftInput,
   type SeasonDraftResult,
+  type SeasonFinalizeInput,
   type SeasonPublishInput,
   type SeasonPublishResult,
   type SeasonReadRepository,
@@ -13,11 +20,18 @@ import {
   type NightRecurrence,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
+import {
+  closingDate,
+  readFinalStandings,
+  readLatestClosedSeason,
+  snapshotAndEnqueueClosing,
+} from './pg-season-closing';
 import { parseHouseSeasonRow, type HouseSeasonRow } from './season-row-parser';
 
 interface SeasonRow extends QueryResultRow {
   readonly state: unknown;
   readonly published_charter_version: unknown;
+  readonly closed_at: unknown;
   readonly actor_membership_id: unknown;
 }
 
@@ -94,7 +108,7 @@ async function authorizedSeason(
   seasonId: string,
 ): Promise<SeasonRow> {
   const result = await client.query<SeasonRow>(
-    `select s.state, s.published_charter_version,
+    `select s.state, s.published_charter_version, s.closed_at,
             m.id::text as actor_membership_id
        from seasons s
        join memberships m
@@ -132,8 +146,83 @@ async function inTransaction<T>(database: Pool, operation: (client: PoolClient) 
 }
 
 /** [BM-018] [DR-SEASON-01..05] PostgreSQL Season and Charter transaction authority. */
-export class PgSeasonRepository implements SeasonRepository, SeasonReadRepository {
+export class PgSeasonRepository
+  implements
+    SeasonRepository,
+    SeasonReadRepository,
+    SeasonClosingRepository,
+    ClosedSeasonReadRepository
+{
   constructor(private readonly database: Pool) {}
+
+  readLatestClosed(context: AuthorizationContext): Promise<ClosedSeasonView | null> {
+    return readLatestClosedSeason(this.database, context);
+  }
+
+  /** [BM-047] Enter `closing` with a standings snapshot; replays report the current state. */
+  async beginClosing(
+    context: AuthorizationContext,
+    input: SeasonClosingInput,
+  ): Promise<SeasonClosingResult> {
+    return inTransaction(this.database, async (client) => {
+      await authorizedHouse(client, context);
+      const season = await authorizedSeason(client, context, input.seasonId);
+      const actorMembershipId = parseString(season.actor_membership_id, 'actor membership id');
+      const replay = { seasonId: input.seasonId, houseId: context.houseId, actorMembershipId };
+      if (season.state === 'closing' || season.state === 'closed') {
+        return {
+          ...replay,
+          state: season.state,
+          standings: await readFinalStandings(client, context.houseId, input.seasonId),
+          closingNow: false,
+        };
+      }
+      if (season.state !== 'active') {
+        throw new DomainError('conflict', 'Only an active Season can be closed');
+      }
+      return {
+        ...replay,
+        state: 'closing',
+        standings: await snapshotAndEnqueueClosing(client, context, input, actorMembershipId),
+        closingNow: true,
+      };
+    });
+  }
+
+  /** [BM-047] Finalize a closing Season; a closed Season replays its original close time. */
+  async finalize(
+    context: AuthorizationContext,
+    input: SeasonFinalizeInput,
+  ): Promise<SeasonCloseResult> {
+    return inTransaction(this.database, async (client) => {
+      await authorizedHouse(client, context);
+      const season = await authorizedSeason(client, context, input.seasonId);
+      const result = {
+        seasonId: input.seasonId,
+        houseId: context.houseId,
+        state: 'closed' as const,
+        actorMembershipId: parseString(season.actor_membership_id, 'actor membership id'),
+        standings: await readFinalStandings(client, context.houseId, input.seasonId),
+      };
+      if (season.state === 'closed') {
+        return {
+          ...result,
+          closedAt: closingDate(season.closed_at, 'closed time'),
+          closedNow: false,
+        };
+      }
+      if (season.state !== 'closing') {
+        throw new DomainError('conflict', 'Only a closing Season can be finalized');
+      }
+      await client.query(
+        `update seasons
+            set state = 'closed', closed_at = $3, updated_at = $3
+          where id = $1 and house_id = $2 and state = 'closing'`,
+        [input.seasonId, context.houseId, input.closedAt],
+      );
+      return { ...result, closedAt: input.closedAt, closedNow: true };
+    });
+  }
 
   async readCurrent(context: AuthorizationContext) {
     const result = await this.database.query<HouseSeasonRow & QueryResultRow>(

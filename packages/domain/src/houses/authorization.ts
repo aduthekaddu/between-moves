@@ -15,6 +15,7 @@ export type HouseAction =
   | { readonly kind: 'create_member_invite' }
   | { readonly kind: 'revoke_invite' }
   | { readonly kind: 'draft_or_publish_charter' }
+  | { readonly kind: 'close_season' }
   | { readonly kind: 'schedule_night' }
   | {
       readonly kind: 'start_or_end_assigned_night';
@@ -121,6 +122,7 @@ export function houseAuthorizationDenialReason(
     case 'create_member_invite':
     case 'revoke_invite':
     case 'draft_or_publish_charter':
+    case 'close_season':
     case 'schedule_night':
       return membership.role === 'member' ? 'role_not_permitted' : null;
     case 'start_or_end_assigned_night':

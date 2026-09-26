@@ -10,6 +10,7 @@ const request = new Request(
 const standings: SeasonStandings = {
   houseId,
   seasonId,
+  finalized: false,
   standings: [
     { membershipId: '01941f29-7c00-7000-8000-000000000621', points: 17 },
     { membershipId: '01941f29-7c00-7000-8000-000000000623', points: 11 },

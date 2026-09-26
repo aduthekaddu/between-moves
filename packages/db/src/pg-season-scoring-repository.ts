@@ -13,6 +13,7 @@ import {
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { enqueueOutboxEvent } from './enqueue-outbox-event';
+import { readFinalStandings } from './pg-season-closing';
 
 interface CompletedGameRow extends QueryResultRow {
   readonly game_id: unknown;
@@ -376,15 +377,25 @@ export class PgSeasonScoringRepository implements SeasonScoringRepository {
     context: AuthorizationContext,
     seasonId: string,
   ): Promise<SeasonStandings | null> {
-    const authorized = await this.database.query(
-      `select 1 from seasons s
+    const authorized = await this.database.query<{ state: unknown }>(
+      `select s.state from seasons s
         join houses h on h.id=s.house_id and h.status='active'
         join memberships viewer on viewer.house_id=s.house_id
           and viewer.user_id=$3 and viewer.status='active'
        where s.id=$1 and s.house_id=$2`,
       [seasonId, context.houseId, context.viewerId],
     );
-    if (authorized.rowCount !== 1) return null;
+    const season = authorized.rows[0];
+    if (season === undefined) return null;
+    if (season.state === 'closing' || season.state === 'closed') {
+      const standings = await readFinalStandings(this.database, context.houseId, seasonId);
+      return {
+        houseId: context.houseId,
+        seasonId,
+        finalized: true,
+        standings: standings.map(({ membershipId, points }) => ({ membershipId, points })),
+      };
+    }
     const result = await this.database.query<StandingRow>(
       `select membership_id::text, sum(points)::int as points
          from season_score_ledger
@@ -396,6 +407,7 @@ export class PgSeasonScoringRepository implements SeasonScoringRepository {
     return {
       houseId: context.houseId,
       seasonId,
+      finalized: false,
       standings: result.rows.map((row) => ({
         membershipId: stringValue(row.membership_id, 'membership id'),
         points: integerValue(row.points, 'standing points'),

@@ -70,6 +70,7 @@ async function resolveEvaluation(
     case 'create_member_invite':
     case 'revoke_invite':
     case 'draft_or_publish_charter':
+    case 'close_season':
     case 'schedule_night':
     case 'change_permanent_role':
     case 'transfer_ownership':
