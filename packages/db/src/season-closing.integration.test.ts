@@ -186,6 +186,7 @@ integration('BM-047 PostgreSQL Season closing', () => {
     await expect(repository.readLatestClosed(member)).resolves.toEqual({
       seasonId,
       title: 'Autumn tables',
+      state: 'closed',
       startsAt,
       endsAt,
       closedAt,
@@ -219,6 +220,51 @@ integration('BM-047 PostgreSQL Season closing', () => {
         seasonId,
       ]),
     ).rejects.toMatchObject({ code: '55000' });
+  });
+
+  it('[BM-047] rejects snapshot inserts and deletes once the Season leaves active', async () => {
+    const lateMembershipId = id(4731);
+    const insertLateRow = () =>
+      database.query(
+        `insert into season_final_standings
+          (season_id, house_id, membership_id, rank, points, finalized_at)
+         values ($1, $2, $3, 9, 99, $4)`,
+        [seasonId, world.first.houseId, lateMembershipId, closingAt],
+      );
+    await repository.beginClosing(owner, { seasonId, closingEventId, closingAt });
+    await database.query(
+      `insert into users (id, display_name, email, email_verified)
+       values ($1, 'Late', 'late-bm047@example.test', true)`,
+      [id(4732)],
+    );
+    await database.query(
+      `insert into memberships (id, house_id, user_id, role, status, joined_at, created_at, updated_at)
+       values ($1, $2, $3, 'member', 'active', $4, $4, $4)`,
+      [lateMembershipId, world.first.houseId, id(4732), createdAt],
+    );
+
+    await expect(insertLateRow()).rejects.toMatchObject({ code: '55000' });
+    await repository.finalize(owner, { seasonId, closedAt });
+    await expect(insertLateRow()).rejects.toMatchObject({ code: '55000' });
+    await expect(
+      database.query('delete from season_final_standings where season_id = $1', [seasonId]),
+    ).rejects.toMatchObject({ code: '55000' });
+
+    const snapshot = await database.query<{ membership_id: string }>(
+      'select membership_id::text from season_final_standings where season_id = $1',
+      [seasonId],
+    );
+    expect(snapshot.rows.map((row) => row.membership_id)).not.toContain(lateMembershipId);
+    expect(snapshot.rowCount).toBe(3);
+  });
+
+  it('[BM-047] still removes the snapshot through the Season delete cascade', async () => {
+    await close(owner);
+    await database.query('delete from house_nights where season_id = $1', [seasonId]);
+    await database.query('delete from seasons where id = $1', [seasonId]);
+
+    const snapshot = await database.query('select 1 from season_final_standings');
+    expect(snapshot.rowCount).toBe(0);
   });
 
   it('[BM-047] keeps departed Members who scored and omits departed Members who did not', async () => {
@@ -258,6 +304,14 @@ integration('BM-047 PostgreSQL Season closing', () => {
 
   it('[BM-047] resumes finalization for a Season left in closing', async () => {
     await repository.beginClosing(owner, { seasonId, closingEventId, closingAt });
+    await expect(repository.readLatestClosed(member)).resolves.toMatchObject({
+      seasonId,
+      state: 'closing',
+      closedAt: null,
+      standings: expect.arrayContaining([
+        expect.objectContaining({ displayName: world.first.member.displayName, rank: 1 }),
+      ]),
+    });
 
     await expect(
       repository.beginClosing(owner, { seasonId, closingEventId: id(4712), closingAt }),

@@ -80,7 +80,7 @@ export async function getHouseSeason(
 }
 
 /**
- * [BM-047] Member-scoped final standings for the most recently closed Season.
+ * [BM-047] Member-scoped frozen standings for a closing Season or the most recently closed one.
  * Return null when the repository finds no available closed Season; viewer resolution,
  * authorization, and database failures propagate.
  */

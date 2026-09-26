@@ -60,6 +60,7 @@ describe('readLastClosedSeason', () => {
     const closed: ClosedSeasonView = {
       seasonId: '01941f29-7c00-7000-8000-000000000701',
       title: 'Autumn tables',
+      state: 'closed',
       startsAt: new Date('2026-09-04T00:00:00.000Z'),
       endsAt: new Date('2026-10-02T00:00:00.000Z'),
       closedAt: new Date('2026-10-02T09:00:00.000Z'),

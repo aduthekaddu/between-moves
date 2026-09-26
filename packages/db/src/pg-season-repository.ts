@@ -160,7 +160,7 @@ export class PgSeasonRepository
   constructor(private readonly database: Pool) {}
 
   /**
-   * Read the latest closed Season and named standings, or null if unavailable to this viewer.
+   * Read the closing or latest closed Season and named standings, or null if unavailable.
    * Database and row-validation failures propagate.
    */
   readLatestClosed(context: AuthorizationContext): Promise<ClosedSeasonView | null> {

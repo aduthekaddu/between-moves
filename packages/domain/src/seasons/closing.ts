@@ -77,13 +77,15 @@ export interface FinalSeasonStanding extends RankedSeasonStanding {
   readonly displayName: string;
 }
 
-/** The most recently closed House Season and its immutable final standings. */
+/** The closing or most recently closed House Season and its immutable final standings. */
 export interface ClosedSeasonView {
   readonly seasonId: string;
   readonly title: string;
+  /** `closing` when a close is still unfinished; its standings are already frozen. */
+  readonly state: 'closing' | 'closed';
   readonly startsAt: Date;
   readonly endsAt: Date;
-  readonly closedAt: Date;
+  readonly closedAt: Date | null;
   readonly standings: readonly FinalSeasonStanding[];
 }
 

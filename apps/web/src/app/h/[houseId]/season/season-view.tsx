@@ -79,7 +79,8 @@ function ActiveSeason({
 
 /**
  * [BM-019] Season status for Members and Charter authoring for Owner/Steward.
- * Show the supplied closed-Season recap only when the current Season is absent or a draft.
+ * Show the supplied frozen-standings recap when the current Season is absent, a draft, or
+ * itself still closing.
  */
 export function SeasonView({
   houseId,
@@ -98,19 +99,24 @@ export function SeasonView({
   readonly lastClosed?: ClosedSeasonView | null;
   readonly timeZone?: string;
 }) {
+  const recap = lastClosed === null ? null : <FinalStandings season={lastClosed} />;
   if (season !== null && season.state !== 'draft') {
+    const frozen =
+      season.state === 'closing' && lastClosed?.seasonId === season.seasonId ? recap : null;
     return (
-      <ActiveSeason
-        houseId={houseId}
-        membershipRole={membershipRole}
-        nights={nights}
-        hostCandidates={hostCandidates}
-        season={season}
-        timeZone={timeZone}
-      />
+      <>
+        {frozen}
+        <ActiveSeason
+          houseId={houseId}
+          membershipRole={membershipRole}
+          nights={nights}
+          hostCandidates={hostCandidates}
+          season={season}
+          timeZone={timeZone}
+        />
+      </>
     );
   }
-  const recap = lastClosed === null ? null : <FinalStandings season={lastClosed} />;
   if (membershipRole === 'member') {
     return (
       <>

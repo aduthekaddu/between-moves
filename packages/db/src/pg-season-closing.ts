@@ -22,6 +22,7 @@ interface StandingRow extends QueryResultRow {
 interface ClosedSeasonRow extends QueryResultRow {
   readonly id: unknown;
   readonly title: unknown;
+  readonly state: unknown;
   readonly starts_at: unknown;
   readonly ends_at: unknown;
   readonly closed_at: unknown;
@@ -163,9 +164,10 @@ export async function snapshotAndEnqueueClosing(
 }
 
 /**
- * [BM-047] Latest closed Season plus named final standings for an active House Member.
- * Select by close time, then Season ID, descending; order standings by rank, name, then ID.
- * Return null if the House or membership is inactive or no closed Season exists.
+ * [BM-047] Latest Season with frozen standings plus named standings for an active House Member.
+ * A Season still `closing` wins (at most one exists per House); otherwise select by close time,
+ * then Season ID, descending. Order standings by rank, name, then ID.
+ * Return null if the House or membership is inactive or no Season has frozen standings.
  * Query failures and invalid database fields propagate.
  */
 export async function readLatestClosedSeason(
@@ -173,21 +175,23 @@ export async function readLatestClosedSeason(
   context: AuthorizationContext,
 ): Promise<ClosedSeasonView | null> {
   const season = await database.query<ClosedSeasonRow>(
-    `select s.id::text, s.title, s.starts_at, s.ends_at, s.closed_at
+    `select s.id::text, s.title, s.state, s.starts_at, s.ends_at, s.closed_at
        from seasons s
        join houses h on h.id = s.house_id and h.status = 'active'
        join memberships viewer
          on viewer.house_id = s.house_id
         and viewer.user_id = $2
         and viewer.status = 'active'
-      where s.house_id = $1 and s.state = 'closed'
-      order by s.closed_at desc, s.id desc
+      where s.house_id = $1 and s.state in ('closing', 'closed')
+      order by s.state = 'closing' desc, s.closed_at desc, s.id desc
       limit 1`,
     [context.houseId, context.viewerId],
   );
   const row = season.rows[0];
   if (row === undefined) return null;
   const seasonId = stringValue(row.id, 'Season id');
+  const state = row.state;
+  if (state !== 'closing' && state !== 'closed') throw new Error('Invalid Season closing state');
   const standings = await database.query<StandingRow>(
     `select f.membership_id::text, f.points, f.rank,
             coalesce(m.display_name_snapshot, u.display_name) as display_name
@@ -201,9 +205,10 @@ export async function readLatestClosedSeason(
   return {
     seasonId,
     title: stringValue(row.title, 'title'),
+    state,
     startsAt: closingDate(row.starts_at, 'start'),
     endsAt: closingDate(row.ends_at, 'end'),
-    closedAt: closingDate(row.closed_at, 'closed time'),
+    closedAt: state === 'closed' ? closingDate(row.closed_at, 'closed time') : null,
     standings: standings.rows.map((standing): FinalSeasonStanding => ({
       membershipId: stringValue(standing.membership_id, 'membership id'),
       displayName: stringValue(standing.display_name, 'display name'),
