@@ -915,7 +915,7 @@ export const puzzleCandidates = pgTable(
       table.houseId,
       table.seasonId,
       table.state,
-      table.createdAt,
+      desc(table.createdAt),
     ),
     check('puzzle_candidates_source_ply_check', sql`${table.sourcePly} > 0`),
     check(
