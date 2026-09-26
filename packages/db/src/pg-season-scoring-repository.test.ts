@@ -254,7 +254,7 @@ describe('BM-034 PostgreSQL Season scoring repository', () => {
 
     const authorizedQuery = vi
       .fn()
-      .mockResolvedValueOnce({ rows: [{}], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ state: 'active' }], rowCount: 1 })
       .mockResolvedValueOnce({
         rows: [{ membership_id: whiteMembershipId, points: '17' }],
         rowCount: 1,
@@ -264,8 +264,36 @@ describe('BM-034 PostgreSQL Season scoring repository', () => {
     ).resolves.toEqual({
       houseId,
       seasonId,
+      finalized: false,
       standings: [{ membershipId: whiteMembershipId, points: 17 }],
     });
+  });
+
+  it('[BM-047] reads the frozen snapshot instead of the ledger once a Season closes', async () => {
+    const context = fakeAuthorizationContext({ houseId, viewerId: id(950) });
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ state: 'closed' }], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [
+          { membership_id: whiteMembershipId, points: 9, rank: 1 },
+          { membership_id: blackMembershipId, points: 0, rank: 2 },
+        ],
+        rowCount: 2,
+      });
+    await expect(
+      new PgSeasonScoringRepository(queryPool(query)).readStandings(context, seasonId),
+    ).resolves.toEqual({
+      houseId,
+      seasonId,
+      finalized: true,
+      standings: [
+        { membershipId: whiteMembershipId, points: 9 },
+        { membershipId: blackMembershipId, points: 0 },
+      ],
+    });
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(String(query.mock.calls[1]?.[0])).toContain('season_final_standings');
   });
 
   it('rejects malformed database rows', async () => {

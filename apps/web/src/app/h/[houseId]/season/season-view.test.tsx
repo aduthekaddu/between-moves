@@ -1,7 +1,9 @@
-import type { HouseSeasonView } from '@between-moves/domain';
+import type { ClosedSeasonView, HouseSeasonView } from '@between-moves/domain';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SeasonView } from './season-view';
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const activeSeason: HouseSeasonView = {
   seasonId: '01941f29-7c00-7000-8000-000000000701',
@@ -212,5 +214,131 @@ describe('SeasonView', () => {
 
     expect(html).toContain('Reschedule');
     expect(html).toContain('Cancel Night');
+  });
+
+  const lastClosed: ClosedSeasonView = {
+    seasonId: '01941f29-7c00-7000-8000-000000000702',
+    title: 'Summer tables',
+    state: 'closed',
+    startsAt: new Date('2026-08-01T00:00:00.000Z'),
+    endsAt: new Date('2026-08-29T00:00:00.000Z'),
+    closedAt: new Date('2026-08-30T09:00:00.000Z'),
+    standings: [
+      { membershipId: 'a', displayName: 'Ada', points: 7, rank: 1 },
+      { membershipId: 'b', displayName: 'Bea', points: 7, rank: 1 },
+      { membershipId: 'c', displayName: 'Mira', points: 1, rank: 3 },
+      { membershipId: 'd', displayName: 'Lin', points: 0, rank: 4 },
+    ],
+  };
+
+  it('[BM-047] gives an Owner the close control at the end of an active Season', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        season={activeSeason}
+      />,
+    );
+
+    expect(html).toContain('Close the Season');
+    expect(html).toContain('Closing freezes the standings');
+    expect(html).toContain('>Close Season</button>');
+  });
+
+  it('[BM-047] offers a Steward the retry control for a closing Season', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="steward"
+        season={{ ...activeSeason, state: 'closing' }}
+      />,
+    );
+
+    expect(html).toContain('Season closing');
+    expect(html).toContain('>Finish closing</button>');
+  });
+
+  it('[BM-047] never gives a Member the close control', () => {
+    for (const state of ['active', 'closing'] as const) {
+      const html = renderToStaticMarkup(
+        <SeasonView
+          houseId="01941f29-7c00-7000-8000-000000000201"
+          membershipRole="member"
+          season={{ ...activeSeason, state }}
+        />,
+      );
+      expect(html).not.toContain('season-close');
+    }
+  });
+
+  it('[BM-047] shows a Member the last closed Season with tied competition ranks', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        season={null}
+        lastClosed={lastClosed}
+      />,
+    );
+
+    expect(html).toContain('Season closed · Final standings');
+    expect(html).toContain('Summer tables');
+    expect(html).toContain('01/08/2026 – 29/08/2026 · closed 30/08/2026');
+    expect(html.match(/aria-label="Rank 1"/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="Rank 3"');
+    expect(html.match(/season-final__row--leader/g)).toHaveLength(2);
+    expect(html).toContain('1 point');
+    expect(html).toContain('0 points');
+    expect(html.indexOf('Summer tables')).toBeLessThan(html.indexOf('The table is waiting.'));
+  });
+
+  it('[BM-047] shows the frozen standings above a Season left in closing', () => {
+    const closing = { ...activeSeason, state: 'closing' as const };
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        season={closing}
+        lastClosed={{
+          ...lastClosed,
+          seasonId: closing.seasonId,
+          title: closing.title,
+          state: 'closing',
+          closedAt: null,
+        }}
+      />,
+    );
+
+    expect(html).toContain('Season closing · Standings frozen');
+    expect(html).not.toContain('· closed');
+    expect(html.match(/aria-label="Rank 1"/g)).toHaveLength(2);
+    expect(html.indexOf('Standings frozen')).toBeLessThan(html.indexOf('Finish closing'));
+  });
+
+  it('[BM-047] ignores a recap that does not belong to the closing Season', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        season={{ ...activeSeason, state: 'closing' }}
+        lastClosed={lastClosed}
+      />,
+    );
+
+    expect(html).not.toContain('Summer tables');
+  });
+
+  it('[BM-047] keeps the recap above a new Charter draft for an Owner', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        season={null}
+        lastClosed={{ ...lastClosed, standings: [] }}
+      />,
+    );
+
+    expect(html).toContain('No Member scored this Season.');
+    expect(html.indexOf('Final standings')).toBeLessThan(html.indexOf('<form'));
   });
 });

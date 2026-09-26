@@ -1,4 +1,5 @@
 import type {
+  ClosedSeasonView,
   HouseNightView,
   HouseSeasonView,
   MembershipRole,
@@ -6,6 +7,8 @@ import type {
   NightRecurrence,
 } from '@between-moves/domain';
 import { CharterAuthoringForm } from './charter-authoring-form';
+import { CloseSeasonPanel } from './close-season-panel';
+import { FinalStandings } from './final-standings';
 import { NightSchedule } from './night-schedule';
 import { PointsRecipe } from './points-recipe';
 
@@ -15,6 +18,10 @@ function nightLabel(recurrence: NightRecurrence): string {
   return `${weekdays[recurrence.weekday] ?? 'Weekly'} at ${recurrence.localTime}`;
 }
 
+/**
+ * Render Season details and role-appropriate controls, or nothing if its Charter or dates
+ * are missing. Owners and Stewards can close an active Season or resume a closing one.
+ */
 function ActiveSeason({
   houseId,
   membershipRole,
@@ -63,17 +70,25 @@ function ActiveSeason({
         initialNights={nights}
         hostCandidates={hostCandidates}
       />
+      {membershipRole !== 'member' && (season.state === 'active' || season.state === 'closing') ? (
+        <CloseSeasonPanel houseId={houseId} seasonId={season.seasonId} state={season.state} />
+      ) : null}
     </article>
   );
 }
 
-/** [BM-019] Season status for Members and Charter authoring for Owner/Steward. */
+/**
+ * [BM-019] Season status for Members and Charter authoring for Owner/Steward.
+ * Show the supplied frozen-standings recap when the current Season is absent, a draft, or
+ * itself still closing.
+ */
 export function SeasonView({
   houseId,
   membershipRole,
   nights = [],
   hostCandidates = [],
   season,
+  lastClosed = null,
   timeZone = 'UTC',
 }: {
   readonly houseId: string;
@@ -81,38 +96,51 @@ export function SeasonView({
   readonly nights?: readonly HouseNightView[];
   readonly hostCandidates?: readonly NightHostCandidate[];
   readonly season: HouseSeasonView | null;
+  readonly lastClosed?: ClosedSeasonView | null;
   readonly timeZone?: string;
 }) {
+  const recap = lastClosed === null ? null : <FinalStandings season={lastClosed} />;
   if (season !== null && season.state !== 'draft') {
+    const frozen =
+      season.state === 'closing' && lastClosed?.seasonId === season.seasonId ? recap : null;
     return (
-      <ActiveSeason
-        houseId={houseId}
-        membershipRole={membershipRole}
-        nights={nights}
-        hostCandidates={hostCandidates}
-        season={season}
-        timeZone={timeZone}
-      />
+      <>
+        {frozen}
+        <ActiveSeason
+          houseId={houseId}
+          membershipRole={membershipRole}
+          nights={nights}
+          hostCandidates={hostCandidates}
+          season={season}
+          timeZone={timeZone}
+        />
+      </>
     );
   }
   if (membershipRole === 'member') {
     return (
-      <section className="season-passive" aria-labelledby="season-passive-title">
-        <p className="season-eyebrow">Season</p>
-        <h1 id="season-passive-title">The table is waiting.</h1>
-        <p>Your House is quiet. Publish a Charter to start the season.</p>
-      </section>
+      <>
+        {recap}
+        <section className="season-passive" aria-labelledby="season-passive-title">
+          <p className="season-eyebrow">Season</p>
+          <h1 id="season-passive-title">The table is waiting.</h1>
+          <p>Your House is quiet. Publish a Charter to start the season.</p>
+        </section>
+      </>
     );
   }
   return (
-    <CharterAuthoringForm
-      houseId={houseId}
-      draftSeasonId={season?.seasonId}
-      initialTitle={season?.title}
-      initialPaceHours={season?.charter?.correspondencePaceHours}
-      initialWeekday={season?.charter?.nightRecurrence.weekday}
-      initialLocalTime={season?.charter?.nightRecurrence.localTime}
-      initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
-    />
+    <>
+      {recap}
+      <CharterAuthoringForm
+        houseId={houseId}
+        draftSeasonId={season?.seasonId}
+        initialTitle={season?.title}
+        initialPaceHours={season?.charter?.correspondencePaceHours}
+        initialWeekday={season?.charter?.nightRecurrence.weekday}
+        initialLocalTime={season?.charter?.nightRecurrence.localTime}
+        initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
+      />
+    </>
   );
 }

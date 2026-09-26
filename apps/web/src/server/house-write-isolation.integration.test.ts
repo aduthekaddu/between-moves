@@ -7,6 +7,7 @@ import {
   createInvitation,
   assignNightHost,
   changeNightSchedule,
+  closeSeason,
   draftSeason,
   draftSeasonCharter,
   endNight,
@@ -78,6 +79,7 @@ import type {
   NightRepository,
   NightRsvpRepository,
   NightScheduleChangeRecorder,
+  SeasonClosingRepository,
   SeasonRepository,
   SeasonTransitionRecorder,
   SubmitMoveRepository,
@@ -127,7 +129,7 @@ interface IsolationHarness {
   readonly acceptances: GameSeatAcceptanceRepository;
   readonly seats: GameSeatCreationRepository;
   readonly changes: NightScheduleChangeRecorder;
-  readonly seasons: SeasonRepository;
+  readonly seasons: SeasonRepository & SeasonClosingRepository;
   readonly transitions: SeasonTransitionRecorder;
   readonly moves: SubmitMoveRepository;
   readonly completions: GameCompletionRepository;
@@ -328,6 +330,21 @@ const cases: readonly IsolationCase[] = [
           title: 'Crossed table',
           startsAt: new Date('2026-09-04T00:00:00.000Z'),
           endsAt: new Date('2026-10-02T00:00:00.000Z'),
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
+  {
+    id: 'season.close',
+    name: 'Season close',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      closeSeason(
+        {
+          houseId: harness.world.second.houseId,
+          seasonId,
           viewer: viewer(harness.world.second.member),
         },
         harness,
@@ -732,7 +749,9 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
        'seasons', coalesce((
          select jsonb_agg(jsonb_build_object(
            'id', s.id::text, 'state', s.state, 'version', s.published_charter_version,
-           'charters', (select count(*) from season_charters c where c.season_id = s.id)
+           'charters', (select count(*) from season_charters c where c.season_id = s.id),
+           'final_standings',
+             (select count(*) from season_final_standings f where f.season_id = s.id)
          ) order by s.id)
          from seasons s where s.house_id = h.id
        ), '[]'::jsonb),

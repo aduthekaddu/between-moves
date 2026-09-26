@@ -17,11 +17,13 @@ export {
 export type { HousesUseCase } from './houses';
 export type { SeasonsUseCase } from './seasons';
 export {
+  closeSeason,
   createSeasonScoringConsumer,
   draftSeason,
   draftSeasonCharter,
   publishSeason,
   readHouseSeason,
+  readLastClosedSeason,
   readSeasonStandings,
   type SeasonScoringConsumerDependencies,
 } from './seasons';

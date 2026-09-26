@@ -56,7 +56,7 @@ function dependencies(outcome: SeasonScoreAppendResult['outcome'] = 'recorded') 
             }))
           : [],
     })),
-    readStandings: vi.fn(async () => ({ houseId, seasonId, standings: [] })),
+    readStandings: vi.fn(async () => ({ houseId, seasonId, finalized: false, standings: [] })),
   };
   return {
     scoring,
@@ -197,7 +197,7 @@ describe('BM-034 Season standings query', () => {
         { houseId, seasonId, viewer },
         { authorizeHouseAction, scoring: deps.scoring },
       ),
-    ).resolves.toEqual({ houseId, seasonId, standings: [] });
+    ).resolves.toEqual({ houseId, seasonId, finalized: false, standings: [] });
     expect(authorizeHouseAction).toHaveBeenCalledWith(
       { kind: 'view_house_content' },
       houseId,

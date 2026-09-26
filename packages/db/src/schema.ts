@@ -671,6 +671,42 @@ export const seasonScoreLedger = pgTable(
   ],
 );
 
+/** [BM-047] Immutable standings snapshot written when a Season enters `closing`. */
+export const seasonFinalStandings = pgTable(
+  'season_final_standings',
+  {
+    seasonId: uuid('season_id').notNull(),
+    houseId: uuid('house_id').notNull(),
+    membershipId: uuid('membership_id').notNull(),
+    rank: integer('rank').notNull(),
+    points: integer('points').notNull(),
+    finalizedAt: timestamp('finalized_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.seasonId, table.membershipId],
+      name: 'season_final_standings_pkey',
+    }),
+    foreignKey({
+      columns: [table.seasonId, table.houseId],
+      foreignColumns: [seasons.id, seasons.houseId],
+      name: 'season_final_standings_season_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.membershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'season_final_standings_membership_house_fk',
+    }).onDelete('restrict'),
+    index('season_final_standings_house_season_rank_idx').on(
+      table.houseId,
+      table.seasonId,
+      table.rank,
+    ),
+    check('season_final_standings_rank_check', sql`${table.rank} > 0`),
+    check('season_final_standings_points_check', sql`${table.points} >= 0`),
+  ],
+);
+
 const standardFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 /** [BM-021] [DR-GAME-01..04] Current, server-authoritative Game snapshot. */

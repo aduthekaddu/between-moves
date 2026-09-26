@@ -1,8 +1,7 @@
 import type { StructuredLogger } from './logger';
 
 type SeasonState = 'draft' | 'active' | 'closing' | 'closed';
-type SeasonTransitionEvent =
-  'draft_season' | 'publish_season' | 'close_season' | 'generation_complete';
+type SeasonTransitionEvent = 'draft_season' | 'publish_season' | 'close_season' | 'finalize_season';
 
 interface SeasonTransitionObservation {
   readonly actorId: string;

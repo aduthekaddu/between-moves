@@ -5,9 +5,11 @@ import {
   draftSeasonCharter as draftSeasonCharterUseCase,
   publishSeason as publishSeasonUseCase,
   readHouseSeason as readHouseSeasonUseCase,
+  readLastClosedSeason as readLastClosedSeasonUseCase,
 } from '@between-moves/application';
 import { PgHouseAuthorizationMembershipRepository, PgSeasonRepository } from '@between-moves/db';
 import type {
+  ClosedSeasonView,
   HouseSeasonView,
   ReadHouseSeasonRequest,
   SeasonDependencies,
@@ -75,4 +77,23 @@ export async function getHouseSeason(
     authorizeHouseAction: dependencies.authorizeHouseAction,
     seasons: new PgSeasonRepository(getDatabase().pool),
   });
+}
+
+/**
+ * [BM-047] Member-scoped frozen standings for a closing Season or the most recently closed one.
+ * Return null when the repository finds no available closed Season; viewer resolution,
+ * authorization, and database failures propagate.
+ */
+export async function getLastClosedSeason(
+  request: Request,
+  houseId: string,
+): Promise<ClosedSeasonView | null> {
+  const dependencies = seasonDependencies(readSeasonRequestId(request));
+  return readLastClosedSeasonUseCase(
+    { houseId, viewer: await getViewer(request) },
+    {
+      authorizeHouseAction: dependencies.authorizeHouseAction,
+      seasons: new PgSeasonRepository(getDatabase().pool),
+    },
+  );
 }

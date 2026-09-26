@@ -78,3 +78,14 @@ Confirming the position and adding a prompt publishes a House-only Puzzle throug
 outbox event commit together. The confirming member is the contributor; the Season
 scoring consumer awards one point for each of their first two published puzzles in
 that Season. Publication logs expose `puzzle_published_total`.
+
+An Owner or Steward closes the active Season from `/h/{houseId}/season` through
+`POST /api/houses/{houseId}/seasons/{seasonId}/close`. The first transaction moves the
+Season to `closing`, writes an immutable `season_final_standings` snapshot from the points
+ledger (every active Member plus anyone who scored, with shared competition ranks), and
+enqueues one `season.closing` outbox event for Closing Book generation. A second
+transaction marks the Season `closed`. Retrying resumes a Season left in `closing`; a
+closed Season replays without a second event. Once closing starts, the standings API
+returns the frozen snapshot with `finalized: true`. Each House still has at most one
+`active` or `closing` Season, so a new Season can be drafted only after the close
+completes. The command logs `season.closed`.

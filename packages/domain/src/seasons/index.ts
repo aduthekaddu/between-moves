@@ -6,10 +6,11 @@ import type { AuthorizeHouseAction } from '../houses/authorization';
 import type { IdGenerator } from '../houses/house';
 
 export * from './scoring';
+export * from './closing';
 
 export type SeasonState = 'draft' | 'active' | 'closing' | 'closed';
 export type SeasonTransitionEvent =
-  'draft_season' | 'publish_season' | 'close_season' | 'generation_complete';
+  'draft_season' | 'publish_season' | 'close_season' | 'finalize_season';
 
 export interface NightRecurrence {
   readonly weekday: number;
@@ -177,7 +178,8 @@ const TRANSITIONS: Readonly<
   draft_season: [null, 'draft'],
   publish_season: ['draft', 'active'],
   close_season: ['active', 'closing'],
-  generation_complete: ['closing', 'closed'],
+  // [BM-047] Closing Book generation (BM-048) reads the snapshot; it does not gate `closed`.
+  finalize_season: ['closing', 'closed'],
 };
 
 /** [BM-018] [DR-SEASON-04..07] Enforce the complete Season transition graph. */

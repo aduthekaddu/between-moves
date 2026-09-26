@@ -6,9 +6,12 @@ import {
   validateSeasonTitle,
   validateSeasonWindow,
   type CharterDraftResult,
+  type CloseSeasonDependencies,
+  type CloseSeasonRequest,
   type DraftSeasonCharterRequest,
   type DraftSeasonRequest,
   type PublishSeasonRequest,
+  type SeasonCloseResult,
   type SeasonDependencies,
   type SeasonDraftResult,
   type SeasonPublishResult,
@@ -20,8 +23,11 @@ function errorOutcome(error: unknown): 'rejected' | 'error' {
   return error instanceof DomainError ? 'rejected' : 'error';
 }
 
+type TransitionDependencies = Pick<SeasonDependencies, 'transitions'>;
+
+/** Record a transition while suppressing recorder failures. */
 function recordTransition(
-  dependencies: SeasonDependencies,
+  dependencies: TransitionDependencies,
   observation: Parameters<SeasonDependencies['transitions']['record']>[0],
 ): void {
   try {
@@ -31,6 +37,10 @@ function recordTransition(
   }
 }
 
+/**
+ * Return the operation's result or rethrow its failure; recorder failures are suppressed.
+ * `recordSuccess` can suppress a success observation by returning false, as on a replay.
+ */
 async function observeTransition<T>(input: {
   readonly actorId: string;
   readonly houseId: string;
@@ -38,7 +48,7 @@ async function observeTransition<T>(input: {
   readonly event: SeasonTransitionEvent;
   readonly from: SeasonState | null;
   readonly to: SeasonState;
-  readonly dependencies: SeasonDependencies;
+  readonly dependencies: TransitionDependencies;
   readonly operation: () => Promise<T>;
   readonly recordSuccess?: (result: T) => boolean;
 }): Promise<T> {
@@ -163,5 +173,55 @@ export async function publishSeason(
         ],
       });
     },
+  });
+}
+
+/**
+ * [BM-047] Close an active Season: lock it into `closing` with a standings snapshot and the
+ * `season.closing` event, then finalize it as `closed`. A retry resumes a stranded closing.
+ * Require Owner/Steward authorization. Return final standings and the close time; a closed
+ * Season returns its saved standings and original close time with `closedNow: false`.
+ * Authorization and repository errors propagate, including unavailable-Season and invalid-state
+ * errors. A finalization failure can leave the committed closing step available for retry.
+ */
+export async function closeSeason(
+  request: CloseSeasonRequest,
+  dependencies: CloseSeasonDependencies,
+): Promise<SeasonCloseResult> {
+  const context = await dependencies.authorizeHouseAction(
+    { kind: 'close_season' },
+    request.houseId,
+    request.viewer,
+  );
+  const transition = {
+    actorId: request.viewer.userId,
+    houseId: request.houseId,
+    seasonId: request.seasonId,
+    dependencies,
+  };
+  await observeTransition({
+    ...transition,
+    event: 'close_season',
+    from: 'active',
+    to: transitionSeasonState('active', 'close_season'),
+    recordSuccess: (result) => result.closingNow,
+    operation: () =>
+      dependencies.seasons.beginClosing(context, {
+        seasonId: request.seasonId,
+        closingEventId: dependencies.ids.generate(),
+        closingAt: dependencies.clock.now(),
+      }),
+  });
+  return observeTransition({
+    ...transition,
+    event: 'finalize_season',
+    from: 'closing',
+    to: transitionSeasonState('closing', 'finalize_season'),
+    recordSuccess: (result) => result.closedNow,
+    operation: () =>
+      dependencies.seasons.finalize(context, {
+        seasonId: request.seasonId,
+        closedAt: dependencies.clock.now(),
+      }),
   });
 }

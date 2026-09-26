@@ -13,24 +13,19 @@ describe('Season state machine', () => {
     [null, 'draft_season', 'draft'],
     ['draft', 'publish_season', 'active'],
     ['active', 'close_season', 'closing'],
-    ['closing', 'generation_complete', 'closed'],
+    ['closing', 'finalize_season', 'closed'],
   ] as const)('[BM-018] [DR-SEASON-04..07] transitions %s through %s to %s', (from, event, to) => {
     expect(transitionSeasonState(from, event)).toBe(to);
   });
 
   it('[BM-018] [DR-SEASON-04..07] rejects every edge outside the transition graph', () => {
     const states = [null, 'draft', 'active', 'closing', 'closed'] as const;
-    const events = [
-      'draft_season',
-      'publish_season',
-      'close_season',
-      'generation_complete',
-    ] as const;
+    const events = ['draft_season', 'publish_season', 'close_season', 'finalize_season'] as const;
     const allowed = new Set([
       'none:draft_season',
       'draft:publish_season',
       'active:close_season',
-      'closing:generation_complete',
+      'closing:finalize_season',
     ]);
 
     for (const state of states) {
