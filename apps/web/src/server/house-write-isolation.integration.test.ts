@@ -22,6 +22,7 @@ import {
   resignGame,
   deleteHouseChat,
   postHouseChat,
+  publishHousePuzzle,
   saveGameNote,
   setGameReaction,
   startNight,
@@ -38,6 +39,7 @@ import {
   PgGameReactionRepository,
   PgGameNoteRepository,
   PgHouseChatRepository,
+  PgHousePuzzleRepository,
   PgInvitationRedemptionRepository,
   PgInvitationRepository,
   PgMembershipAdminRepository,
@@ -132,6 +134,7 @@ interface IsolationHarness {
   readonly reactions: GameReactionRepository;
   readonly notes: GameNoteRepository;
   readonly chat: HouseChatRepository;
+  readonly puzzles: PgHousePuzzleRepository;
   readonly rules: RulesAdapter;
 }
 
@@ -144,6 +147,22 @@ interface IsolationCase {
 }
 
 const cases: readonly IsolationCase[] = [
+  {
+    id: 'puzzle.publish',
+    name: 'House Puzzle publication',
+    outcome: 'denied',
+    expectedError: { code: 'authorization_denied', reason: 'not_a_member', crossHouse: true },
+    run: (harness) =>
+      publishHousePuzzle(
+        {
+          houseId: harness.world.second.houseId,
+          candidateId: '01941f29-7c00-7000-8000-000000000999',
+          prompt: 'Find the move',
+          viewer: viewer(harness.world.first.member),
+        },
+        harness,
+      ),
+  },
   {
     id: 'invitation.create',
     name: 'Invitation creation',
@@ -932,6 +951,7 @@ integration('BM-017 current House write-path isolation', () => {
       reactions: new PgGameReactionRepository(database),
       notes: new PgGameNoteRepository(database),
       chat: new PgHouseChatRepository(database),
+      puzzles: new PgHousePuzzleRepository(database),
       rules: {
         applyMove: () => {
           throw new Error('Cross-House Move must not reach the rules adapter');

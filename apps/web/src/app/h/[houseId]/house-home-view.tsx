@@ -81,6 +81,12 @@ export function HouseHomeView({
           >
             Open the Season table
           </a>
+          <a
+            className="house-status__action"
+            href={`/h/${encodeURIComponent(home.houseId)}/puzzles`}
+          >
+            House Puzzles
+          </a>
         </aside>
       </main>
     </div>

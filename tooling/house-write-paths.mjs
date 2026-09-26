@@ -156,6 +156,12 @@ export const houseWritePaths = Object.freeze([
     scope: 'house-id',
   },
   {
+    id: 'puzzle.publish',
+    useCase: 'publishHousePuzzle',
+    route: 'apps/web/src/app/api/houses/[houseId]/puzzles/route.ts',
+    scope: 'house-id',
+  },
+  {
     id: 'night.chat-post',
     useCase: 'postHouseChat',
     route: 'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/chat/route.ts',

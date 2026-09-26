@@ -54,7 +54,13 @@ export {
   startNight,
 } from './nights';
 export type { StoriesUseCase } from './stories';
-export { readCurrentGameReaction, readGameNotes, saveGameNote, setGameReaction } from './stories';
+export {
+  publishHousePuzzle,
+  readCurrentGameReaction,
+  readGameNotes,
+  saveGameNote,
+  setGameReaction,
+} from './stories';
 export {
   createEmailDeliveryConsumer,
   createInvitationEmailConsumer,

@@ -71,3 +71,10 @@ engine failures do not alter the completed game. Completion callback logs includ
 `analysis_job_duration_ms`; worker and callback logs include
 `analysis_job_failure_total`; successful candidate creation increments
 `puzzle_candidate_created_total` in callback logs.
+
+Active House members can review pending candidate positions at `/h/{houseId}/puzzles`.
+Confirming the position and adding a prompt publishes a House-only Puzzle through
+`POST /api/houses/{houseId}/puzzles`. The publication and `puzzle.published` scoring
+outbox event commit together. The confirming member is the contributor; the Season
+scoring consumer awards one point for each of their first two published puzzles in
+that Season. Publication logs expose `puzzle_published_total`.

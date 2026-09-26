@@ -8,6 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@playwright/test':
+        specifier: 1.51.1
+        version: 1.51.1
+      '@types/node':
+        specifier: 24.13.3
+        version: 24.13.3
       '@typescript-eslint/parser':
         specifier: 8.68.0
         version: 8.68.0(eslint@9.39.5(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)

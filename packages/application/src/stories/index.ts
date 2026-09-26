@@ -4,3 +4,4 @@ import type { AuthorizedUseCase } from '../shared/use-case';
 export type StoriesUseCase<Command, Result> = AuthorizedUseCase<Command, Result>;
 export { readCurrentGameReaction, setGameReaction } from './reactions';
 export { readGameNotes, saveGameNote } from './notes';
+export { publishHousePuzzle } from './puzzles';
