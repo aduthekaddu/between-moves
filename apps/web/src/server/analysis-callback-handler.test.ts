@@ -5,7 +5,9 @@ import { handleAnalysisCallback } from './analysis-callback-handler';
 const jobId = '01941f29-7c00-7000-8000-000000000501';
 const leaseToken = '01941f29-7c00-7000-8000-000000000502';
 const secret = 'analysis-contract-secret';
-const result = { swings: [{ ply: 11, centipawnsBefore: 20, centipawnsAfter: -300 }] };
+const result = {
+  swings: [{ ply: 11, centipawnsBefore: 20, centipawnsAfter: -300, bestLine: ['e2e4', 'e7e5'] }],
+};
 
 function request(payload: unknown, signingKey = secret): Request {
   const body = JSON.stringify(payload);
@@ -18,35 +20,53 @@ function request(payload: unknown, signingKey = secret): Request {
 
 describe('BM-044 analysis result callback contract', () => {
   it('verifies the exact body and processes a duplicated success once', async () => {
-    const complete = vi
+    const completeWithCandidates = vi
       .fn()
-      .mockResolvedValueOnce({ outcome: 'processed', durationMs: 12_000 })
-      .mockResolvedValueOnce({ outcome: 'duplicate', durationMs: null });
+      .mockResolvedValueOnce({ outcome: 'processed', durationMs: 12_000, candidatesCreated: 1 })
+      .mockResolvedValueOnce({ outcome: 'duplicate', durationMs: null, candidatesCreated: 0 });
     const fail = vi.fn();
     const observeDuration = vi.fn();
     const dependencies = {
       secret,
-      jobs: { complete, fail },
+      jobs: { completeWithCandidates, fail },
       now: () => new Date('2026-09-25T10:00:00Z'),
-      metrics: { observeDuration, incrementFailure: vi.fn(), snapshot: vi.fn() },
+      metrics: {
+        observeDuration,
+        incrementFailure: vi.fn(),
+        incrementCandidateCreated: vi.fn(),
+        snapshot: vi.fn(),
+      },
     };
     const payload = { jobId, leaseToken, status: 'completed', result };
     expect((await handleAnalysisCallback(request(payload), dependencies)).status).toBe(204);
     expect((await handleAnalysisCallback(request(payload), dependencies)).status).toBe(204);
-    expect(complete).toHaveBeenCalledTimes(2);
+    expect(completeWithCandidates).toHaveBeenCalledTimes(2);
     expect(observeDuration).toHaveBeenCalledOnce();
     expect(observeDuration).toHaveBeenCalledWith(12_000);
-    expect(complete).toHaveBeenCalledWith(jobId, leaseToken, result, dependencies.now());
+    expect(completeWithCandidates).toHaveBeenCalledWith(
+      jobId,
+      leaseToken,
+      result,
+      dependencies.now(),
+      expect.any(Function),
+    );
+    expect(dependencies.metrics.incrementCandidateCreated).toHaveBeenCalledOnce();
     expect(fail).not.toHaveBeenCalled();
     expect((await handleAnalysisCallback(request(payload, 'wrong-key'), dependencies)).status).toBe(
       401,
     );
-    expect(complete).toHaveBeenCalledTimes(2);
+    expect(completeWithCandidates).toHaveBeenCalledTimes(2);
   });
 
   it('rejects stale leases and unstructured or private result data', async () => {
-    const complete = vi.fn().mockResolvedValue({ outcome: 'stale', durationMs: null });
-    const dependencies = { secret, jobs: { complete, fail: vi.fn() }, now: () => new Date() };
+    const completeWithCandidates = vi
+      .fn()
+      .mockResolvedValue({ outcome: 'stale', durationMs: null, candidatesCreated: 0 });
+    const dependencies = {
+      secret,
+      jobs: { completeWithCandidates, fail: vi.fn() },
+      now: () => new Date(),
+    };
     expect(
       (
         await handleAnalysisCallback(
@@ -68,6 +88,19 @@ describe('BM-044 analysis result callback contract', () => {
         )
       ).status,
     ).toBe(422);
+    expect(
+      (
+        await handleAnalysisCallback(
+          request({
+            jobId,
+            leaseToken,
+            status: 'completed',
+            result: { swings: [{ ply: 1, centipawnsBefore: 0, centipawnsAfter: -200 }] },
+          }),
+          dependencies,
+        )
+      ).status,
+    ).toBe(422);
   });
 
   it('acknowledges duplicate failure callbacks and counts one failure', async () => {
@@ -75,9 +108,14 @@ describe('BM-044 analysis result callback contract', () => {
     const incrementFailure = vi.fn();
     const dependencies = {
       secret,
-      jobs: { complete: vi.fn(), fail },
+      jobs: { completeWithCandidates: vi.fn(), fail },
       now: () => new Date('2026-09-25T10:00:00Z'),
-      metrics: { incrementFailure, observeDuration: vi.fn(), snapshot: vi.fn() },
+      metrics: {
+        incrementFailure,
+        observeDuration: vi.fn(),
+        incrementCandidateCreated: vi.fn(),
+        snapshot: vi.fn(),
+      },
     };
     const payload = { jobId, leaseToken, status: 'failed' };
     expect((await handleAnalysisCallback(request(payload), dependencies)).status).toBe(204);
@@ -86,7 +124,7 @@ describe('BM-044 analysis result callback contract', () => {
   });
 
   it('rejects a streamed oversized body before parsing or writing', async () => {
-    const complete = vi.fn();
+    const completeWithCandidates = vi.fn();
     const chunk = new Uint8Array(32 * 1024);
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -101,8 +139,12 @@ describe('BM-044 analysis result callback contract', () => {
       body,
       duplex: 'half',
     } as RequestInit);
-    const dependencies = { secret, jobs: { complete, fail: vi.fn() }, now: () => new Date() };
+    const dependencies = {
+      secret,
+      jobs: { completeWithCandidates, fail: vi.fn() },
+      now: () => new Date(),
+    };
     expect((await handleAnalysisCallback(input, dependencies)).status).toBe(413);
-    expect(complete).not.toHaveBeenCalled();
+    expect(completeWithCandidates).not.toHaveBeenCalled();
   });
 });

@@ -844,6 +844,7 @@ export const analysisJobs = pgTable(
       foreignColumns: [games.id, games.houseId],
       name: 'analysis_jobs_game_house_fk',
     }).onDelete('restrict'),
+    unique('analysis_jobs_id_house_unique').on(table.id, table.houseId),
     index('analysis_jobs_claim_idx')
       .on(table.availableAt, table.id)
       .where(sql`${table.state} in ('pending', 'leased')`),
@@ -867,6 +868,65 @@ export const analysisJobs = pgTable(
     check(
       'analysis_jobs_error_length_check',
       sql`${table.lastError} is null or char_length(${table.lastError}) between 1 and 2000`,
+    ),
+  ],
+);
+
+/** [BM-045] An unpublished House Puzzle moment, scoped to its source Season. */
+export const puzzleCandidates = pgTable(
+  'puzzle_candidates',
+  {
+    id: uuid('id').primaryKey().defaultRandom().notNull(),
+    analysisJobId: uuid('analysis_job_id').notNull(),
+    gameId: uuid('game_id').notNull(),
+    houseId: uuid('house_id').notNull(),
+    seasonId: uuid('season_id').notNull(),
+    sourcePly: integer('source_ply').notNull(),
+    positionFen: text('position_fen').notNull(),
+    bestLine: jsonb('best_line').$type<string[]>().notNull(),
+    evaluationSwingCp: integer('evaluation_swing_cp').notNull(),
+    state: text('state').default('pending').notNull(),
+    reviewerMembershipId: uuid('reviewer_membership_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.analysisJobId, table.houseId],
+      foreignColumns: [analysisJobs.id, analysisJobs.houseId],
+      name: 'puzzle_candidates_analysis_job_house_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.gameId, table.houseId],
+      foreignColumns: [games.id, games.houseId],
+      name: 'puzzle_candidates_game_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.seasonId, table.houseId],
+      foreignColumns: [seasons.id, seasons.houseId],
+      name: 'puzzle_candidates_season_house_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.reviewerMembershipId, table.houseId],
+      foreignColumns: [memberships.id, memberships.houseId],
+      name: 'puzzle_candidates_reviewer_house_fk',
+    }).onDelete('restrict'),
+    unique('puzzle_candidates_game_ply_unique').on(table.gameId, table.sourcePly),
+    index('puzzle_candidates_house_season_state_idx').on(
+      table.houseId,
+      table.seasonId,
+      table.state,
+      desc(table.createdAt),
+    ),
+    check('puzzle_candidates_source_ply_check', sql`${table.sourcePly} > 0`),
+    check(
+      'puzzle_candidates_position_fen_check',
+      sql`char_length(${table.positionFen}) between 1 and 200`,
+    ),
+    check('puzzle_candidates_best_line_check', sql`jsonb_typeof(${table.bestLine}) = 'array'`),
+    check('puzzle_candidates_evaluation_swing_cp_check', sql`${table.evaluationSwingCp} >= 200`),
+    check(
+      'puzzle_candidates_state_check',
+      sql`${table.state} in ('pending', 'confirmed', 'rejected')`,
     ),
   ],
 );

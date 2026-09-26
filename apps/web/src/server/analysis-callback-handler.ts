@@ -1,5 +1,6 @@
 import { verifyAnalysisCallback } from '@between-moves/adapters';
-import { PgAnalysisJobRepository } from '@between-moves/db';
+import { PgAnalysisJobRepository, PgPuzzleCandidateRepository } from '@between-moves/db';
+import type { PoolClient } from 'pg';
 import {
   createAnalysisMetricStubs,
   createStructuredLogger,
@@ -8,13 +9,18 @@ import {
 import { z } from 'zod';
 import { getConfig } from '../config';
 import { getDatabase } from './database';
+import { generatePuzzleCandidates, type CandidateWriter } from '../modules/stories/candidates';
 
 const uuid = z.uuid();
 const swing = z
   .object({
-    ply: z.number().int().nonnegative(),
+    ply: z.number().int().positive(),
     centipawnsBefore: z.number().int().min(-100_000).max(100_000),
     centipawnsAfter: z.number().int().min(-100_000).max(100_000),
+    bestLine: z
+      .array(z.string().regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/))
+      .min(1)
+      .max(32),
   })
   .strict();
 const callback = z.discriminatedUnion('status', [
@@ -58,7 +64,8 @@ async function readBody(request: Request): Promise<string | null> {
 
 export interface AnalysisCallbackDependencies {
   readonly secret: string;
-  readonly jobs: Pick<PgAnalysisJobRepository, 'complete' | 'fail'>;
+  readonly jobs: Pick<PgAnalysisJobRepository, 'completeWithCandidates' | 'fail'>;
+  readonly candidateWriter?: (client: PoolClient) => CandidateWriter;
   readonly now: () => Date;
   readonly metrics?: ReturnType<typeof createAnalysisMetricStubs>;
   readonly logger?: Pick<StructuredLogger, 'log'>;
@@ -68,6 +75,7 @@ function productionDependencies(): AnalysisCallbackDependencies {
   return {
     secret: getConfig().analysisWorkerSecret,
     jobs: new PgAnalysisJobRepository(getDatabase().pool),
+    candidateWriter: (client) => new PgPuzzleCandidateRepository(client),
     now: () => new Date(),
     metrics,
     logger: createStructuredLogger({
@@ -98,12 +106,25 @@ export async function handleAnalysisCallback(
   if (!parsed.success) return new Response(null, { status: 422 });
   const now = dependencies.now();
   if (parsed.data.status === 'completed') {
-    const completion = await dependencies.jobs.complete(
+    const { result } = parsed.data;
+    const completion = await dependencies.jobs.completeWithCandidates(
       parsed.data.jobId,
       parsed.data.leaseToken,
-      parsed.data.result,
+      result,
       now,
+      (houseId, client) =>
+        dependencies.candidateWriter
+          ? generatePuzzleCandidates(
+              parsed.data.jobId,
+              houseId,
+              result.swings,
+              now,
+              dependencies.candidateWriter(client),
+            )
+          : Promise.resolve(0),
     );
+    for (let index = 0; index < completion.candidatesCreated; index += 1)
+      dependencies.metrics?.incrementCandidateCreated();
     if (completion.outcome === 'processed' && completion.durationMs !== null) {
       dependencies.metrics?.observeDuration(completion.durationMs);
       dependencies.logger?.log({

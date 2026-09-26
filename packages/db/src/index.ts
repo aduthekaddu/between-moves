@@ -10,10 +10,12 @@ export { enqueueOutboxEvent } from './enqueue-outbox-event';
 export type { OutboxTransaction } from './enqueue-outbox-event';
 export { PgOutboxRepository } from './outbox-repository';
 export { PgAnalysisJobRepository } from './pg-analysis-job-repository';
+export { PgPuzzleCandidateRepository } from './pg-puzzle-candidate-repository';
 export type {
   AnalysisJob,
   AnalysisCompletion,
   AnalysisResultCompletion,
+  AnalysisCandidateCompletion,
 } from './pg-analysis-job-repository';
 export { PgEmailDeliveryEventRepository } from './email-delivery-event-repository';
 export { PgNudgeEmailReader } from './pg-nudge-email-reader';

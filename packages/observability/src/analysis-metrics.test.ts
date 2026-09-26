@@ -7,9 +7,11 @@ describe('BM-044 analysis metrics', () => {
     metrics.observeDuration(1_250);
     metrics.incrementFailure();
     metrics.incrementFailure();
+    metrics.incrementCandidateCreated();
     expect(metrics.snapshot()).toEqual({
       analysis_job_duration_ms: 1_250,
       analysis_job_failure_total: 2,
+      puzzle_candidate_created_total: 1,
     });
   });
 });

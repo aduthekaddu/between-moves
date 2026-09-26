@@ -59,10 +59,15 @@ SHA-256 HMAC of the exact JSON body using `ANALYSIS_WORKER_SECRET`. The engine
 responds with HTTP 202 and later posts a similarly signed result to
 `/api/internal/analysis/callback`. A completed result has `status: "completed"`
 and `result.swings` with numeric `ply`, `centipawnsBefore`, and
-`centipawnsAfter` values. A failure has `status: "failed"`.
+`centipawnsAfter` values, plus a nonempty `bestLine` of UCI moves from the
+position before that ply. Swings of at least 200 centipawns create one private
+`puzzle_candidates` row per Game ply, using the canonical position from Moves.
+Candidates start pending review in the Game's House and Season. A failure has
+`status: "failed"`.
 
 Set `ANALYSIS_ENABLED=false` in the worker to disable enqueueing and dispatch.
 `ANALYSIS_ENGINE_VERSION` defaults to `v1`. Jobs retry at most three times;
 engine failures do not alter the completed game. Completion callback logs include
 `analysis_job_duration_ms`; worker and callback logs include
-`analysis_job_failure_total`.
+`analysis_job_failure_total`; successful candidate creation increments
+`puzzle_candidate_created_total` in callback logs.

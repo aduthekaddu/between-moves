@@ -1,4 +1,4 @@
-import type { Pool, QueryResultRow } from 'pg';
+import type { Pool, PoolClient, QueryResultRow } from 'pg';
 
 export interface AnalysisJob {
   readonly id: string;
@@ -22,9 +22,13 @@ export interface AnalysisResultCompletion {
   readonly durationMs: number | null;
 }
 
+export interface AnalysisCandidateCompletion extends AnalysisResultCompletion {
+  readonly candidatesCreated: number;
+}
+
 /** [BM-044] One job per completion event; lease tokens fence delayed workers. */
 export class PgAnalysisJobRepository {
-  constructor(private readonly database: Pick<Pool, 'query'>) {}
+  constructor(private readonly database: Pick<Pool, 'query' | 'connect'>) {}
 
   async enqueue(input: {
     eventId: string;
@@ -96,26 +100,62 @@ export class PgAnalysisJobRepository {
     result: Readonly<Record<string, unknown>>,
     now: Date,
   ): Promise<AnalysisResultCompletion> {
-    const updated = await this.database.query<{ created_at: Date }>(
-      `update analysis_jobs set state = 'completed', result = $4,
-         completed_at = $3, lease_token = null, lease_until = null
-        where id = $1 and state = 'leased' and lease_token = $2 and lease_until > $3
-        returning created_at`,
-      [jobId, leaseToken, now, JSON.stringify(result)],
+    const { outcome, durationMs } = await this.completeWithCandidates(
+      jobId,
+      leaseToken,
+      result,
+      now,
+      async () => 0,
     );
-    const createdAt = updated.rows[0]?.created_at;
-    if (createdAt) {
-      if (!(createdAt instanceof Date)) throw new Error('Invalid analysis job creation time');
-      return { outcome: 'processed', durationMs: Math.max(0, now.getTime() - createdAt.getTime()) };
+    return { outcome, durationMs };
+  }
+
+  /** Candidate writes share the successful lease's transaction. */
+  async completeWithCandidates(
+    jobId: string,
+    leaseToken: string,
+    result: Readonly<Record<string, unknown>>,
+    now: Date,
+    createCandidates: (houseId: string, client: PoolClient) => Promise<number>,
+  ): Promise<AnalysisCandidateCompletion> {
+    const client = await this.database.connect();
+    try {
+      await client.query('begin');
+      const updated = await client.query<{ created_at: Date; house_id: string }>(
+        `update analysis_jobs set state = 'completed', result = $4,
+           completed_at = $3, lease_token = null, lease_until = null
+          where id = $1 and state = 'leased' and lease_token = $2 and lease_until > $3
+          returning created_at, house_id`,
+        [jobId, leaseToken, now, JSON.stringify(result)],
+      );
+      const row = updated.rows[0];
+      if (row) {
+        if (!(row.created_at instanceof Date))
+          throw new Error('Invalid analysis job creation time');
+        const candidatesCreated = await createCandidates(row.house_id, client);
+        await client.query('commit');
+        return {
+          outcome: 'processed',
+          durationMs: Math.max(0, now.getTime() - row.created_at.getTime()),
+          candidatesCreated,
+        };
+      }
+      const current = await client.query<{ state: string }>(
+        'select state from analysis_jobs where id = $1',
+        [jobId],
+      );
+      await client.query('commit');
+      return {
+        outcome: current.rows[0]?.state === 'completed' ? 'duplicate' : 'stale',
+        durationMs: null,
+        candidatesCreated: 0,
+      };
+    } catch (error) {
+      await client.query('rollback');
+      throw error;
+    } finally {
+      client.release();
     }
-    const current = await this.database.query<{ state: string }>(
-      'select state from analysis_jobs where id = $1',
-      [jobId],
-    );
-    return {
-      outcome: current.rows[0]?.state === 'completed' ? 'duplicate' : 'stale',
-      durationMs: null,
-    };
   }
 
   async fail(
