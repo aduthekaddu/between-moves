@@ -45,13 +45,11 @@ integration('BM-029 Nudge migration', () => {
     await migrateUp(database, { migrationsDirectory });
     // Roll back migrations newer than BM-029 so the fixture is inserted before
     // the nudge migration runs and its backfill is exercised.
-    await migrateDown(database, { migrationsDirectory });
-    await migrateDown(database, { migrationsDirectory });
-    await migrateDown(database, { migrationsDirectory });
-    await migrateDown(database, { migrationsDirectory });
-    await migrateDown(database, { migrationsDirectory });
-    await migrateDown(database, { migrationsDirectory });
-    await migrateDown(database, { migrationsDirectory });
+    for (;;) {
+      const [reverted] = await migrateDown(database, { migrationsDirectory });
+      if (reverted === undefined) throw new Error('0014_nudge_deliveries was not applied');
+      if (reverted === '0014_nudge_deliveries') break;
+    }
   });
 
   afterAll(async () => {

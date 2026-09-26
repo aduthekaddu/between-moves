@@ -199,4 +199,5 @@ export const nonHouseMutationRoutes = Object.freeze([
   'apps/web/src/app/api/houses/[houseId]/nights/[nightId]/realtime-token/route.ts',
   'apps/web/src/app/api/webhooks/resend/route.ts',
   'apps/web/src/app/api/internal/realtime/publish/route.ts',
+  'apps/web/src/app/api/internal/analysis/callback/route.ts',
 ]);

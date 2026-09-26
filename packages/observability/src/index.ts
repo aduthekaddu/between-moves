@@ -50,3 +50,5 @@ export { createNightLifecycleRecorder } from './night-lifecycle-logger';
 export type { NightLifecycleRecorderOptions } from './night-lifecycle-logger';
 export { createSeasonScoringEventRecorder } from './season-scoring-event-logger';
 export type { SeasonScoringEventRecorderOptions } from './season-scoring-event-logger';
+export { createAnalysisMetricStubs } from './analysis-metrics';
+export type { AnalysisMetricSnapshot } from './analysis-metrics';
