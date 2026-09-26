@@ -47,6 +47,7 @@ integration('BM-029 Nudge migration', () => {
     // the nudge migration runs and its backfill is exercised.
     for (;;) {
       const [reverted] = await migrateDown(database, { migrationsDirectory });
+      if (reverted === undefined) throw new Error('0014_nudge_deliveries was not applied');
       if (reverted === '0014_nudge_deliveries') break;
     }
   });
