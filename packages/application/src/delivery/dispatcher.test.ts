@@ -40,7 +40,7 @@ function harness(claimed: ClaimedOutboxEvent, consume: OutboxConsumer['consume']
   };
   const metrics: OutboxMetrics = {
     setOutboxAgeSeconds: vi.fn(),
-    incrementRealtimePublishRetry: vi.fn(),
+    incrementOutboxRetry: vi.fn(),
   };
   const dispatcher = createOutboxDispatcher({
     repository,
@@ -88,7 +88,7 @@ describe('outbox dispatcher', () => {
       new Date('2026-08-29T10:00:01.000Z'),
       'Error',
     );
-    expect(metrics.incrementRealtimePublishRetry).toHaveBeenCalledOnce();
+    expect(metrics.incrementOutboxRetry).toHaveBeenCalledOnce();
   });
 
   it('[BM-006] DR-DELIV-03 parks an event after its eighth failed attempt', async () => {
@@ -154,7 +154,7 @@ describe('outbox dispatcher', () => {
       clock: new FakeClock(NOW),
       metrics: {
         setOutboxAgeSeconds: vi.fn(),
-        incrementRealtimePublishRetry: vi.fn(),
+        incrementOutboxRetry: vi.fn(),
       },
     });
 

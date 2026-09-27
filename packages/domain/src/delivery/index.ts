@@ -79,7 +79,7 @@ export interface RealtimePublishMetrics {
 
 export interface OutboxMetrics {
   setOutboxAgeSeconds(ageSeconds: number): void;
-  incrementRealtimePublishRetry(): void;
+  incrementOutboxRetry(): void;
 }
 
 export type EmailSendOutcome = 'success' | 'failure';

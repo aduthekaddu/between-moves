@@ -3,7 +3,7 @@
 Your chess house. A private chess house for a small group that already knows one another.
 
 This repository is a pnpm + Turborepo monorepo. It contains the Next.js App Router web
-application and the shared PostgreSQL/Drizzle database adapter.
+application, the Trigger.dev worker, and the shared packages both compose.
 
 ## Prerequisites
 
@@ -44,10 +44,19 @@ Run from the repository root:
 ## Workspace layout
 
 ```text
-apps/web        Next.js App Router application and composition root
-apps/worker     Trigger.dev outbox and leased analysis dispatchers
-packages/db     PostgreSQL pool, Drizzle adapter, migrations, and DB health probe
+apps/web                Next.js App Router application and composition root
+apps/worker             Trigger.dev outbox and leased analysis dispatchers
+packages/domain         Framework-free rules, value types, and port interfaces
+packages/application    Use cases and outbox consumers composed from domain ports
+packages/contracts      Zod request and response schemas shared across HTTP seams
+packages/db             PostgreSQL pool, repositories, migrations, and DB health probe
+packages/adapters       Provider adapters: Upstash, Resend, realtime, chess.js, and codecs
+packages/observability  Structured logger and metric stubs; imports no workspace package
 ```
+
+Dependencies point inward: apps compose packages, `application` imports only `domain` and
+`contracts`, and `domain` imports `contracts` as types only. `pnpm lint:boundaries`
+enforces these rules and `tooling/import-boundaries.test.mjs` pins the allow-lists.
 
 ## Database migrations
 

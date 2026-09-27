@@ -90,7 +90,7 @@ async function dispatchOne(
       await config.repository.markFailed(event.id, now, failure);
       return { claimed: 1, sent: 0, retried: 0, failed: 1 };
     }
-    config.metrics.incrementRealtimePublishRetry();
+    config.metrics.incrementOutboxRetry();
     await config.repository.releaseForRetry(event.id, retryAt(event, now, config), failure);
     return { claimed: 1, sent: 0, retried: 1, failed: 0 };
   }
