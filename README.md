@@ -89,3 +89,25 @@ closed Season replays without a second event. Once closing starts, the standings
 returns the frozen snapshot with `finalized: true`. Each House still has at most one
 `active` or `closing` Season, so a new Season can be drafted only after the close
 completes. The command logs `season.closed`.
+
+## Design system: paper and lamplight
+
+The interface is built from folded paper, indigo card and one lamp. Three dyes carry
+meaning: indigo for the House, vermilion for your turn and alarms, marigold for the lamp
+(selection, live, the leader). House, Season and Puzzle pages are day paper; the Night rail,
+live Games and Invitations are lamp-lit indigo.
+
+- **Type:** Anek by Ek Type (one variable family, weight 100–800 and width 75–125) for Latin
+  and nine Indian scripts, with IBM Plex Mono for notation, clocks and labels. Fonts are
+  self-hosted from `apps/web/src/fonts` with their OFL licences; the landing page loads
+  small per-script subsets that carry only the glyphs it shows.
+- **Pieces:** `apps/web/public/models/house-set.glb` is a low-poly, folded-paper rebuild of
+  the CC0 Poly Haven chess set by Riley Queen. The in-app board sprites in
+  `apps/web/public/pieces` and the landing turntables are rendered from the same models, so
+  every surface shows the same set.
+- **Motion:** pieces, stamps and reveals move on twos (12 fps) while light and camera stay
+  continuous. Entrances animate transforms only, so text never drops below its contrast
+  ratio mid-animation, and `prefers-reduced-motion` stills them.
+- **Landing hero:** `apps/web/src/app/_landing/hero` is a Three.js scene loaded after first
+  paint: a paper-stencil board under a lamp that follows the pointer, with the House present
+  only as shadows. In development, `/?t=<seconds>&lamp=<x>,<z>` pins one frame for review.

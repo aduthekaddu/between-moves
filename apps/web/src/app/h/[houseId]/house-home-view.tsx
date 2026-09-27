@@ -1,4 +1,6 @@
 import type { HouseHome, MembershipRole, MoveShelf } from '@between-moves/domain';
+import { AppMasthead } from '../../_components/app-masthead';
+import { HouseEmblem } from '../../_components/house-emblem';
 import { MoveShelfView } from './move-shelf-view';
 
 function roleLabel(role: MembershipRole): string {
@@ -16,12 +18,6 @@ function roleLabel(role: MembershipRole): string {
   }
 }
 
-function emblemGlyph(seed: string): string {
-  const glyphs = ['◆', '●', '✦', '■'] as const;
-  const checksum = Array.from(seed).reduce((sum, character) => sum + character.charCodeAt(0), 0);
-  return glyphs[checksum % glyphs.length] ?? '◆';
-}
-
 /** [BM-013] [UX-IA-01] Member-visible, narrow-first House home shell. */
 export function HouseHomeView({
   home,
@@ -34,17 +30,16 @@ export function HouseHomeView({
 }) {
   return (
     <div className="house-shell">
-      <header className="house-masthead">
-        <p className="house-masthead__brand">Between Moves</p>
-        <p className="house-masthead__place">Private House</p>
-      </header>
+      <AppMasthead houseId={home.houseId} houseName={home.name} current="shelf" />
 
       <main className="house-home">
         <section className="house-identity" aria-labelledby="house-name">
-          <div className="house-emblem" role="img" aria-label={`${home.name} emblem`}>
-            <span aria-hidden="true">{emblemGlyph(home.emblemSeed)}</span>
-          </div>
-          <div>
+          <HouseEmblem
+            className="house-emblem"
+            seed={home.emblemSeed}
+            label={`${home.name} emblem`}
+          />
+          <div className="house-identity__words">
             <p className="house-home__eyebrow">Your chess house</p>
             <h1 id="house-name" className="house-home__title">
               {home.name}
@@ -55,39 +50,41 @@ export function HouseHomeView({
           </div>
         </section>
 
-        <MoveShelfView houseId={home.houseId} shelf={shelf} viewedAt={viewedAt} />
+        <div className="house-home__grid">
+          <MoveShelfView houseId={home.houseId} shelf={shelf} viewedAt={viewedAt} />
 
-        <aside className="house-status" aria-labelledby="house-status-title">
-          <p className="house-home__eyebrow">House status</p>
-          <h2 id="house-status-title" className="house-status__title">
-            The table is set.
-          </h2>
-          <p className="house-status__copy">
-            This is the shared front door for your House. It stays private to active Members.
-          </p>
-          <dl className="house-details">
-            <div>
-              <dt>Your place</dt>
-              <dd>{roleLabel(home.membershipRole)}</dd>
-            </div>
-            <div>
-              <dt>House time</dt>
-              <dd>{home.timeZone}</dd>
-            </div>
-          </dl>
-          <a
-            className="house-status__action"
-            href={`/h/${encodeURIComponent(home.houseId)}/season`}
-          >
-            Open the Season table
-          </a>
-          <a
-            className="house-status__action"
-            href={`/h/${encodeURIComponent(home.houseId)}/puzzles`}
-          >
-            House Puzzles
-          </a>
-        </aside>
+          <aside className="house-status" aria-labelledby="house-status-title">
+            <p className="house-home__eyebrow">House status</p>
+            <h2 id="house-status-title" className="house-status__title">
+              The table is set.
+            </h2>
+            <p className="house-status__copy">
+              This is the shared front door for your House. It stays private to active Members.
+            </p>
+            <dl className="house-details">
+              <div>
+                <dt>Your place</dt>
+                <dd>{roleLabel(home.membershipRole)}</dd>
+              </div>
+              <div>
+                <dt>House time</dt>
+                <dd>{home.timeZone}</dd>
+              </div>
+            </dl>
+            <a
+              className="house-status__action"
+              href={`/h/${encodeURIComponent(home.houseId)}/season`}
+            >
+              Open the Season table
+            </a>
+            <a
+              className="house-status__action house-status__action--quiet"
+              href={`/h/${encodeURIComponent(home.houseId)}/puzzles`}
+            >
+              House Puzzles
+            </a>
+          </aside>
+        </div>
       </main>
     </div>
   );

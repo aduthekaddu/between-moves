@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
+import { AppMasthead } from '../../../_components/app-masthead';
 import { getConfig } from '../../../../config';
 import { getNightHostCandidates } from '../../../../modules/nights/lifecycle';
 import { getHouseHome } from '../../../../server/house-home';
@@ -39,20 +40,19 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
   const hostCandidates =
     home.membershipRole === 'member' ? [] : await getNightHostCandidates(request, houseId);
   return (
-    <main className="season-shell">
-      <nav className="season-nav" aria-label="House navigation">
-        <a href={`/h/${encodeURIComponent(houseId)}`}>← {home.name}</a>
-        <span>Season</span>
-      </nav>
-      <SeasonView
-        houseId={houseId}
-        membershipRole={home.membershipRole}
-        nights={nights}
-        hostCandidates={hostCandidates}
-        season={season}
-        lastClosed={lastClosed}
-        timeZone={home.timeZone}
-      />
-    </main>
+    <div className="season-shell">
+      <AppMasthead houseId={houseId} houseName={home.name} current="season" />
+      <main className="season-main">
+        <SeasonView
+          houseId={houseId}
+          membershipRole={home.membershipRole}
+          nights={nights}
+          hostCandidates={hostCandidates}
+          season={season}
+          lastClosed={lastClosed}
+          timeZone={home.timeZone}
+        />
+      </main>
+    </div>
   );
 }

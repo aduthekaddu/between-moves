@@ -1,4 +1,5 @@
 import type { GameNotesView, GamePosition, GameReactionValue } from '@between-moves/domain';
+import { AppMasthead } from '../../../../_components/app-masthead';
 import { GameNotes } from './game-notes';
 import { MoveEntry } from './move-entry';
 import { ReactionControl } from './reaction-control';
@@ -17,22 +18,33 @@ export function GameView({
 }) {
   return (
     <div className={position.mode === 'live' ? 'game-shell game-shell--live' : 'game-shell'}>
-      <header className="game-masthead">
-        <a href={`/h/${encodeURIComponent(houseId)}`}>← Move shelf</a>
-        <span>{position.mode === 'live' ? 'Live Game' : 'Correspondence Game'}</span>
-      </header>
+      <AppMasthead
+        houseId={houseId}
+        current="game"
+        tone={position.mode === 'live' ? 'night' : 'day'}
+      />
       <main className="game-main">
         <header className="game-title">
           <p className="house-home__eyebrow">
             {position.mode === 'live' ? 'Live board' : 'Correspondence board'}
           </p>
           <h1>
-            {position.white.name} <span aria-hidden="true">—</span>{' '}
+            <span className="game-title__player" data-side="white">
+              {position.white.name}
+            </span>{' '}
+            <span className="game-title__versus" aria-hidden="true">
+              v
+            </span>
             <span className="visually-hidden">versus </span>
-            {position.black.name}
+            <span className="game-title__player" data-side="black">
+              {position.black.name}
+            </span>
           </h1>
-          <p>
+          <p className="game-title__seats">
             {position.white.name} plays White. {position.black.name} plays Black.
+          </p>
+          <p className="game-title__mode" data-mode={position.mode}>
+            {position.mode === 'live' ? 'Live Game' : 'Correspondence Game'}
           </p>
         </header>
         <MoveEntry

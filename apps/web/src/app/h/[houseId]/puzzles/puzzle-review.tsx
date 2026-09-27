@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { AppMasthead } from '../../../_components/app-masthead';
+import { FenPiece } from '../../../_components/piece';
 
 type Candidate = { id: string; gameId: string; sourcePly: number; positionFen: string };
 type Puzzle = {
@@ -12,20 +14,6 @@ type Puzzle = {
 };
 
 function PositionBoard({ fen }: { fen: string }) {
-  const glyphs: Record<string, string> = {
-    K: '♔',
-    Q: '♕',
-    R: '♖',
-    B: '♗',
-    N: '♘',
-    P: '♙',
-    k: '♚',
-    q: '♛',
-    r: '♜',
-    b: '♝',
-    n: '♞',
-    p: '♟',
-  };
   const rows = fen.split(' ')[0]?.split('/') ?? [];
   const squares = rows.flatMap((row, rank) => {
     const pieces = [...row].flatMap((symbol) => {
@@ -54,7 +42,7 @@ function PositionBoard({ fen }: { fen: string }) {
             }
             aria-hidden="true"
           >
-            {glyphs[square.piece] ?? ''}
+            <FenPiece letter={square.piece} className="puzzle-board__piece" />
           </span>
         ))}
       </div>
@@ -103,10 +91,7 @@ export function PuzzleReview({
 
   return (
     <div className="puzzle-shell">
-      <header className="game-masthead">
-        <a href={`/h/${encodeURIComponent(houseId)}`}>← House home</a>
-        <span>Private House</span>
-      </header>
+      <AppMasthead houseId={houseId} current="puzzles" />
       <main className="puzzle-main">
         <div className="puzzle-heading">
           <p className="house-home__eyebrow">From the games we played</p>

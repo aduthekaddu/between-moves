@@ -2,31 +2,13 @@
 
 import type { ChessSquare, SideToMove } from '@between-moves/domain';
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { squareName, type BoardPiece, type BoardPieces } from './board-model';
+import { Piece } from '../../../../_components/piece';
+import { squareName, type BoardPieces } from './board-model';
 
 const ascendingFiles = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const descendingFiles = [...ascendingFiles].reverse();
 const ascendingRanks = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const descendingRanks = [...ascendingRanks].reverse();
-
-const glyphs: Readonly<Record<string, string>> = {
-  'white-king': '♔',
-  'white-queen': '♕',
-  'white-rook': '♖',
-  'white-bishop': '♗',
-  'white-knight': '♘',
-  'white-pawn': '♙',
-  'black-king': '♚',
-  'black-queen': '♛',
-  'black-rook': '♜',
-  'black-bishop': '♝',
-  'black-knight': '♞',
-  'black-pawn': '♟',
-};
-
-function pieceGlyph(piece?: BoardPiece): string {
-  return piece === undefined ? '' : (glyphs[`${piece.color}-${piece.kind}`] ?? '');
-}
 
 function boardSquares(orientation: SideToMove): readonly ChessSquare[] {
   const ranks = orientation === 'white' ? descendingRanks : ascendingRanks;
@@ -136,13 +118,9 @@ export function ChessBoard({
                 onFocus={() => setFocusSquare(chessSquare)}
                 onKeyDown={(event) => moveFocus(event, index)}
               >
-                <span
-                  className="chess-board__piece"
-                  data-piece-color={piece?.color}
-                  aria-hidden="true"
-                >
-                  {pieceGlyph(piece)}
-                </span>
+                {piece === undefined ? null : (
+                  <Piece className="chess-board__piece" color={piece.color} kind={piece.kind} />
+                )}
                 {columnIndex === 0 ? (
                   <span className="chess-board__rank" aria-hidden="true">
                     {chessSquare[1]}
