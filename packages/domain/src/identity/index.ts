@@ -74,3 +74,31 @@ export interface RecoverySessionCleaner {
 export interface SessionRevocationReader {
   isSessionActive(sessionId: string): Promise<boolean>;
 }
+
+export {
+  ACCOUNT_EXPORT_FORMAT,
+  ACCOUNT_EXPORT_VERSION,
+  AccountDeletionBlockedError,
+  FORMER_MEMBER_DISPLAY_NAME,
+} from './data-rights';
+export type {
+  AccountDataRightsDependencies,
+  AccountDataRightsRepository,
+  AccountDataRightsRequest,
+  AccountDeletionInput,
+  AccountDeletionResult,
+  AccountExport,
+  AccountExportGame,
+  AccountExportMembership,
+  AccountExportMessage,
+  AccountExportMove,
+  AccountExportNote,
+  AccountExportPoints,
+  AccountExportProfile,
+  AccountExportPuzzle,
+  AccountExportReaction,
+  AccountExportStanding,
+  AccountSummary,
+  AccountSummaryHouse,
+  OwnedHouse,
+} from './data-rights';

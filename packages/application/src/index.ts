@@ -97,3 +97,5 @@ export {
   type DiscardRecoveredSessionDependencies,
   type RequestAccountRecoveryDependencies,
 } from './identity';
+
+export { createDeleteAccount, createExportAccountData, createReadAccountSummary } from './identity';

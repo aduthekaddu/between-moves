@@ -47,6 +47,11 @@ export const users = pgTable(
       'users_deletion_state_check',
       sql`(${table.status} = 'active' and ${table.deletedAt} is null) or ${table.status} = 'deleted'`,
     ),
+    /** [BM-050] A deleted identity is a scrubbed tombstone; triggers keep deletion one-way. */
+    check(
+      'users_deleted_profile_check',
+      sql`${table.status} = 'active' or (${table.displayName} = 'Former member' and ${table.email} = (${table.id}::text || '@deleted.invalid') and ${table.emailVerified} = false and ${table.emailVerifiedAt} is null and ${table.imageUrl} is null and ${table.deletedAt} is not null)`,
+    ),
   ],
 );
 

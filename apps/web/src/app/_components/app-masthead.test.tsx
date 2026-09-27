@@ -15,6 +15,12 @@ describe('AppMasthead', () => {
     expect(html.match(/aria-current/g)).toHaveLength(1);
   });
 
+  it('[BM-050] links to the account page outside the House rooms', () => {
+    const html = renderToStaticMarkup(<AppMasthead houseId={houseId} current="shelf" />);
+    expect(html).toContain('<a class="app-masthead__account" href="/account">Account</a>');
+    expect(html).toMatch(/<\/nav><a class="app-masthead__account"/);
+  });
+
   it('never claims a room on pages outside them, and can switch to the Night tone', () => {
     const html = renderToStaticMarkup(
       <AppMasthead houseId={houseId} current="night" tone="night" />,

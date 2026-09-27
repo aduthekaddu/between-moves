@@ -27,6 +27,7 @@ export { PgNudgeRepository } from './pg-nudge-repository';
 export { PgMagicLinkOutboxWriter } from './magic-link-outbox-writer';
 
 export { PgIdentityRecoveryRepository } from './identity-recovery-repository';
+export { PgAccountDataRightsRepository } from './pg-account-data-rights-repository';
 
 export { PgHouseCreationRepository } from './pg-house-creation-repository';
 export { PgGameSeatRepository } from './pg-game-seat-repository';

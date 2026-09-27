@@ -205,8 +205,13 @@ export const nonHouseWriteExports = Object.freeze([
   'repairClosingBooks',
 ]);
 
-/** POST routes which do not mutate an existing House. */
+/**
+ * POST routes which do not mutate an existing House through a House-scoped command.
+ * [BM-050] Account deletion is keyed only by the signed-in identity: it ends that person's own
+ * memberships everywhere and never takes a House from the request.
+ */
 export const nonHouseMutationRoutes = Object.freeze([
+  'apps/web/src/app/api/account/delete/route.ts',
   'apps/web/src/app/api/auth/[...all]/route.ts',
   'apps/web/src/app/api/auth/magic-link/route.ts',
   'apps/web/src/app/api/auth/recovery/route.ts',

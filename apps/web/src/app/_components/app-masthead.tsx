@@ -4,7 +4,7 @@ export type HouseSection = 'shelf' | 'season' | 'puzzles' | 'game' | 'night';
 
 /**
  * One masthead for every House page: the mark, where you are, and the three rooms of a
- * House. Night pages use the dark tone.
+ * House. Night pages use the dark tone. [BM-050] The account link sits apart from the rooms.
  */
 export function AppMasthead({
   houseId,
@@ -41,6 +41,9 @@ export function AppMasthead({
           </a>
         ))}
       </nav>
+      <a className="app-masthead__account" href="/account">
+        Account
+      </a>
     </header>
   );
 }

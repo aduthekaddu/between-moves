@@ -26,6 +26,7 @@ export {
   closingBookAwards,
   composeClosingBook,
   memorableSwings,
+  withFormerMembers,
 } from './closing-book';
 export type {
   ClosingBookAttendance,

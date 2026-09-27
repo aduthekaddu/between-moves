@@ -68,8 +68,12 @@ integration('BM-010 identity recovery repository', () => {
   it('[BM-010] treats deleted or unknown accounts as ineligible for recovery', async () => {
     expect(await repository.hasActiveAccount('recovery@example.test')).toBe(true);
     expect(await repository.hasActiveAccount('unknown@example.test')).toBe(false);
+    // [BM-050] A deleted account is a scrubbed tombstone that no longer holds the address.
     await database.query(
-      `update users set status = 'deleted', deleted_at = now()
+      `update users
+          set status = 'deleted', deleted_at = now(), display_name = 'Former member',
+              email = id::text || '@deleted.invalid', email_verified = false,
+              email_verified_at = null, image_url = null
         where email = 'recovery@example.test'`,
     );
     expect(await repository.hasActiveAccount('recovery@example.test')).toBe(false);

@@ -1,4 +1,9 @@
 export { membershipRoleChangeBodySchema, ownershipTransferBodySchema } from './membership-admin';
+export {
+  ACCOUNT_DELETION_CONFIRMATION,
+  accountDeletionBodySchema,
+  type AccountDeletionBody,
+} from './account-data-rights';
 export { createGameSeatBodySchema, type CreateGameSeatBody } from './game-seats';
 export { submitMoveBodySchema, type SubmitMoveBody } from './game-moves';
 export { gameReactionBodySchema, type GameReactionBody } from './game-reactions';

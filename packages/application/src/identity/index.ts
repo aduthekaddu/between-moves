@@ -16,3 +16,9 @@ export {
   type DiscardRecoveredSessionDependencies,
   type RequestAccountRecoveryDependencies,
 } from './recovery';
+
+export {
+  createDeleteAccount,
+  createExportAccountData,
+  createReadAccountSummary,
+} from './data-rights';

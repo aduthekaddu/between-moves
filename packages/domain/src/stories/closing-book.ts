@@ -1,5 +1,6 @@
 import type { ClaimedOutboxEvent } from '../delivery';
 import type { Viewer } from '../identity';
+import { FORMER_MEMBER_DISPLAY_NAME } from '../identity/data-rights';
 import type { AuthorizeHouseAction, MembershipRole } from '../houses';
 import type { CompletedGameResult, GameCompletionReason } from '../games/complete';
 import type { FinalSeasonStanding } from '../seasons/closing';
@@ -369,5 +370,40 @@ export function composeClosingBook(source: ClosingBookSource): ClosingBookConten
     swings: memorableSwings(source.swings, games),
     games,
     puzzles,
+  };
+}
+
+/**
+ * [BM-050] A published book never changes, so a Member who deleted their account is renamed as
+ * the book is read: every mention of one of `formerMembershipIds` shows `Former member`, and
+ * nothing else about the book moves.
+ */
+export function withFormerMembers(
+  contents: ClosingBookContents,
+  formerMembershipIds: ReadonlySet<string>,
+): ClosingBookContents {
+  if (formerMembershipIds.size === 0) return contents;
+  const named = <T extends ClosingBookMember>(member: T): T =>
+    formerMembershipIds.has(member.membershipId)
+      ? { ...member, displayName: FORMER_MEMBER_DISPLAY_NAME }
+      : member;
+  return {
+    ...contents,
+    participation: contents.participation.map(named),
+    awards: contents.awards.map((award) => ({ ...award, recipients: award.recipients.map(named) })),
+    swings: contents.swings.map((swing) => ({
+      ...swing,
+      mover: named(swing.mover),
+      opponent: named(swing.opponent),
+    })),
+    games: contents.games.map((game) => ({
+      ...game,
+      white: named(game.white),
+      black: named(game.black),
+    })),
+    puzzles: contents.puzzles.map((puzzle) => ({
+      ...puzzle,
+      contributor: named(puzzle.contributor),
+    })),
   };
 }
