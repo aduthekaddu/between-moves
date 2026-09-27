@@ -1,6 +1,6 @@
 'use client';
 
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { PointsRecipe } from './points-recipe';
 
@@ -12,6 +12,8 @@ interface CharterAuthoringFormProps {
   readonly initialWeekday?: number | undefined;
   readonly initialLocalTime?: string | undefined;
   readonly initialCharterVersioned?: boolean | undefined;
+  /** Frozen standings shown above the Charter but placed after its h1 in the document. */
+  readonly recap?: ReactNode;
 }
 
 interface ProblemDetails {
@@ -97,6 +99,7 @@ export function CharterAuthoringForm({
   initialWeekday = 5,
   initialLocalTime = '19:30',
   initialCharterVersioned = false,
+  recap = null,
 }: CharterAuthoringFormProps) {
   const [draftIdempotencyKey] = useState(() => crypto.randomUUID());
   const [seasonId, setSeasonId] = useState(draftSeasonId);
@@ -154,13 +157,17 @@ export function CharterAuthoringForm({
 
   if (publishedVersion !== null) {
     return (
-      <section className="season-active" role="status" aria-labelledby="season-active-title">
-        <p className="season-eyebrow">Season active</p>
-        <h1 id="season-active-title">{title}</h1>
-        <p>
-          Charter version {publishedVersion} is published. The House can begin its four-week Season.
-        </p>
-      </section>
+      <>
+        <section className="season-active" role="status" aria-labelledby="season-active-title">
+          <p className="season-eyebrow">Season active</p>
+          <h1 id="season-active-title">{title}</h1>
+          <p>
+            Charter version {publishedVersion} is published. The House can begin its four-week
+            Season.
+          </p>
+        </section>
+        {recap}
+      </>
     );
   }
 
@@ -171,6 +178,7 @@ export function CharterAuthoringForm({
         <h1>Publish a Charter</h1>
         <p>Set the rhythm for correspondence Games and your weekly Between Moves Night.</p>
       </div>
+      {recap}
 
       <div className="charter-form__fields">
         <div className="charter-field charter-field--wide">

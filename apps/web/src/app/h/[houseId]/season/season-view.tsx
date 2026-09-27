@@ -6,6 +6,7 @@ import type {
   NightHostCandidate,
   NightRecurrence,
 } from '@between-moves/domain';
+import type { ReactNode } from 'react';
 import { CharterAuthoringForm } from './charter-authoring-form';
 import { CloseSeasonPanel } from './close-season-panel';
 import { FinalStandings } from './final-standings';
@@ -19,8 +20,8 @@ function nightLabel(recurrence: NightRecurrence): string {
 }
 
 /**
- * Render Season details and role-appropriate controls, or nothing if its Charter or dates
- * are missing. Owners and Stewards can close an active Season or resume a closing one.
+ * Render Season details and role-appropriate controls, or only the recap if its Charter or
+ * dates are missing. Owners and Stewards can close an active Season or resume a closing one.
  */
 function ActiveSeason({
   houseId,
@@ -28,6 +29,7 @@ function ActiveSeason({
   nights,
   hostCandidates,
   season,
+  recap,
   timeZone,
 }: {
   readonly houseId: string;
@@ -35,15 +37,17 @@ function ActiveSeason({
   readonly nights: readonly HouseNightView[];
   readonly hostCandidates: readonly NightHostCandidate[];
   readonly season: HouseSeasonView;
+  readonly recap: ReactNode;
   readonly timeZone: string;
 }) {
   const charter = season.charter;
-  if (charter === null || season.startsAt === null || season.endsAt === null) return null;
+  if (charter === null || season.startsAt === null || season.endsAt === null) return recap;
   const status = season.state === 'active' ? 'Season active' : `Season ${season.state}`;
   return (
     <article className="season-active" aria-labelledby="season-active-title">
       <p className="season-eyebrow">{status}</p>
       <h1 id="season-active-title">{season.title}</h1>
+      {recap}
       <p className="season-active__version">Charter version {charter.version}</p>
       <dl className="season-active__details">
         <div>
@@ -80,7 +84,8 @@ function ActiveSeason({
 /**
  * [BM-019] Season status for Members and Charter authoring for Owner/Steward.
  * Show the supplied frozen-standings recap when the current Season is absent, a draft, or
- * itself still closing.
+ * itself still closing. The recap follows the page's h1 in the document so the outline
+ * starts there; CSS lifts it above that heading on screen.
  */
 export function SeasonView({
   houseId,
@@ -105,43 +110,39 @@ export function SeasonView({
     const frozen =
       season.state === 'closing' && lastClosed?.seasonId === season.seasonId ? recap : null;
     return (
-      <>
-        {frozen}
-        <ActiveSeason
-          houseId={houseId}
-          membershipRole={membershipRole}
-          nights={nights}
-          hostCandidates={hostCandidates}
-          season={season}
-          timeZone={timeZone}
-        />
-      </>
+      <ActiveSeason
+        houseId={houseId}
+        membershipRole={membershipRole}
+        nights={nights}
+        hostCandidates={hostCandidates}
+        season={season}
+        recap={frozen}
+        timeZone={timeZone}
+      />
     );
   }
   if (membershipRole === 'member') {
     return (
       <>
-        {recap}
         <section className="season-passive" aria-labelledby="season-passive-title">
           <p className="season-eyebrow">Season</p>
           <h1 id="season-passive-title">The table is waiting.</h1>
           <p>Your House is quiet. Publish a Charter to start the season.</p>
         </section>
+        {recap}
       </>
     );
   }
   return (
-    <>
-      {recap}
-      <CharterAuthoringForm
-        houseId={houseId}
-        draftSeasonId={season?.seasonId}
-        initialTitle={season?.title}
-        initialPaceHours={season?.charter?.correspondencePaceHours}
-        initialWeekday={season?.charter?.nightRecurrence.weekday}
-        initialLocalTime={season?.charter?.nightRecurrence.localTime}
-        initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
-      />
-    </>
+    <CharterAuthoringForm
+      houseId={houseId}
+      draftSeasonId={season?.seasonId}
+      initialTitle={season?.title}
+      initialPaceHours={season?.charter?.correspondencePaceHours}
+      initialWeekday={season?.charter?.nightRecurrence.weekday}
+      initialLocalTime={season?.charter?.nightRecurrence.localTime}
+      initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
+      recap={recap}
+    />
   );
 }

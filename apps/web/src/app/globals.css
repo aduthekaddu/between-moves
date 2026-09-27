@@ -1804,8 +1804,9 @@ a.move-card:focus-visible {
 }
 
 .season-main {
+  --season-gap: clamp(48px, 7vw, 96px);
   display: grid;
-  gap: clamp(48px, 7vw, 96px);
+  gap: var(--season-gap);
   width: var(--page);
   margin: 0 auto;
   padding-top: clamp(32px, 5vw, 64px);
@@ -2255,6 +2256,22 @@ a.move-card:focus-visible {
 
 .season-final :focus-visible {
   outline-color: var(--marigold);
+}
+
+/* the recap follows the page's h1 in the document but sits above it, a Season gap clear */
+.season-main > .season-final,
+.season-active > .season-final,
+.charter-form > .season-final {
+  order: -1;
+}
+
+.season-active > .season-final {
+  grid-column: 1 / -1;
+  margin-bottom: calc(var(--season-gap) - 18px);
+}
+
+.charter-form > .season-final {
+  margin-bottom: calc(var(--season-gap) - 28px);
 }
 
 .season-passive {

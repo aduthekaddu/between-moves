@@ -5,6 +5,13 @@ import { SeasonView } from './season-view';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
+/** Assert the outline opens with the page's only h1, ahead of every h2. */
+function expectOutlineLedByH1(html: string): void {
+  const levels = [...html.matchAll(/<h([1-6])\b/g)].map((match) => Number(match[1]));
+  expect(levels.filter((level) => level === 1)).toHaveLength(1);
+  expect(levels.indexOf(1)).toBeLessThan(levels.indexOf(2));
+}
+
 const activeSeason: HouseSeasonView = {
   seasonId: '01941f29-7c00-7000-8000-000000000701',
   title: 'Autumn tables',
@@ -289,7 +296,6 @@ describe('SeasonView', () => {
     expect(html.match(/season-final__row--leader/g)).toHaveLength(2);
     expect(html).toContain('1 point');
     expect(html).toContain('0 points');
-    expect(html.indexOf('Summer tables')).toBeLessThan(html.indexOf('The table is waiting.'));
   });
 
   it('[BM-048] opens the Closing Book from the final standings recap', () => {
@@ -354,6 +360,61 @@ describe('SeasonView', () => {
     );
 
     expect(html).toContain('No Member scored this Season.');
-    expect(html.indexOf('Final standings')).toBeLessThan(html.indexOf('<form'));
+    expect(html.indexOf('Final standings')).toBeLessThan(html.indexOf('Season title'));
+  });
+
+  it('[BM-047] leads a Member no-Season page with its h1 before the recap', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        season={null}
+        lastClosed={lastClosed}
+      />,
+    );
+
+    expectOutlineLedByH1(html);
+    expect(html).toContain('<h1 id="season-passive-title">The table is waiting.</h1>');
+    expect(html).toContain('<h2 id="season-final-title">Summer tables</h2>');
+  });
+
+  it('[BM-047] leads an Owner draft Charter page with its h1 before the recap', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        season={{ ...activeSeason, state: 'draft', startsAt: null, endsAt: null }}
+        lastClosed={lastClosed}
+      />,
+    );
+
+    expectOutlineLedByH1(html);
+    expect(html).toContain('<h1>Publish a Charter</h1>');
+    expect(html).toContain('<h2 id="season-final-title">Summer tables</h2>');
+    expect(html.indexOf('Final standings')).toBeLessThan(html.indexOf('Season title'));
+  });
+
+  it('[BM-047] leads a closing Season page with its h1 before the frozen standings', () => {
+    const closing = { ...activeSeason, state: 'closing' as const };
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        nights={nights}
+        season={closing}
+        lastClosed={{
+          ...lastClosed,
+          seasonId: closing.seasonId,
+          title: closing.title,
+          state: 'closing',
+          closedAt: null,
+        }}
+      />,
+    );
+
+    expectOutlineLedByH1(html);
+    expect(html).toContain('<h1 id="season-active-title">Autumn tables</h1>');
+    expect(html).toContain('<h2 id="season-final-title">Autumn tables</h2>');
+    expect(html.indexOf('Read the Closing Book')).toBeLessThan(html.indexOf('Start Night 1'));
   });
 });

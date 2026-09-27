@@ -35,6 +35,9 @@ const GAME_REASONS = new Set([
   'agreement',
   'timeout',
 ]);
+/** `Date#toISOString` output with every field in range, so `new Date` always accepts it. */
+const CLOSING_INSTANT =
+  '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9][.][0-9]{3}Z$';
 
 /** Return a string unchanged, or throw an Error naming the invalid field. */
 function text(value: unknown, field: string): string {
@@ -353,8 +356,8 @@ export class PgClosingBookRepository
 
   /**
    * Oldest-first `season.closing` events already acknowledged while their closing or closed
-   * Season still has no published book. Only events carrying a closing instant are returned,
-   * so a replay cannot loop on a malformed event.
+   * Season still has no published book. Only events whose closing instant reads as a date are
+   * returned, so malformed events can neither loop in replay nor crowd valid ones out of `limit`.
    */
   async findUnboundClosingEvents(limit: number): Promise<readonly ClaimedOutboxEvent[]> {
     const result = await this.database.query<OutboxRow>(
@@ -365,13 +368,13 @@ export class PgClosingBookRepository
            on s.id = e.aggregate_id and s.house_id = e.house_id
           and s.state in ('closing', 'closed')
         where e.topic = $1 and e.sent_at is not null
-          and jsonb_typeof(e.payload -> 'closingAt') = 'string'
+          and e.payload ->> 'closingAt' ~ $3
           and not exists (
             select 1 from closing_books b where b.season_id = s.id and b.state = 'published'
           )
         order by e.created_at, e.id
         limit $2`,
-      [SEASON_CLOSING_TOPIC, limit],
+      [SEASON_CLOSING_TOPIC, limit, CLOSING_INSTANT],
     );
     return result.rows.map(parseOutboxRow);
   }

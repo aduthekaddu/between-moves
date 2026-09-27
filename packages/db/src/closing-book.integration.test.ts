@@ -539,6 +539,40 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     await expect(books.findUnboundClosingEvents(10)).resolves.toEqual([]);
   });
 
+  it('[BM-048] never lets closing instants that are not dates crowd out a valid one', async () => {
+    await closeSeasonWithStory();
+    await database.query('update outbox_events set sent_at = $2, attempts = 1 where id = $1', [
+      closingEventId,
+      closedAt,
+    ]);
+    const malformed = [
+      'not-a-date',
+      'infinity',
+      '2026-13-01T00:00:00.000Z',
+      '2026-10-02T23:59:60.000Z',
+    ];
+    for (const [index, value] of malformed.entries()) {
+      await database.query(
+        `insert into outbox_events
+          (id, topic, aggregate_id, sequence, house_id, payload, attempts, sent_at, created_at)
+         values ($1, 'season.closing', $2, $3, $4, $5, 1, $6, $7)`,
+        [
+          id(nextId++),
+          seasonId,
+          1_000 + index,
+          world.first.houseId,
+          { seasonId, closingAt: value },
+          closedAt,
+          createdAt,
+        ],
+      );
+    }
+
+    await expect(books.findUnboundClosingEvents(1)).resolves.toEqual([
+      expect.objectContaining({ id: closingEventId }),
+    ]);
+  });
+
   it('[BM-048] refuses a Season that has not begun closing or belongs to another House', async () => {
     await publishSeason();
 
