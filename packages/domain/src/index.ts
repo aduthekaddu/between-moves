@@ -473,6 +473,7 @@ export type {
   NewOutboxEvent,
   InvitationEmail,
   InvitationEmailDeliveryCodec,
+  InvitationEmailDeliveryGate,
   InvitationEmailSender,
   InvitationEmailSendResult,
   NudgeEmail,

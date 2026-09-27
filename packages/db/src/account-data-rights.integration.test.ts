@@ -17,6 +17,7 @@ import { PgClosingBookRepository } from './pg-closing-book-repository';
 import { PgGameNoteRepository } from './pg-game-note-repository';
 import { PgGamePositionRepository } from './pg-game-position-repository';
 import { PgHouseChatRepository } from './pg-house-chat-repository';
+import { PgInvitationEmailDeliveryGate } from './pg-invitation-email-delivery-gate';
 import { PgSeasonRepository } from './pg-season-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
 
@@ -744,6 +745,96 @@ integration('BM-050 PostgreSQL account export and deletion', () => {
       [INVITATION_EMAIL_TOPIC, [pending, sent, unrelated]],
     );
     expect(events.rows).toEqual([{ id: id(5082) }, { id: id(5083) }]);
+  });
+
+  it('[BM-050] waits for an Invitation email send before deleting its recipient', async () => {
+    const invitationId = id(5074);
+    await database.query(
+      `insert into invitations
+         (id, house_id, token_digest, intended_email, expires_at, use_limit,
+          creator_membership_id, created_at)
+       values ($1, $2, decode($3, 'hex'), $4, $5, 1, $6, $7)`,
+      [
+        invitationId,
+        world.first.houseId,
+        'd'.repeat(64),
+        'bea-isolation@example.test',
+        new Date('2099-01-01T00:00:00.000Z'),
+        ada().membershipId,
+        createdAt,
+      ],
+    );
+    const gate = new PgInvitationEmailDeliveryGate(database);
+    let sendStarted!: () => void;
+    let finishSend!: () => void;
+    const sending = new Promise<void>((resolve) => {
+      sendStarted = resolve;
+    });
+    const finished = new Promise<void>((resolve) => {
+      finishSend = resolve;
+    });
+    const delivery = gate.withDeliverableInvitation(invitationId, async () => {
+      sendStarted();
+      await finished;
+      return 'sent';
+    });
+    await sending;
+    const deleting = accounts.deleteAccount(deletion(bea().userId));
+    deleting.catch(() => undefined);
+    try {
+      await untilBlocked();
+      const person = await database.query('select status from users where id = $1', [bea().userId]);
+      expect(person.rows).toEqual([{ status: 'active' }]);
+    } finally {
+      finishSend();
+    }
+    await expect(delivery).resolves.toBe('sent');
+    await expect(deleting).resolves.toMatchObject({ deletedNow: true });
+    let called = false;
+    await expect(
+      gate.withDeliverableInvitation(invitationId, async () => {
+        called = true;
+        return 'sent';
+      }),
+    ).resolves.toBeNull();
+    expect(called).toBe(false);
+  });
+
+  it('[BM-030] skips missing, revoked, and shared Invitations before sending email', async () => {
+    const shared = id(5075);
+    const revoked = id(5076);
+    for (const [invitationId, digest, intendedEmail, revokedAt] of [
+      [shared, 'e', null, null],
+      [revoked, 'f', 'bea-isolation@example.test', deletedAt],
+    ] as const) {
+      await database.query(
+        `insert into invitations
+           (id, house_id, token_digest, intended_email, expires_at, use_limit,
+            revoked_at, creator_membership_id, created_at)
+         values ($1, $2, decode($3, 'hex'), $4, $5, 1, $6, $7, $8)`,
+        [
+          invitationId,
+          world.first.houseId,
+          digest.repeat(64),
+          intendedEmail,
+          new Date('2099-01-01T00:00:00.000Z'),
+          revokedAt,
+          ada().membershipId,
+          createdAt,
+        ],
+      );
+    }
+    const gate = new PgInvitationEmailDeliveryGate(database);
+    let sends = 0;
+    for (const invitationId of [id(5077), shared, revoked]) {
+      await expect(
+        gate.withDeliverableInvitation(invitationId, async () => {
+          sends += 1;
+          return 'sent';
+        }),
+      ).resolves.toBeNull();
+    }
+    expect(sends).toBe(0);
   });
 
   it('[BM-050] keeps Games, Moves, scores, and the published Closing Book intact', async () => {
