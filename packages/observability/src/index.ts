@@ -54,3 +54,5 @@ export { createAnalysisMetricStubs } from './analysis-metrics';
 export type { AnalysisMetricSnapshot } from './analysis-metrics';
 export { createPuzzleMetricStubs } from './puzzle-metrics';
 export type { PuzzleMetricSnapshot } from './puzzle-metrics';
+export { createClosingBookEventRecorder } from './closing-book-event-logger';
+export type { ClosingBookEventRecorderOptions } from './closing-book-event-logger';

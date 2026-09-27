@@ -70,7 +70,12 @@ integration('BM-047 PostgreSQL Season closing', () => {
     });
   }
 
-  async function award(membershipId: string, sourceKind: string, points: number): Promise<void> {
+  async function award(
+    membershipId: string,
+    sourceKind: string,
+    points: number,
+    earnedAt = createdAt,
+  ): Promise<void> {
     await database.query(
       `insert into season_score_ledger
         (id, house_id, season_id, membership_id, source_kind, source_key, points, created_at)
@@ -83,7 +88,7 @@ integration('BM-047 PostgreSQL Season closing', () => {
         sourceKind,
         `test:${nextId}`,
         points,
-        createdAt,
+        earnedAt,
       ],
     );
   }
@@ -220,6 +225,24 @@ integration('BM-047 PostgreSQL Season closing', () => {
         seasonId,
       ]),
     ).rejects.toMatchObject({ code: '55000' });
+  });
+
+  it('[BM-047] freezes only points earned by the closing instant', async () => {
+    await award(world.first.member.membershipId, 'game_played', 1, closingAt);
+    await award(
+      world.first.nonOwner.membershipId,
+      'game_win',
+      3,
+      new Date(closingAt.getTime() + 1),
+    );
+
+    await expect(close(owner)).resolves.toMatchObject({
+      standings: [
+        { membershipId: world.first.member.membershipId, points: 1, rank: 1 },
+        { membershipId: world.first.nonOwner.membershipId, points: 0, rank: 2 },
+        { membershipId: world.switchingMember.firstMembershipId, points: 0, rank: 2 },
+      ],
+    });
   });
 
   it('[BM-047] rejects snapshot inserts and deletes once the Season leaves active', async () => {

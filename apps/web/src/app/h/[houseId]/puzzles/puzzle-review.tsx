@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { AppMasthead } from '../../../_components/app-masthead';
-import { FenPiece } from '../../../_components/piece';
+import { PositionBoard } from '../../../_components/position-board';
 
 type Candidate = { id: string; gameId: string; sourcePly: number; positionFen: string };
 type Puzzle = {
@@ -13,43 +13,7 @@ type Puzzle = {
   publishedAt: string;
 };
 
-function PositionBoard({ fen }: { fen: string }) {
-  const rows = fen.split(' ')[0]?.split('/') ?? [];
-  const squares = rows.flatMap((row, rank) => {
-    const pieces = [...row].flatMap((symbol) => {
-      const empty = Number(symbol);
-      return Number.isInteger(empty) && empty > 0
-        ? Array.from({ length: empty }, () => '')
-        : [symbol];
-    });
-    return pieces.map((piece, file) => ({
-      piece,
-      dark: (rank + file) % 2 === 1,
-      key: `${rank}-${file}`,
-    }));
-  });
-  return (
-    <div>
-      <p className="puzzle-turn">{fen.split(' ')[1] === 'b' ? 'Black to move' : 'White to move'}</p>
-      <div className="puzzle-board" role="img" aria-label={`Chess position: ${fen}`}>
-        {squares.map((square) => (
-          <span
-            key={square.key}
-            className={
-              square.dark
-                ? 'puzzle-board__square puzzle-board__square--dark'
-                : 'puzzle-board__square'
-            }
-            aria-hidden="true"
-          >
-            <FenPiece letter={square.piece} className="puzzle-board__piece" />
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
+/** [BM-046] Review pending positions and publish confirmed House Puzzles with a prompt. */
 export function PuzzleReview({
   houseId,
   initial,

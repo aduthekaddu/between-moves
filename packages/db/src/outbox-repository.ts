@@ -1,7 +1,7 @@
 import type { ClaimedOutboxEvent, ClaimOutboxBatch, OutboxRepository } from '@between-moves/domain';
 import type { Pool, QueryResultRow } from 'pg';
 
-interface OutboxRow extends QueryResultRow {
+export interface OutboxRow extends QueryResultRow {
   id: string;
   topic: string;
   aggregate_id: string;
@@ -22,7 +22,8 @@ function parsePayload(value: unknown): Readonly<Record<string, unknown>> {
   return value as Readonly<Record<string, unknown>>;
 }
 
-function parseRow(row: OutboxRow): ClaimedOutboxEvent {
+/** Validate one claimed or delivered outbox row; an invalid row throws. */
+export function parseOutboxRow(row: OutboxRow): ClaimedOutboxEvent {
   const sequence = BigInt(row.sequence);
   if (
     !row.id ||
@@ -53,6 +54,7 @@ function parseRow(row: OutboxRow): ClaimedOutboxEvent {
 export class PgOutboxRepository implements OutboxRepository {
   constructor(private readonly database: Queryable) {}
 
+  /** Lease due events oldest first, parking any lease that exhausted its final attempt. */
   async claimBatch(request: ClaimOutboxBatch): Promise<readonly ClaimedOutboxEvent[]> {
     const result = await this.database.query<OutboxRow>(
       `with parked as (
@@ -85,7 +87,7 @@ export class PgOutboxRepository implements OutboxRepository {
                 event.attempts, event.available_at, event.created_at`,
       [request.now, request.limit, request.leaseUntil, request.maxAttempts],
     );
-    return result.rows.map(parseRow);
+    return result.rows.map(parseOutboxRow);
   }
 
   async markSent(eventId: string, sentAt: Date): Promise<void> {

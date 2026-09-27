@@ -1804,8 +1804,9 @@ a.move-card:focus-visible {
 }
 
 .season-main {
+  --season-gap: clamp(48px, 7vw, 96px);
   display: grid;
-  gap: clamp(48px, 7vw, 96px);
+  gap: var(--season-gap);
   width: var(--page);
   margin: 0 auto;
   padding-top: clamp(32px, 5vw, 64px);
@@ -2226,6 +2227,53 @@ a.move-card:focus-visible {
   color: var(--marigold);
 }
 
+/* [BM-048] the recap's way into the Closing Book: the lamp's colour on the scoreboard */
+.season-final__book {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  margin-top: 10px;
+  padding: 0 18px;
+  border-radius: var(--radius);
+  background: var(--marigold);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 0 -1px #9f5f0b;
+  transition: transform 90ms var(--ease);
+}
+
+.season-final__book::after {
+  content: '→';
+  font-family: var(--font-mono);
+}
+
+.season-final__book:hover {
+  transform: translateY(1px);
+}
+
+.season-final :focus-visible {
+  outline-color: var(--marigold);
+}
+
+/* the recap follows the page's h1 in the document but sits above it, a Season gap clear */
+.season-main > .season-final,
+.season-active > .season-final,
+.charter-form > .season-final {
+  order: -1;
+}
+
+.season-active > .season-final {
+  grid-column: 1 / -1;
+  margin-bottom: calc(var(--season-gap) - 18px);
+}
+
+.charter-form > .season-final {
+  margin-bottom: calc(var(--season-gap) - 28px);
+}
+
 .season-passive {
   display: grid;
   gap: 16px;
@@ -2463,6 +2511,459 @@ a.move-card:focus-visible {
 .puzzle-hint {
   font-size: 0.85rem;
   color: var(--ink-3);
+}
+
+/* ————— Closing Book: a stitched paper booklet on the lamp-lit desk ————— */
+
+.closing-book-shell {
+  min-height: 100vh;
+  padding-bottom: 96px;
+}
+
+.closing-book-main {
+  width: var(--page);
+  margin: 0 auto;
+  padding-top: clamp(28px, 4vw, 56px);
+}
+
+.closing-book {
+  display: grid;
+  gap: clamp(52px, 7vw, 92px);
+}
+
+/* the desk: indigo card under one lamp, the booklet lying on it */
+.closing-book-desk {
+  display: grid;
+  padding: clamp(30px, 6vw, 76px) clamp(14px, 5vw, 64px);
+  background:
+    radial-gradient(90% 70% at 16% 0%, rgba(244, 165, 60, 0.2), transparent 60%),
+    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
+    linear-gradient(180deg, #232c55, #1a2244);
+  box-shadow: var(--lift-shadow);
+}
+
+.closing-book-cover {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  justify-self: center;
+  width: min(100%, 720px);
+  padding: clamp(28px, 5vw, 52px) clamp(20px, 5vw, 52px) clamp(24px, 4vw, 40px)
+    clamp(46px, 7vw, 84px);
+  background:
+    linear-gradient(90deg, rgba(60, 40, 10, 0.12), transparent clamp(34px, 5vw, 52px)),
+    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
+    var(--paper-card);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.75) inset,
+    0 34px 60px -30px rgba(0, 0, 0, 0.9);
+  rotate: -1deg;
+  animation: deal 380ms steps(5, end) both;
+}
+
+/* saddle stitches down the spine */
+.closing-book-cover::before {
+  content: '';
+  position: absolute;
+  inset: 26px auto 26px clamp(20px, 3vw, 32px);
+  border-left: 2px dashed rgba(23, 22, 27, 0.34);
+}
+
+.closing-book-cover .season-eyebrow {
+  margin: 0;
+}
+
+.closing-book-cover h1 {
+  font-size: clamp(2.8rem, 9vw, 6.4rem);
+  font-weight: 780;
+  font-stretch: 75%;
+  line-height: 0.84;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.closing-book-cover__dates {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.closing-book-cover__leader {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vermilion-ink);
+}
+
+.closing-book-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 12px 0 0;
+  border-top: 2px solid var(--ink);
+}
+
+.closing-book-totals div {
+  display: grid;
+  gap: 4px;
+  padding: 14px 12px 0 0;
+}
+
+.closing-book-totals div + div {
+  padding-left: 14px;
+  border-left: 1px solid var(--rule);
+}
+
+.closing-book-totals dt {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.closing-book-totals dd {
+  margin: 0;
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  font-weight: 760;
+  font-stretch: 80%;
+  line-height: 1;
+}
+
+/* the pages: each opens under a ruled heading */
+.closing-book-section {
+  display: grid;
+  gap: 24px;
+}
+
+.closing-book-section__heading {
+  display: grid;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 2px solid var(--ink);
+}
+
+.closing-book-section__heading h2 {
+  font-size: clamp(1.9rem, 4.4vw, 3rem);
+  font-weight: 780;
+  font-stretch: 76%;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.closing-book-section__heading p {
+  max-width: 58ch;
+  color: var(--ink-2);
+}
+
+.closing-book-empty {
+  padding: 18px 20px;
+  border: 1.5px dashed var(--rule-2);
+  color: var(--ink-2);
+}
+
+.closing-book-awards,
+.closing-book-swings,
+.closing-book-roll,
+.closing-book-games,
+.closing-book-puzzles {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* awards: certificates pinned slightly askew, each with a seal; the leader's is the lamp */
+.closing-book-awards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 196px), 1fr));
+  gap: 22px;
+}
+
+.closing-book-award {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 22px 22px 24px;
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+  rotate: -0.5deg;
+  animation: deal 380ms steps(5, end) both;
+}
+
+.closing-book-award:nth-child(even) {
+  rotate: 0.6deg;
+  animation-delay: 70ms;
+}
+
+.closing-book-award::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--indigo-2);
+  box-shadow:
+    0 0 0 3px var(--paper-card),
+    0 0 0 4.5px var(--indigo-2);
+}
+
+.closing-book-award--leader::after {
+  background: var(--marigold);
+  box-shadow:
+    0 0 0 3px var(--paper-card),
+    0 0 0 4.5px var(--marigold-ink);
+}
+
+.closing-book-award__title {
+  padding-right: 40px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.closing-book-award h3 {
+  font-size: 1.75rem;
+  font-weight: 760;
+  font-stretch: 78%;
+  line-height: 1;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.closing-book-award--leader h3 {
+  color: var(--marigold-ink);
+}
+
+.closing-book-award p:last-child {
+  color: var(--ink-2);
+}
+
+/* who turned up: the roll, printed like a ledger */
+.closing-book-roll {
+  display: grid;
+  padding: 6px 22px;
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+}
+
+.closing-book-roll li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+}
+
+.closing-book-roll li + li {
+  border-top: 1px dashed var(--rule-2);
+}
+
+.closing-book-roll__rank {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.closing-book-roll__leader .closing-book-roll__rank {
+  border-color: var(--marigold-ink);
+  background: var(--marigold);
+}
+
+.closing-book-roll__who {
+  display: grid;
+  gap: 2px;
+}
+
+.closing-book-roll__name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-stretch: 82%;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.closing-book-roll__record {
+  font-size: 0.92rem;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.closing-book-roll__points {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* memorable swings: the moment the game turned, marked in vermilion */
+.closing-book-swings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 24px;
+}
+
+.closing-book-swing {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 20px 22px 22px;
+  border-top: 4px solid var(--vermilion);
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+  animation: deal 380ms steps(5, end) both;
+}
+
+.closing-book-swing:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.closing-book-swing:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.closing-book-swing__size {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.closing-book-swing__pawns {
+  font-size: clamp(2.4rem, 5vw, 3.2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--vermilion-ink);
+}
+
+.closing-book-swing h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.closing-book-move {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.closing-book-swing p:last-child {
+  color: var(--ink-2);
+}
+
+/* every game finished: a scoresheet */
+.closing-book-games {
+  display: grid;
+  border-top: 1px solid var(--rule-2);
+}
+
+.closing-book-games li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.closing-book-games time {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.closing-book-games__summary {
+  display: grid;
+  gap: 2px;
+  font-weight: 600;
+}
+
+.closing-book-games__detail {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.closing-book-games__score {
+  min-width: 58px;
+  padding: 6px 10px;
+  border: 1.5px solid var(--indigo-2);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-align: center;
+  color: var(--indigo-2);
+}
+
+.closing-book-puzzles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 28px;
+}
+
+.closing-book-colophon {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule-2);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.closing-book-colophon::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--vermilion);
+  transform: rotate(45deg);
+}
+
+.closing-book-colophon p {
+  max-width: 60ch;
+}
+
+.closing-book-waiting {
+  display: grid;
+  gap: 16px;
+  padding: clamp(28px, 5vw, 56px);
+  border: 1.5px dashed var(--rule-2);
+}
+
+.closing-book-waiting h1 {
+  font-size: clamp(3rem, 9vw, 7.4rem);
+  font-weight: 780;
+  font-stretch: 75%;
+  line-height: 0.84;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.closing-book-waiting p:last-child {
+  max-width: 46ch;
+  font-size: 1.15rem;
+  color: var(--ink-2);
 }
 
 /* ————— Invitation (lamp mode) ————— */
@@ -2762,6 +3263,33 @@ a.move-card:focus-visible {
   .charter-form__fields,
   .charter-night__fields {
     grid-template-columns: 1fr;
+  }
+
+  .closing-book-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .closing-book-totals div:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .closing-book-roll li {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .closing-book-roll__rank {
+    height: 34px;
+  }
+
+  .closing-book-games li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+  }
+
+  .closing-book-games time {
+    grid-column: 1 / -1;
   }
 
   .season-active__details div + div {
