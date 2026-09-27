@@ -1,5 +1,7 @@
 import { RetriableOutboxError, type EmailMetrics } from '@between-moves/domain';
 
+const RESEND_REQUEST_TIMEOUT_MS = 30_000;
+
 export interface ResendEmailClientOptions {
   readonly apiKey: string;
   readonly from: string;
@@ -36,6 +38,7 @@ export class ResendEmailClient {
           subject: message.subject,
           text: message.text,
         }),
+        signal: AbortSignal.timeout(RESEND_REQUEST_TIMEOUT_MS),
       });
       if (!response.ok) {
         throw new RetriableOutboxError(`Resend email request failed (${response.status})`);
