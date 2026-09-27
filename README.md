@@ -36,7 +36,7 @@ Run from the repository root:
 | `pnpm test:e2e`        | Run Playwright end-to-end tests                 |
 | `pnpm db:migrate`      | Apply pending reviewed PostgreSQL migrations    |
 | `pnpm db:migrate:down` | Reverse the latest migration outside production |
-| `pnpm db:generate`     | Generate candidate SQL with Drizzle Kit         |
+| `pnpm db:generate`     | Draft candidate SQL with Drizzle Kit            |
 | `pnpm check`           | Run lint, typecheck, and test together          |
 | `pnpm format`          | Format the repo with Prettier                   |
 | `pnpm format:check`    | Check formatting without writing                |
@@ -48,6 +48,15 @@ apps/web        Next.js App Router application and composition root
 apps/worker     Trigger.dev outbox and leased analysis dispatchers
 packages/db     PostgreSQL pool, Drizzle adapter, migrations, and DB health probe
 ```
+
+## Database migrations
+
+Reviewed SQL in `packages/db/migrations/NNNN_name/{up,down}.sql` is the source of truth.
+`pnpm db:migrate` applies pending directories in name order under an advisory lock, one
+transaction per migration; production is forward-only. `pnpm db:generate` only drafts SQL
+from `packages/db/src/schema.ts` into the git-ignored `packages/db/migrations/generated/`.
+Review the draft, then copy what you keep into the next numbered directory with a matching
+`down.sql`.
 
 ## Analysis worker
 
