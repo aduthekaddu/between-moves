@@ -30,6 +30,7 @@ import {
   createDatabase,
   PgAnalysisJobRepository,
   PgClosingBookRepository,
+  PgInvitationEmailDeliveryGate,
   PgNudgeEmailReader,
   PgNudgeRepository,
   PgOutboxRepository,
@@ -83,6 +84,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
     });
     const invitation = createInvitationEmailConsumer({
       codec: new AesGcmInvitationEmailDeliveryCodec(secret),
+      invitations: new PgInvitationEmailDeliveryGate(database.pool),
       sender: new ResendInvitationEmailSender({
         apiKey,
         from: 'Between Moves <invitations@betweenmoves.app>',

@@ -412,18 +412,43 @@ label {
   background: var(--vermilion);
 }
 
+/* [BM-050] the account link sits beside the rooms, never among them */
+.app-masthead__nav {
+  margin-left: auto;
+}
+
+.app-masthead__account {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-underline-offset: 4px;
+}
+
+.app-masthead__account:hover {
+  color: var(--ink);
+}
+
 .app-masthead[data-tone='night'] {
   border-bottom-color: var(--night-rule);
   color: var(--night-text);
 }
 
 .app-masthead[data-tone='night'] .app-masthead__house,
-.app-masthead[data-tone='night'] .app-masthead__nav a {
+.app-masthead[data-tone='night'] .app-masthead__nav a,
+.app-masthead[data-tone='night'] .app-masthead__account {
   color: var(--night-text-2);
 }
 
 .app-masthead[data-tone='night'] .app-masthead__nav a:hover,
-.app-masthead[data-tone='night'] .app-masthead__nav a[aria-current='page'] {
+.app-masthead[data-tone='night'] .app-masthead__nav a[aria-current='page'],
+.app-masthead[data-tone='night'] .app-masthead__account:hover {
   color: var(--night-text);
 }
 
@@ -3165,6 +3190,132 @@ a.move-card:focus-visible {
   color: var(--ink-3);
 }
 
+/* ————— Account (day paper; deletion is the one vermilion alarm) ————— */
+
+.account-page {
+  display: grid;
+  gap: clamp(20px, 3vw, 32px);
+  width: min(var(--page), 760px);
+  margin: 0 auto;
+  padding-top: clamp(32px, 6vw, 72px);
+}
+
+.account-intro h1 {
+  font-size: clamp(2.4rem, 7vw, 4.6rem);
+  font-weight: 780;
+  font-stretch: 76%;
+  line-height: 0.9;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.account-section,
+.account-delete {
+  display: grid;
+  gap: 12px;
+  padding: clamp(20px, 3vw, 28px);
+  background: var(--paper-card);
+  box-shadow: var(--card-shadow);
+}
+
+.account-section h2,
+.account-delete h2 {
+  font-size: 1.5rem;
+  font-weight: 760;
+  font-stretch: 78%;
+  text-transform: uppercase;
+}
+
+.account-section__copy {
+  color: var(--ink-2);
+}
+
+.account-houses {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.account-houses li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.account-houses a {
+  font-weight: 650;
+  color: var(--indigo-2);
+}
+
+.account-houses__role {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.account-download {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--radius);
+  background: var(--indigo);
+  color: var(--night-text);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.account-download:hover {
+  background: var(--indigo-2);
+}
+
+.account-delete {
+  border: 2px solid var(--vermilion-ink);
+  background: #fbf1ea;
+}
+
+.account-delete__confirm {
+  display: grid;
+  gap: 10px;
+}
+
+.account-delete__confirm label {
+  font-weight: 600;
+}
+
+.account-delete__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.account-delete__start {
+  justify-self: start;
+  border-color: var(--vermilion-ink);
+  color: var(--vermilion-ink);
+}
+
+.account-shell .account-delete__final {
+  border-color: var(--vermilion-ink);
+  background: var(--vermilion-ink);
+  color: var(--paper-card);
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px #6d1b0e;
+}
+
+.account-delete__blocked,
+.account-delete__error {
+  font-weight: 600;
+  color: var(--vermilion-ink);
+}
+
 /* ————— Unavailable / invalid ————— */
 
 .house-unavailable {
@@ -3320,8 +3471,14 @@ a.move-card:focus-visible {
   }
 
   .app-masthead__nav {
+    order: 3;
     width: 100%;
+    margin-left: 0;
     justify-content: space-between;
+  }
+
+  .app-masthead__account {
+    margin-left: auto;
   }
 
   .house-identity {

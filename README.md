@@ -130,6 +130,28 @@ starts from an empty ledger: standings, awards and the Charter itself carry noth
 late results from the closed Season still score only that Season. Once the next Season is
 active, the Season page drops the final standings but keeps a link to the last Closing Book.
 
+## Account export and deletion
+
+A signed-in person manages their own data at `/account` (`noindex`), linked from every House
+masthead. `GET /api/account/export` downloads one JSON file keyed only by the session's identity:
+the profile, every membership, the chat messages, Game notes, reactions and House Puzzles they
+wrote, the Games they sat in (their colour and result), the Moves they played, and their Season
+ledger points and final standings. It never includes another Member's content, name or address.
+
+`POST /api/account/delete` requires the expected Origin and the body
+`{"confirmation":"delete my account"}`. One transaction ends every active membership as `left`
+(with a `member_left` audit row whose metadata reads `account_deleted`), records `Former member`
+as each membership's display name, deletes the person's sessions, provider accounts and pending
+sign-in links, renames them in queued chat events, and scrubs the user row to a tombstone:
+`Former member`, `<user id>@deleted.invalid`, no image, `status = 'deleted'`. The response expires
+the browser's sign-in cookies. An Owner of an active House gets 409 and must transfer ownership
+first. Games, Moves, scores, final standings, messages, notes and Closing Books stay; every read
+names the person `Former member`, and a published Closing Book's stored payload is renamed as it
+is read rather than rewritten. Migration `0026_account_deletion` makes deletion one-way: a deleted
+user can never be reactivated, hold a session, or rejoin a House, and a later sign-in with the same
+address creates a new identity. The handlers log `identity.account.exported` and
+`identity.account.deleted` with counts only.
+
 ## Design system: paper and lamplight
 
 The interface is built from folded paper, indigo card and one lamp. Three dyes carry

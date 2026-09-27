@@ -75,4 +75,36 @@ describe('Invitation email adapters', () => {
     );
     expect(metrics.incrementEmailSend).toHaveBeenCalledWith('failure');
   });
+
+  it('[BM-030] aborts a stalled Resend request and records a retryable failure', async () => {
+    const controller = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal);
+    const request = vi.fn<typeof fetch>(
+      async (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) throw new Error('Resend request has no abort signal');
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+        }),
+    );
+    const metrics = { incrementEmailSend: vi.fn() };
+    const sender = new ResendInvitationEmailSender({
+      apiKey: 're_test_key',
+      from: 'Between Moves <invitations@betweenmoves.app>',
+      fetch: request,
+      metrics,
+    });
+
+    try {
+      const delivery = sender.sendInvitation(message, { idempotencyKey: 'event-timeout' });
+      expect(timeout).toHaveBeenCalledWith(30_000);
+      expect(request).toHaveBeenCalledOnce();
+      controller.abort(new DOMException('Request timed out', 'TimeoutError'));
+      await expect(delivery).rejects.toMatchObject({ name: 'RetriableOutboxError' });
+      expect(metrics.incrementEmailSend).toHaveBeenCalledWith('failure');
+    } finally {
+      controller.abort();
+      timeout.mockRestore();
+    }
+  });
 });

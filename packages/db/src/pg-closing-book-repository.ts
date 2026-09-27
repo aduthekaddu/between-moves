@@ -1,5 +1,6 @@
 import {
   SEASON_CLOSING_TOPIC,
+  withFormerMembers,
   type AuthorizationContext,
   type ClaimedOutboxEvent,
   type ClosingBookAttendance,
@@ -98,6 +99,14 @@ function contents(value: unknown, seasonId: string): ClosingBookContents {
     throw new Error('Invalid Closing Book payload');
   }
   return payload as ClosingBookContents;
+}
+
+/** Parse the House's deleted-account membership IDs. */
+function formerMembershipIds(value: unknown): ReadonlySet<string> {
+  if (!Array.isArray(value) || value.some((id) => typeof id !== 'string')) {
+    throw new Error('Invalid Closing Book former Members');
+  }
+  return new Set(value as string[]);
 }
 
 /** Run reads in one repeatable-read, read-only transaction so they share a snapshot. */
@@ -386,6 +395,8 @@ export class PgClosingBookRepository
    * A Season still `closing` wins; otherwise the latest close time, then Season ID.
    * [BM-049] Also names the reader's membership and the House's active Season, if any; a House
    * holds at most one active or closing Season, so that join never adds a row.
+   * [BM-050] The stored payload is never rewritten: Members who deleted their account are
+   * shown as `Former member` as the book is read.
    * Return null when the House or the viewer's membership is not active.
    */
   async readLatest(context: AuthorizationContext): Promise<HouseClosingBook | null> {
@@ -393,7 +404,13 @@ export class PgClosingBookRepository
       `select h.name, h.time_zone, viewer.id::text as membership_id, viewer.role,
               s.id::text as season_id, s.title,
               a.id::text as active_season_id, a.title as active_title,
-              b.id::text as book_id, b.generation_version, b.payload, b.published_at
+              b.id::text as book_id, b.generation_version, b.payload, b.published_at,
+              array(
+                select former.id::text
+                  from memberships former
+                  join users person on person.id = former.user_id and person.status = 'deleted'
+                 where former.house_id = h.id
+              ) as former_membership_ids
          from houses h
          join memberships viewer
            on viewer.house_id = h.id and viewer.user_id = $2 and viewer.status = 'active'
@@ -437,7 +454,10 @@ export class PgClosingBookRepository
               bookId: text(row.book_id, 'id'),
               generationVersion: integer(row.generation_version, 'generation version'),
               publishedAt: instant(row.published_at, 'publication time'),
-              contents: contents(row.payload, seasonId),
+              contents: withFormerMembers(
+                contents(row.payload, seasonId),
+                formerMembershipIds(row.former_membership_ids),
+              ),
             },
     };
   }

@@ -109,6 +109,13 @@ export interface InvitationEmailSender {
   ): Promise<InvitationEmailSendResult>;
 }
 
+export interface InvitationEmailDeliveryGate {
+  withDeliverableInvitation(
+    invitationId: string,
+    send: () => Promise<InvitationEmailSendResult>,
+  ): Promise<InvitationEmailSendResult | null>;
+}
+
 export type ResendDeliveryEventType =
   | 'email.bounced'
   | 'email.clicked'

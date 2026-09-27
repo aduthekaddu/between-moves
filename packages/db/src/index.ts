@@ -27,6 +27,7 @@ export { PgNudgeRepository } from './pg-nudge-repository';
 export { PgMagicLinkOutboxWriter } from './magic-link-outbox-writer';
 
 export { PgIdentityRecoveryRepository } from './identity-recovery-repository';
+export { PgAccountDataRightsRepository } from './pg-account-data-rights-repository';
 
 export { PgHouseCreationRepository } from './pg-house-creation-repository';
 export { PgGameSeatRepository } from './pg-game-seat-repository';
@@ -40,6 +41,7 @@ export { PgGameNoteRepository } from './pg-game-note-repository';
 export { PgHouseAuthorizationMembershipRepository } from './pg-house-authorization-membership-repository';
 export { PgHouseHomeRepository } from './pg-house-home-repository';
 export { PgInvitationRepository } from './pg-invitation-repository';
+export { PgInvitationEmailDeliveryGate } from './pg-invitation-email-delivery-gate';
 export { PgInvitationRedemptionRepository } from './pg-invitation-redemption-repository';
 export { PgMembershipAdminRepository } from './pg-membership-admin-repository';
 export { PgNightRepository } from './pg-night-repository';

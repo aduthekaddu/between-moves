@@ -3,6 +3,7 @@ import {
   closingBookAwards,
   composeClosingBook,
   memorableSwings,
+  withFormerMembers,
   type ClosingBookGame,
   type ClosingBookParticipant,
   type ClosingBookSource,
@@ -253,5 +254,45 @@ describe('Closing Book memorable swings', () => {
 
   it('[BM-048] honours an explicit limit', () => {
     expect(memorableSwings(source.swings, source.games, 1)).toHaveLength(1);
+  });
+});
+
+describe('Closing Book former Members', () => {
+  it('[BM-050] names a deleted Member “Former member” everywhere without moving the book', () => {
+    const book = composeClosingBook(source);
+    const read = withFormerMembers(book, new Set([bea.membershipId]));
+    const mentions = (contents: typeof book) => [
+      ...contents.participation,
+      ...contents.awards.flatMap((award) => award.recipients),
+      ...contents.swings.flatMap((swing) => [swing.mover, swing.opponent]),
+      ...contents.games.flatMap((game) => [game.white, game.black]),
+      ...contents.puzzles.map((puzzle) => puzzle.contributor),
+    ];
+
+    expect(mentions(book).some((member) => member.membershipId === bea.membershipId)).toBe(true);
+    for (const member of mentions(read)) {
+      if (member.membershipId === bea.membershipId)
+        expect(member.displayName).toBe('Former member');
+      else expect(member.displayName).not.toBe('Former member');
+    }
+    expect(JSON.stringify(read)).not.toContain('"Bea"');
+    expect(
+      read.participation.map((entry) => [entry.membershipId, entry.rank, entry.points]),
+    ).toEqual(book.participation.map((entry) => [entry.membershipId, entry.rank, entry.points]));
+    expect({ ...read, participation: [], awards: [], swings: [], games: [], puzzles: [] }).toEqual({
+      ...book,
+      participation: [],
+      awards: [],
+      swings: [],
+      games: [],
+      puzzles: [],
+    });
+    expect(JSON.stringify(book)).toContain('"Bea"');
+  });
+
+  it('[BM-050] returns the stored book untouched when nobody has deleted their account', () => {
+    const book = composeClosingBook(source);
+    expect(withFormerMembers(book, new Set())).toBe(book);
+    expect(withFormerMembers(book, new Set(['m-unknown']))).toEqual(book);
   });
 });

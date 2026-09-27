@@ -1,6 +1,7 @@
 import type {
   ClaimedOutboxEvent,
   InvitationEmailDeliveryCodec,
+  InvitationEmailDeliveryGate,
   InvitationEmailSender,
 } from '@between-moves/domain';
 import { describe, expect, it, vi } from 'vitest';
@@ -31,11 +32,37 @@ describe('Invitation email consumer', () => {
     const sender: InvitationEmailSender = {
       sendInvitation: vi.fn<InvitationEmailSender['sendInvitation']>(async () => 'sent'),
     };
+    const invitations: InvitationEmailDeliveryGate = {
+      withDeliverableInvitation: vi.fn(async (_invitationId, send) => send()),
+    };
 
-    await expect(createInvitationEmailConsumer({ codec, sender }).consume(event)).resolves.toBe(
-      'processed',
+    await expect(
+      createInvitationEmailConsumer({ codec, invitations, sender }).consume(event),
+    ).resolves.toBe('processed');
+    expect(invitations.withDeliverableInvitation).toHaveBeenCalledWith(
+      event.aggregateId,
+      expect.any(Function),
     );
     expect(codec.open).toHaveBeenCalledWith('sealed-payload');
     expect(sender.sendInvitation).toHaveBeenCalledWith(message, { idempotencyKey: event.id });
+  });
+
+  it('[BM-030] skips delivery when the Invitation is unavailable', async () => {
+    const codec: InvitationEmailDeliveryCodec = {
+      seal: vi.fn(async () => 'unused'),
+      open: vi.fn(async () => ({ email: 'friend@example.test', invitationUrl: 'unused' })),
+    };
+    const sender: InvitationEmailSender = {
+      sendInvitation: vi.fn<InvitationEmailSender['sendInvitation']>(async () => 'sent'),
+    };
+    const invitations: InvitationEmailDeliveryGate = {
+      withDeliverableInvitation: vi.fn(async () => null),
+    };
+
+    await expect(
+      createInvitationEmailConsumer({ codec, invitations, sender }).consume(event),
+    ).resolves.toBe('processed');
+    expect(codec.open).not.toHaveBeenCalled();
+    expect(sender.sendInvitation).not.toHaveBeenCalled();
   });
 });
