@@ -21,6 +21,9 @@ next-env.d.ts
 # Turborepo
 .turbo/
 
+# Drizzle Kit drafts; reviewed SQL lives in packages/db/migrations/NNNN_*/
+packages/db/migrations/generated/
+
 # Caches
 .cache/
 .eslintcache
@@ -47,9 +50,3 @@ test-results/
 .idea/
 .vscode/
 *.swp
-
-# Playwright
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/

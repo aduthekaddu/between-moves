@@ -3,7 +3,7 @@ import {
   type SubmitMoveRequest,
   type SubmitMoveResult,
 } from '@between-moves/domain';
-import { retryTransaction } from './retry-transaction';
+import { retryTransaction } from '../shared/retry-transaction';
 
 /** [BM-024] [DR-MOVE-01/02] The sole durable Move application path for both Game modes. */
 export async function submitMove(

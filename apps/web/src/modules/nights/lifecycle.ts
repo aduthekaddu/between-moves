@@ -23,18 +23,14 @@ import { createHouseAuthorizationDenialRecorder } from '../../server/house-autho
 import { getLogger } from '../../server/logger';
 import type { NightLifecycleHandlerDependencies } from '../../server/night-lifecycle-handler';
 import { getViewer, requireViewer } from '../../server/viewer';
+import { readRequestId } from '../../kernel/request';
 
 const clock = new SystemClock();
 const authorizationMetrics = createHouseAuthorizationMetricStubs();
 
-function requestId(request: Request): string {
-  const value = request.headers.get('x-request-id');
-  return value !== null && /^[A-Za-z0-9._:-]{1,128}$/.test(value) ? value : crypto.randomUUID();
-}
-
 function dependencies(request: Request): NightLifecycleDependencies {
   const database = getDatabase().pool;
-  const id = requestId(request);
+  const id = readRequestId(request);
   const lifecycle = new PgNightLifecycleRepository(database);
   return {
     authorizeHouseAction: createAuthorizeHouseAction({

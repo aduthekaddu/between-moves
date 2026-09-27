@@ -22,11 +22,3 @@ export const realtimePublishEnvelopeSchema = z
   .strict();
 
 export type RealtimePublishEnvelope = z.infer<typeof realtimePublishEnvelopeSchema>;
-
-const ROOT_KEY_FIELDS = /serverKey|rootKey|REALTIME_SERVER_KEY/i;
-
-/** [BM-038] Published envelopes must never mention or embed the provider root key. */
-export function realtimePublishHidesRootKey(payload: unknown, rootKey: string): boolean {
-  const serialized = JSON.stringify(payload);
-  return !serialized.includes(rootKey) && !ROOT_KEY_FIELDS.test(serialized);
-}

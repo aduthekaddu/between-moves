@@ -6,8 +6,8 @@ describe('delivery metric stubs', () => {
     const metrics = createDeliveryMetricStubs();
 
     metrics.setOutboxAgeSeconds(42);
-    metrics.incrementRealtimePublishRetry();
-    metrics.incrementRealtimePublishRetry();
+    metrics.incrementOutboxRetry();
+    metrics.incrementOutboxRetry();
     metrics.incrementNudgeEnqueue('advance', 'enqueued');
     metrics.incrementNudgeEnqueue('advance', 'duplicate');
     metrics.incrementNudgeEnqueue('overdue', 'enqueued');
@@ -21,7 +21,7 @@ describe('delivery metric stubs', () => {
 
     expect(metrics.snapshot()).toEqual({
       outbox_age_seconds: 42,
-      realtime_publish_retry_total: 2,
+      outbox_retry_total: 2,
       email_send_total: { success: 2, failure: 1 },
       email_failure_rate: 1 / 3,
       nudge_enqueue_total: {

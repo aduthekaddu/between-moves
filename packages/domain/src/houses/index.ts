@@ -85,8 +85,3 @@ export type {
   RemoveHouseMemberRequest,
   TransferHouseOwnershipRequest,
 } from './membership-admin';
-
-/** [BM-005] Logical House module boundary and future authorization authority. */
-export interface HousesPorts {
-  readonly module: 'houses';
-}

@@ -1,5 +1,5 @@
 import type { RateLimitInput, RateLimiter, RateLimitResult } from '@between-moves/domain';
-import { createHash } from 'node:crypto';
+import { clientIp, digest } from './rate-limit';
 
 const MINUTE_SECONDS = 60;
 const HOUR_SECONDS = 60 * 60;
@@ -32,15 +32,6 @@ export type InvitationRateLimit = (
   accountId: string,
   surface: InvitationRateLimitSurface,
 ) => Promise<RateLimitResult>;
-
-function digest(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
-}
 
 function checks(
   request: Request,

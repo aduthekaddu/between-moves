@@ -16,6 +16,7 @@ import { createHouseAuthorizationDenialRecorder } from './house-authorization-ob
 import { getLogger } from './logger';
 import type { NightCommandHandlerDependencies } from './night-command-handler';
 import { getViewer, requireViewer } from './viewer';
+import { readRequestId } from '../kernel/request';
 
 const clock = new SystemClock();
 const authorizationMetrics = createHouseAuthorizationMetricStubs();
@@ -39,14 +40,9 @@ function dependencies(requestId: string): NightDependencies {
   };
 }
 
-function requestId(request: Request): string {
-  const value = request.headers.get('x-request-id');
-  return value !== null && /^[A-Za-z0-9._:-]{1,128}$/.test(value) ? value : crypto.randomUUID();
-}
-
 /** [BM-020] Web composition for Night schedule edits. */
 export function nightCommandHandlerDependencies(request: Request): NightCommandHandlerDependencies {
-  const nightDependencies = dependencies(requestId(request));
+  const nightDependencies = dependencies(readRequestId(request));
   return {
     expectedOrigin: getConfig().appOrigin.origin,
     requireViewer,
@@ -59,7 +55,7 @@ export async function getScheduledNights(
   request: Request,
   houseId: string,
 ): Promise<readonly HouseNightView[]> {
-  const nightDependencies = dependencies(requestId(request));
+  const nightDependencies = dependencies(readRequestId(request));
   return readScheduledNightsUseCase(
     { houseId, viewer: await getViewer(request) },
     nightDependencies,

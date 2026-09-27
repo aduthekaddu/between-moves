@@ -18,18 +18,12 @@ import {
 } from '@between-moves/contracts';
 import type { StructuredLogger } from '@between-moves/observability';
 import { z } from 'zod';
-import { problemResponse as problem, readJsonBody } from '../kernel/request';
+import { problemResponse as problem, readJsonBody, readRequestId } from '../kernel/request';
 
 export const identifierSchema = z.string().uuid();
 export const roleBodySchema = membershipRoleChangeBodySchema;
 export const transferBodySchema = ownershipTransferBodySchema;
 export const idempotencyKeySchema = z.string().trim().min(1).max(128);
-const requestIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9._:-]+$/);
 const MAXIMUM_BODY_BYTES = 4_096;
 
 export interface MembershipAdminHandlerDependencies {
@@ -151,12 +145,6 @@ export function logSuccess(
       invalidated_session_count: input.invalidatedSessionCount,
     },
   });
-}
-
-/** Treat caller-provided correlation data as untrusted boundary input. */
-export function readRequestId(request: Request): string {
-  const parsed = requestIdSchema.safeParse(request.headers.get('x-request-id'));
-  return parsed.success ? parsed.data : crypto.randomUUID();
 }
 
 export async function parseBody(request: Request): Promise<unknown | Response> {

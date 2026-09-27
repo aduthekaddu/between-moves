@@ -1,6 +1,6 @@
 export interface DeliveryMetricSnapshot {
   readonly outbox_age_seconds: number;
-  readonly realtime_publish_retry_total: number;
+  readonly outbox_retry_total: number;
   readonly email_send_total: Readonly<Record<'success' | 'failure', number>>;
   readonly email_failure_rate: number;
   readonly nudge_enqueue_total: Readonly<
@@ -16,7 +16,7 @@ export interface DeliveryMetricSnapshot {
 
 export interface DeliveryMetricStubs {
   setOutboxAgeSeconds(ageSeconds: number): void;
-  incrementRealtimePublishRetry(): void;
+  incrementOutboxRetry(): void;
   incrementEmailSend(outcome: 'success' | 'failure'): void;
   incrementNudgeEnqueue(stage: 'advance' | 'overdue', outcome: 'enqueued' | 'duplicate'): void;
   incrementNudgeSend(
@@ -29,7 +29,7 @@ export interface DeliveryMetricStubs {
 /** [BM-006] Operations §4.2 metric seam until the production exporter is wired. */
 export function createDeliveryMetricStubs(): DeliveryMetricStubs {
   let outboxAgeSeconds = 0;
-  let realtimePublishRetryTotal = 0;
+  let outboxRetryTotal = 0;
   const emailSend = { success: 0, failure: 0 };
   const nudgeEnqueue = {
     advance: { enqueued: 0, duplicate: 0 },
@@ -44,8 +44,8 @@ export function createDeliveryMetricStubs(): DeliveryMetricStubs {
     setOutboxAgeSeconds(ageSeconds) {
       outboxAgeSeconds = Math.max(0, ageSeconds);
     },
-    incrementRealtimePublishRetry() {
-      realtimePublishRetryTotal += 1;
+    incrementOutboxRetry() {
+      outboxRetryTotal += 1;
     },
     incrementEmailSend(outcome) {
       emailSend[outcome] += 1;
@@ -60,7 +60,7 @@ export function createDeliveryMetricStubs(): DeliveryMetricStubs {
       const emailAttemptTotal = emailSend.success + emailSend.failure;
       return {
         outbox_age_seconds: outboxAgeSeconds,
-        realtime_publish_retry_total: realtimePublishRetryTotal,
+        outbox_retry_total: outboxRetryTotal,
         email_send_total: { ...emailSend },
         email_failure_rate: emailAttemptTotal === 0 ? 0 : emailSend.failure / emailAttemptTotal,
         nudge_enqueue_total: {

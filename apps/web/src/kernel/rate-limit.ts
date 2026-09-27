@@ -64,6 +64,97 @@ export class InMemoryRateLimiter implements RateLimiter {
   }
 }
 
+export function digest(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+export function clientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
+}
+
+export interface AccountRateLimitPolicy {
+  readonly account: RateLimitPolicy;
+  readonly ip: RateLimitPolicy;
+}
+
+export interface AccountRateLimitOptions {
+  /** Store key namespace; changing it resets the surface's existing counters. */
+  readonly scope: string;
+  readonly policy: AccountRateLimitPolicy;
+  readonly fallbackPolicy: AccountRateLimitPolicy;
+}
+
+export interface AccountRateLimitDependencies {
+  readonly primary: RateLimiter;
+  readonly fallback: RateLimiter;
+  readonly incrementRateLimitHit: () => void;
+  readonly onStoreError: () => void;
+}
+
+export type AccountRateLimit = (request: Request, accountId: string) => Promise<RateLimitResult>;
+
+function accountChecks(
+  scope: string,
+  request: Request,
+  accountId: string,
+  policy: AccountRateLimitPolicy,
+): readonly RateLimitInput[] {
+  return [
+    { key: `${scope}:account:${digest(accountId)}`, policy: policy.account },
+    { key: `${scope}:ip:${digest(clientIp(request))}`, policy: policy.ip },
+  ];
+}
+
+async function evaluate(limiter: RateLimiter, inputs: readonly RateLimitInput[]) {
+  const settled = await Promise.allSettled(inputs.map((input) => limiter.limit(input)));
+  return {
+    failures: settled.filter((result) => result.status === 'rejected').length,
+    denied: settled.flatMap((result) =>
+      result.status === 'fulfilled' && !result.value.allowed ? [result.value] : [],
+    ),
+  };
+}
+
+/** [DR-SEC-04] Fail-open per-account and per-IP limiter with a tighter in-process fallback. */
+export function createAccountRateLimit(
+  options: AccountRateLimitOptions,
+  dependencies: AccountRateLimitDependencies,
+): AccountRateLimit {
+  return async (request, accountId) => {
+    const primary = await evaluate(
+      dependencies.primary,
+      accountChecks(options.scope, request, accountId, options.policy),
+    );
+    let denied = primary.denied;
+    if (primary.failures > 0) {
+      try {
+        dependencies.onStoreError();
+      } catch {
+        // Diagnostics cannot disable the in-process fallback.
+      }
+      if (denied.length === 0) {
+        denied = (
+          await evaluate(
+            dependencies.fallback,
+            accountChecks(options.scope, request, accountId, options.fallbackPolicy),
+          )
+        ).denied;
+      }
+    }
+    if (denied.length === 0) return { allowed: true, retryAfterSeconds: 0 };
+    try {
+      dependencies.incrementRateLimitHit();
+    } catch {
+      // Diagnostics cannot replace the required denial response.
+    }
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(...denied.map((result) => result.retryAfterSeconds)),
+    };
+  };
+}
+
 type AuthRateLimitSurface = 'signin' | 'recovery';
 
 interface RateLimitMetrics {
@@ -79,84 +170,21 @@ export interface AuthRateLimitDependencies {
 
 export type SignInRateLimitDependencies = AuthRateLimitDependencies;
 
-interface RateLimitChecks {
-  readonly primary: readonly RateLimitInput[];
-  readonly fallback: readonly RateLimitInput[];
-}
-
-function digest(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
-}
-
-function authChecks(
-  surface: AuthRateLimitSurface,
-  request: Request,
-  email: string,
-): RateLimitChecks {
-  const accountKey = `${surface}:account:${digest(email.trim().toLowerCase())}`;
-  const ipKey = `${surface}:ip:${digest(clientIp(request))}`;
-  return {
-    primary: [
-      { key: accountKey, policy: SIGN_IN_POLICIES.account },
-      { key: ipKey, policy: SIGN_IN_POLICIES.ip },
-    ],
-    fallback: [
-      { key: accountKey, policy: SIGN_IN_FALLBACK_POLICIES.account },
-      { key: ipKey, policy: SIGN_IN_FALLBACK_POLICIES.ip },
-    ],
-  };
-}
-
-async function evaluate(
-  limiter: RateLimiter,
-  checks: readonly RateLimitInput[],
-): Promise<{
-  readonly failures: number;
-  readonly denied: readonly RateLimitResult[];
-}> {
-  const results = await Promise.allSettled(checks.map((check) => limiter.limit(check)));
-  return {
-    failures: results.filter((result) => result.status === 'rejected').length,
-    denied: results.flatMap((result) =>
-      result.status === 'fulfilled' && !result.value.allowed ? [result.value] : [],
-    ),
-  };
-}
-
-function decision(denied: readonly RateLimitResult[]): RateLimitResult {
-  if (denied.length === 0) return { allowed: true, retryAfterSeconds: 0 };
-  return {
-    allowed: false,
-    retryAfterSeconds: Math.max(...denied.map((result) => result.retryAfterSeconds)),
-  };
-}
-
 /** [BM-009] [BM-010] [DR-SEC-04] Reusable dual-scope guard for auth request seams. */
 function createAuthRateLimit(
   surface: AuthRateLimitSurface,
   dependencies: AuthRateLimitDependencies,
 ): (request: Request, email: string) => Promise<RateLimitResult> {
-  return async (request, email) => {
-    const checks = authChecks(surface, request, email);
-    const primary = await evaluate(dependencies.primary, checks.primary);
-    let result = decision(primary.denied);
-
-    if (primary.failures > 0) {
-      dependencies.onStoreError(surface);
-      if (result.allowed) {
-        const fallback = await evaluate(dependencies.fallback, checks.fallback);
-        result = fallback.failures > 0 ? result : decision(fallback.denied);
-      }
-    }
-
-    if (!result.allowed) dependencies.metrics.incrementRateLimitHit(surface);
-    return result;
-  };
+  const limit = createAccountRateLimit(
+    { scope: surface, policy: SIGN_IN_POLICIES, fallbackPolicy: SIGN_IN_FALLBACK_POLICIES },
+    {
+      primary: dependencies.primary,
+      fallback: dependencies.fallback,
+      incrementRateLimitHit: () => dependencies.metrics.incrementRateLimitHit(surface),
+      onStoreError: () => dependencies.onStoreError(surface),
+    },
+  );
+  return (request, email) => limit(request, email.trim().toLowerCase());
 }
 
 export function createSignInRateLimit(

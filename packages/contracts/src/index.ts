@@ -28,8 +28,4 @@ export {
   type NightPresenceCommandBody,
   type NightPresenceResponse,
 } from './night-presence';
-export {
-  realtimePublishEnvelopeSchema,
-  realtimePublishHidesRootKey,
-  type RealtimePublishEnvelope,
-} from './realtime-publish';
+export { realtimePublishEnvelopeSchema, type RealtimePublishEnvelope } from './realtime-publish';

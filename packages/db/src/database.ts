@@ -1,4 +1,3 @@
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { checkDatabaseHealth, type DatabaseHealth, type HealthPool } from './health';
 
@@ -7,7 +6,6 @@ const TLS_DATABASE_URL_ERROR = 'DATABASE_URL must be a PostgreSQL URL with sslmo
 
 export interface Database {
   readonly pool: Pool;
-  readonly orm: NodePgDatabase;
   checkHealth(): Promise<DatabaseHealth>;
   close(): Promise<void>;
 }
@@ -49,7 +47,7 @@ function healthPool(pool: Pool, maxConnections: number): HealthPool {
   };
 }
 
-/** [BM-004] Create the shared pg pool and Drizzle adapter for a composition root. */
+/** [BM-004] Create the shared pg pool for a composition root. */
 export function createDatabase(connectionString: string, options: DatabaseOptions = {}): Database {
   assertTlsDatabaseUrl(connectionString);
   const maxConnections = options.maxConnections ?? DEFAULT_MAX_CONNECTIONS;
@@ -63,7 +61,6 @@ export function createDatabase(connectionString: string, options: DatabaseOption
 
   return {
     pool,
-    orm: drizzle(pool),
     checkHealth: () => checkDatabaseHealth(healthPool(pool, maxConnections)),
     close: () => pool.end(),
   };

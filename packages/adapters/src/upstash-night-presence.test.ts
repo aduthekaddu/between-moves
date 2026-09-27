@@ -1,5 +1,5 @@
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UpstashNightPresenceStore, type NightPresenceRedisClient } from './upstash-night-presence';
 
 const houseId = '01941f29-7c00-7000-8000-000000000201';
@@ -30,6 +30,10 @@ function fakeRedis() {
 }
 
 describe('Upstash Night presence store', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('[BM-039] shares signed token leases and deduplicates a Member across tabs', async () => {
     const { client } = fakeRedis();
     const writer = new UpstashNightPresenceStore({ client });
@@ -141,5 +145,32 @@ describe('Upstash Night presence store', () => {
         { clientId: otherUserId, displayName: 'Ada', signature: 'b'.repeat(43) },
       ],
     });
+  });
+
+  it('[BM-039] rejects on the first store failure so presence degrades without retry sleeps', async () => {
+    const fetchMock = vi.fn(async (): Promise<Response> => {
+      throw new TypeError('fetch failed');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const store = new UpstashNightPresenceStore({ url: 'https://presence.test', token: 'token' });
+
+    await expect(store.readPublic(houseId, nightId, now)).rejects.toThrow('fetch failed');
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('[BM-039] rejects a hung store request at the deadline', async () => {
+    const fetchMock = vi.fn(
+      (_input: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const store = new UpstashNightPresenceStore({ url: 'https://presence.test', token: 'token' });
+
+    await expect(store.readPublic(houseId, nightId, now)).rejects.toMatchObject({
+      name: 'TimeoutError',
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

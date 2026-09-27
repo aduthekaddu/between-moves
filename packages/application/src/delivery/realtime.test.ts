@@ -138,7 +138,7 @@ describe('Realtime publish consumer', () => {
         clock: new FakeClock(now),
         metrics: {
           setOutboxAgeSeconds: vi.fn(),
-          incrementRealtimePublishRetry: vi.fn(),
+          incrementOutboxRetry: vi.fn(),
         },
       }).dispatchBatch(),
     ).resolves.toEqual({ claimed: 1, sent: 0, retried: 1, failed: 0 });

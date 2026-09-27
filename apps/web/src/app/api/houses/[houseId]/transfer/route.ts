@@ -1,6 +1,6 @@
 import { membershipAdminHandlerDependencies } from '../../../../../server/membership-admin';
 import { createTransferHouseOwnershipHandler } from '../../../../../server/membership-admin-handler';
-import { readRequestId } from '../../../../../server/membership-admin-handler-support';
+import { readRequestId } from '../../../../../kernel/request';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

@@ -8,15 +8,9 @@ import {
 import type { StructuredLogger } from '@between-moves/observability';
 import { z } from 'zod';
 import type { InvitationRateLimit } from '../../../../../kernel/invitation-rate-limit';
-import { problemResponse as problem } from '../../../../../kernel/request';
+import { problemResponse as problem, readRequestId } from '../../../../../kernel/request';
 
 const tokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
-const requestIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9._:-]+$/);
 const problemInstance = '/api/invitations/[token]/redeem';
 
 export interface RedeemInvitationRequestHandlerDependencies {
@@ -39,11 +33,6 @@ function invitationUnavailable(request: Request): Response {
     'This Invitation cannot be used.',
     { instance: problemInstance },
   );
-}
-
-function requestId(request: Request): string {
-  const parsed = requestIdSchema.safeParse(request.headers.get('x-request-id'));
-  return parsed.success ? parsed.data : crypto.randomUUID();
 }
 
 /** [BM-016] [DR-INVITE-07..13] Authenticated Invitation redemption HTTP seam. */
@@ -91,7 +80,7 @@ export function createRedeemInvitationRequestHandler(
       const result = await dependencies.redeemInvitation({ token, viewer });
       dependencies.logger.log({
         level: 'info',
-        requestId: requestId(request),
+        requestId: readRequestId(request),
         actorId: viewer.userId,
         houseId: result.houseId,
         gameId: null,

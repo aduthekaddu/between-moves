@@ -36,16 +36,12 @@ import { getLogger } from './logger';
 import { getMoveMetrics, getMoveRateLimit } from './rate-limit';
 import type { SubmitMoveHandlerDependencies } from './submit-move-handler';
 import { requireViewer } from './viewer';
+import { readRequestId } from '../kernel/request';
 
 const clock = new SystemClock();
 const colors = new CryptoGameSeatColorChooser();
 const rules = new ChessJsRulesAdapter();
 const authorizationMetrics = createHouseAuthorizationMetricStubs();
-
-function requestId(request: Request): string {
-  const value = request.headers.get('x-request-id');
-  return value !== null && /^[A-Za-z0-9._:-]{1,128}$/.test(value) ? value : crypto.randomUUID();
-}
 
 function dependencies(request: Request): GameSeatCreationDependencies {
   const database = getDatabase().pool;
@@ -56,7 +52,7 @@ function dependencies(request: Request): GameSeatCreationDependencies {
       denials: createHouseAuthorizationDenialRecorder({
         logger: getLogger(),
         metrics: authorizationMetrics,
-        requestId: requestId(request),
+        requestId: readRequestId(request),
       }),
     }),
     clock,
@@ -75,7 +71,7 @@ function acceptanceDependencies(request: Request): GameSeatAcceptanceDependencie
       denials: createHouseAuthorizationDenialRecorder({
         logger: getLogger(),
         metrics: authorizationMetrics,
-        requestId: requestId(request),
+        requestId: readRequestId(request),
       }),
     }),
     clock,
@@ -92,7 +88,7 @@ function moveDependencies(request: Request): SubmitMoveDependencies {
       denials: createHouseAuthorizationDenialRecorder({
         logger: getLogger(),
         metrics: authorizationMetrics,
-        requestId: requestId(request),
+        requestId: readRequestId(request),
       }),
     }),
     clock,
@@ -111,7 +107,7 @@ function completionDependencies(request: Request): GameCompletionDependencies {
       denials: createHouseAuthorizationDenialRecorder({
         logger: getLogger(),
         metrics: authorizationMetrics,
-        requestId: requestId(request),
+        requestId: readRequestId(request),
       }),
     }),
     clock,

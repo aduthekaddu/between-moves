@@ -1,16 +1,21 @@
 import { UpstashRateLimiter } from '@between-moves/adapters';
 import type { RateLimitResult, RateLimiter } from '@between-moves/domain';
-import { createInvitationMetricStubs } from '@between-moves/observability';
-import { createMoveMetricStubs } from '@between-moves/observability';
-import { createChatMetricStubs } from '@between-moves/observability';
-import { createNoteMetricStubs } from '@between-moves/observability';
-import { createReactionMetricStubs } from '@between-moves/observability';
-import { createRealtimeMetricStubs } from '@between-moves/observability';
+import {
+  createChatMetricStubs,
+  createInvitationMetricStubs,
+  createMoveMetricStubs,
+  createNoteMetricStubs,
+  createReactionMetricStubs,
+  createRealtimeMetricStubs,
+} from '@between-moves/observability';
 import { getConfig, type AppConfig } from '../config';
 import {
   createRecoveryRateLimit,
   createSignInRateLimit,
   InMemoryRateLimiter,
+  type AccountRateLimit,
+  type AccountRateLimitDependencies,
+  type AuthRateLimitDependencies,
 } from '../kernel/rate-limit';
 import {
   createInvitationRateLimit,
@@ -28,9 +33,11 @@ import { createPresenceRateLimit, type PresenceRateLimit } from '../kernel/prese
 import { getIdentityMetrics } from './identity-metrics';
 import { getLogger } from './logger';
 
+type EmailRateLimit = (request: Request, email: string) => Promise<RateLimitResult>;
+
 const globalRateLimit = globalThis as typeof globalThis & {
-  betweenMovesSignInRateLimit?: (request: Request, email: string) => Promise<RateLimitResult>;
-  betweenMovesRecoveryRateLimit?: (request: Request, email: string) => Promise<RateLimitResult>;
+  betweenMovesSignInRateLimit?: EmailRateLimit;
+  betweenMovesRecoveryRateLimit?: EmailRateLimit;
   betweenMovesInvitationRateLimit?: InvitationRateLimit;
   betweenMovesMoveRateLimit?: MoveRateLimit;
   betweenMovesMoveMetrics?: ReturnType<typeof createMoveMetricStubs>;
@@ -57,98 +64,66 @@ export function createSharedRateLimiter(
   });
 }
 
+function logStoreUnavailable(surface: string, fallback: 'in-process' | 'fail-open'): void {
+  getLogger().log({
+    level: 'warn',
+    requestId: 'rate-limit-store',
+    actorId: 'anonymous',
+    houseId: null,
+    gameId: null,
+    commandId: null,
+    event: 'rate-limit.store-unavailable',
+    outcome: 'error',
+    durationMs: 0,
+    data: { surface, fallback },
+  });
+}
+
+function authRateLimitDependencies(): AuthRateLimitDependencies {
+  return {
+    primary: createSharedRateLimiter(getConfig()),
+    fallback: new InMemoryRateLimiter(),
+    metrics: getIdentityMetrics(),
+    onStoreError: (surface) => logStoreUnavailable(surface, 'in-process'),
+  };
+}
+
+function accountRateLimit(
+  create: (dependencies: AccountRateLimitDependencies) => AccountRateLimit,
+  surface: string,
+  incrementRateLimitHit: () => void,
+): AccountRateLimit {
+  return create({
+    primary: createSharedRateLimiter(getConfig()),
+    fallback: new InMemoryRateLimiter(),
+    incrementRateLimitHit,
+    onStoreError: () => logStoreUnavailable(surface, 'in-process'),
+  });
+}
+
 /** [BM-009] Composition root for the reusable auth-surface limiter. */
-export function getSignInRateLimit(): (
-  request: Request,
-  email: string,
-) => Promise<RateLimitResult> {
-  if (!globalRateLimit.betweenMovesSignInRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesSignInRateLimit = createSignInRateLimit({
-      primary: new UpstashRateLimiter({
-        url: config.upstashRedisRestUrl.href,
-        token: config.upstashRedisRestToken,
-      }),
-      fallback: new InMemoryRateLimiter(),
-      metrics: getIdentityMetrics(),
-      onStoreError(surface) {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface, fallback: 'in-process' },
-        });
-      },
-    });
-  }
+export function getSignInRateLimit(): EmailRateLimit {
+  globalRateLimit.betweenMovesSignInRateLimit ??= createSignInRateLimit(
+    authRateLimitDependencies(),
+  );
   return globalRateLimit.betweenMovesSignInRateLimit;
 }
 
 /** [BM-010] Composition root for independently keyed account-recovery limits. */
-export function getRecoveryRateLimit(): (
-  request: Request,
-  email: string,
-) => Promise<RateLimitResult> {
-  if (!globalRateLimit.betweenMovesRecoveryRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesRecoveryRateLimit = createRecoveryRateLimit({
-      primary: new UpstashRateLimiter({
-        url: config.upstashRedisRestUrl.href,
-        token: config.upstashRedisRestToken,
-      }),
-      fallback: new InMemoryRateLimiter(),
-      metrics: getIdentityMetrics(),
-      onStoreError(surface) {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface, fallback: 'in-process' },
-        });
-      },
-    });
-  }
+export function getRecoveryRateLimit(): EmailRateLimit {
+  globalRateLimit.betweenMovesRecoveryRateLimit ??= createRecoveryRateLimit(
+    authRateLimitDependencies(),
+  );
   return globalRateLimit.betweenMovesRecoveryRateLimit;
 }
 
 /** [BM-014] Composition root for fail-open Invitation create and inspect limits. */
 export function getInvitationRateLimit(): InvitationRateLimit {
-  if (!globalRateLimit.betweenMovesInvitationRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesInvitationRateLimit = createInvitationRateLimit({
-      primary: new UpstashRateLimiter({
-        url: config.upstashRedisRestUrl.href,
-        token: config.upstashRedisRestToken,
-      }),
-      incrementRateLimitHit: (surface) => invitationMetrics.incrementRateLimitHit(surface),
-      onStoreError(surface) {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface: `invitation-${surface}`, fallback: 'fail-open' },
-        });
-      },
-    });
-  }
+  globalRateLimit.betweenMovesInvitationRateLimit ??= createInvitationRateLimit({
+    primary: createSharedRateLimiter(getConfig()),
+    incrementRateLimitHit: (surface) => invitationMetrics.incrementRateLimitHit(surface),
+    onStoreError: (surface) => logStoreUnavailable(`invitation-${surface}`, 'fail-open'),
+  });
   return globalRateLimit.betweenMovesInvitationRateLimit;
 }
 
@@ -159,31 +134,9 @@ export function getMoveMetrics(): ReturnType<typeof createMoveMetricStubs> {
 
 /** [BM-024] Composition root for fail-open per-account and per-IP Move limits. */
 export function getMoveRateLimit(): MoveRateLimit {
-  if (!globalRateLimit.betweenMovesMoveRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesMoveRateLimit = createMoveRateLimit({
-      primary: new UpstashRateLimiter({
-        url: config.upstashRedisRestUrl.href,
-        token: config.upstashRedisRestToken,
-      }),
-      fallback: new InMemoryRateLimiter(),
-      incrementRateLimitHit: () => getMoveMetrics().incrementRateLimitHit(),
-      onStoreError() {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface: 'move', fallback: 'in-process' },
-        });
-      },
-    });
-  }
+  globalRateLimit.betweenMovesMoveRateLimit ??= accountRateLimit(createMoveRateLimit, 'move', () =>
+    getMoveMetrics().incrementRateLimitHit(),
+  );
   return globalRateLimit.betweenMovesMoveRateLimit;
 }
 
@@ -194,31 +147,11 @@ export function getReactionMetrics(): ReturnType<typeof createReactionMetricStub
 
 /** [BM-031] Composition root for fail-open per-account and per-IP Reaction limits. */
 export function getReactionRateLimit(): ReactionRateLimit {
-  if (!globalRateLimit.betweenMovesReactionRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesReactionRateLimit = createReactionRateLimit({
-      primary: new UpstashRateLimiter({
-        url: config.upstashRedisRestUrl.href,
-        token: config.upstashRedisRestToken,
-      }),
-      fallback: new InMemoryRateLimiter(),
-      incrementRateLimitHit: () => getReactionMetrics().incrementRateLimitHit(),
-      onStoreError() {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface: 'reaction', fallback: 'in-process' },
-        });
-      },
-    });
-  }
+  globalRateLimit.betweenMovesReactionRateLimit ??= accountRateLimit(
+    createReactionRateLimit,
+    'reaction',
+    () => getReactionMetrics().incrementRateLimitHit(),
+  );
   return globalRateLimit.betweenMovesReactionRateLimit;
 }
 
@@ -229,31 +162,11 @@ export function getNoteMetrics(): ReturnType<typeof createNoteMetricStubs> {
 
 /** [BM-032] Composition root for fail-open per-account and per-IP Game-note limits. */
 export function getNoteRateLimit(): NoteRateLimit {
-  if (!globalRateLimit.betweenMovesNoteRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesNoteRateLimit = createNoteRateLimit({
-      primary: new UpstashRateLimiter({
-        url: config.upstashRedisRestUrl.href,
-        token: config.upstashRedisRestToken,
-      }),
-      fallback: new InMemoryRateLimiter(),
-      incrementRateLimitHit: () => getNoteMetrics().incrementRateLimitHit(),
-      onStoreError() {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface: 'game-note', fallback: 'in-process' },
-        });
-      },
-    });
-  }
+  globalRateLimit.betweenMovesNoteRateLimit ??= accountRateLimit(
+    createNoteRateLimit,
+    'game-note',
+    () => getNoteMetrics().incrementRateLimitHit(),
+  );
   return globalRateLimit.betweenMovesNoteRateLimit;
 }
 
@@ -264,28 +177,11 @@ export function getChatMetrics(): ReturnType<typeof createChatMetricStubs> {
 
 /** [BM-040] Composition root for fail-open per-account and per-IP House-chat limits. */
 export function getChatRateLimit(): ChatRateLimit {
-  if (!globalRateLimit.betweenMovesChatRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesChatRateLimit = createChatRateLimit({
-      primary: createSharedRateLimiter(config),
-      fallback: new InMemoryRateLimiter(),
-      incrementRateLimitHit: () => getChatMetrics().incrementRateLimitHit(),
-      onStoreError() {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface: 'house-chat', fallback: 'in-process' },
-        });
-      },
-    });
-  }
+  globalRateLimit.betweenMovesChatRateLimit ??= accountRateLimit(
+    createChatRateLimit,
+    'house-chat',
+    () => getChatMetrics().incrementRateLimitHit(),
+  );
   return globalRateLimit.betweenMovesChatRateLimit;
 }
 
@@ -297,54 +193,20 @@ export function getRealtimeMetrics(): ReturnType<typeof createRealtimeMetricStub
 
 /** [BM-037] Composition root for fail-open per-account and per-IP realtime token limits. */
 export function getRealtimeTokenRateLimit(): RealtimeTokenRateLimit {
-  if (!globalRateLimit.betweenMovesRealtimeTokenRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesRealtimeTokenRateLimit = createRealtimeTokenRateLimit({
-      primary: createSharedRateLimiter(config),
-      fallback: new InMemoryRateLimiter(),
-      incrementRateLimitHit: () => getRealtimeMetrics().incrementRateLimitHit(),
-      onStoreError() {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface: 'realtime-token', fallback: 'in-process' },
-        });
-      },
-    });
-  }
+  globalRateLimit.betweenMovesRealtimeTokenRateLimit ??= accountRateLimit(
+    createRealtimeTokenRateLimit,
+    'realtime-token',
+    () => getRealtimeMetrics().incrementRateLimitHit(),
+  );
   return globalRateLimit.betweenMovesRealtimeTokenRateLimit;
 }
 
 /** [BM-039] Composition root for fail-open per-account and per-IP presence limits. */
 export function getPresenceRateLimit(): PresenceRateLimit {
-  if (!globalRateLimit.betweenMovesPresenceRateLimit) {
-    const config = getConfig();
-    globalRateLimit.betweenMovesPresenceRateLimit = createPresenceRateLimit({
-      primary: createSharedRateLimiter(config),
-      fallback: new InMemoryRateLimiter(),
-      incrementRateLimitHit: () => getRealtimeMetrics().incrementRateLimitHit(),
-      onStoreError() {
-        getLogger().log({
-          level: 'warn',
-          requestId: 'rate-limit-store',
-          actorId: 'anonymous',
-          houseId: null,
-          gameId: null,
-          commandId: null,
-          event: 'rate-limit.store-unavailable',
-          outcome: 'error',
-          durationMs: 0,
-          data: { surface: 'presence', fallback: 'in-process' },
-        });
-      },
-    });
-  }
+  globalRateLimit.betweenMovesPresenceRateLimit ??= accountRateLimit(
+    createPresenceRateLimit,
+    'presence',
+    () => getRealtimeMetrics().incrementRateLimitHit(),
+  );
   return globalRateLimit.betweenMovesPresenceRateLimit;
 }

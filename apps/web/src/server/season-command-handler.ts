@@ -8,12 +8,12 @@ import type {
   SeasonPublishResult,
 } from '@between-moves/domain';
 import type { StructuredLogger } from '@between-moves/observability';
+import { readRequestId } from '../kernel/request';
 import {
   charterBodySchema,
   draftSeasonBodySchema,
   parseSeasonBody,
   publishSeasonBodySchema,
-  readSeasonRequestId,
   resolveSeasonBoundary,
   seasonCommandError,
   seasonIdempotencyKeySchema,
@@ -47,7 +47,7 @@ function logPublishedSeason(
   try {
     dependencies.logger.log({
       level: 'info',
-      requestId: readSeasonRequestId(request),
+      requestId: readRequestId(request),
       actorId: input.actorId,
       houseId: input.houseId,
       gameId: null,

@@ -161,6 +161,28 @@ describe('POST /api/auth/magic-link', () => {
     expect(allow).not.toHaveBeenCalledWith(expect.anything(), 'not-an-email');
   });
 
+  it('[BM-008] rejects an oversized body before rate limiting or auth', async () => {
+    const requestMagicLink = vi.fn();
+    const rateLimit = vi.fn();
+    const metrics = { incrementSignInAttempt: vi.fn() };
+    const handler = createMagicLinkRequestHandler({
+      expectedOrigin: 'https://app.example.test',
+      requestMagicLink,
+      rateLimit,
+      metrics,
+    });
+
+    const response = await handler(
+      request({ email: 'member@example.test', returnTo: `/${'x'.repeat(5_000)}` }),
+    );
+
+    expect(response.status).toBe(413);
+    expect(await response.text()).toBe('');
+    expect(rateLimit).not.toHaveBeenCalled();
+    expect(requestMagicLink).not.toHaveBeenCalled();
+    expect(metrics.incrementSignInAttempt).toHaveBeenCalledWith('rejected');
+  });
+
   it('[BM-008] [DR-ID-03] rejects an unexpected origin before any state change', async () => {
     const requestMagicLink = vi.fn();
     const handler = createMagicLinkRequestHandler({

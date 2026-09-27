@@ -1,6 +1,6 @@
 import type { RateLimitPolicy, RateLimiter, RateLimitResult } from '@between-moves/domain';
 import { Ratelimit, type Duration } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
+import { createFailFastRedis } from './upstash-redis';
 
 interface UpstashLimitClient {
   limit(identifier: string): Promise<{ readonly success: boolean; readonly reset: number }>;
@@ -25,12 +25,15 @@ export type UpstashRateLimiterOptions = SharedOptions &
   );
 
 function providerFactory(url: string, token: string, prefix: string): UpstashLimitClientFactory {
-  const redis = new Redis({ url, token });
+  const redis = createFailFastRedis({ url, token });
   return (policy) =>
     new Ratelimit({
       redis,
       limiter: Ratelimit.fixedWindow(policy.limit, `${policy.windowSeconds} s` satisfies Duration),
       prefix,
+      // Ratelimit's own timeout resolves as allowed, skipping the caller's fallback and
+      // store-error log; the Redis request deadline rejects instead.
+      timeout: 0,
     });
 }
 

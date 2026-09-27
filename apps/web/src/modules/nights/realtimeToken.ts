@@ -12,14 +12,10 @@ import { getLogger } from '../../server/logger';
 import type { NightRealtimeTokenHandlerDependencies } from '../../server/night-realtime-token-handler';
 import { getRealtimeMetrics, getRealtimeTokenRateLimit } from '../../server/rate-limit';
 import { requireViewer } from '../../server/viewer';
+import { readRequestId } from '../../kernel/request';
 
 const clock = new SystemClock();
 const authorizationMetrics = createHouseAuthorizationMetricStubs();
-
-function requestId(request: Request): string {
-  const value = request.headers.get('x-request-id');
-  return value !== null && /^[A-Za-z0-9._:-]{1,128}$/.test(value) ? value : crypto.randomUUID();
-}
 
 /** [BM-037] Web composition for Night-scoped realtime token minting. */
 export function nightRealtimeTokenHandlerDependencies(
@@ -27,7 +23,7 @@ export function nightRealtimeTokenHandlerDependencies(
 ): NightRealtimeTokenHandlerDependencies {
   const config = getConfig();
   const database = getDatabase().pool;
-  const id = requestId(request);
+  const id = readRequestId(request);
   const tokens = new HmacRealtimeTokenIssuer({
     appId: config.realtimeAppId,
     serverKey: config.realtimeServerKey,

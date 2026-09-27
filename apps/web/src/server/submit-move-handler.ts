@@ -13,16 +13,10 @@ import {
 import type { MoveMetricStubs, StructuredLogger } from '@between-moves/observability';
 import { z } from 'zod';
 import type { MoveRateLimit } from '../kernel/move-rate-limit';
-import { problemResponse as problem, readJsonBody } from '../kernel/request';
+import { problemResponse as problem, readJsonBody, readRequestId } from '../kernel/request';
 
 const MAXIMUM_BODY_BYTES = 4_096;
 const identifierSchema = z.string().uuid();
-const requestIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9._:-]+$/);
 
 export interface SubmitMoveHandlerDependencies {
   readonly expectedOrigin: string;
@@ -36,11 +30,6 @@ export interface SubmitMoveHandlerDependencies {
 
 function validationProblem(request: Request, detail = 'Move details are invalid.'): Response {
   return problem(request, 422, 'validation_failed', 'Validation failed', detail);
-}
-
-function requestId(request: Request): string {
-  const parsed = requestIdSchema.safeParse(request.headers.get('x-request-id'));
-  return parsed.success ? parsed.data : crypto.randomUUID();
 }
 
 function commandError(request: Request, error: unknown, metrics: MoveMetricStubs): Response | null {
@@ -178,7 +167,7 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
       try {
         dependencies.logger.log({
           level: 'info',
-          requestId: requestId(request),
+          requestId: readRequestId(request),
           actorId: viewer.userId,
           houseId: result.houseId,
           gameId: result.gameId,
@@ -195,7 +184,7 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
         try {
           dependencies.logger.log({
             level: 'info',
-            requestId: requestId(request),
+            requestId: readRequestId(request),
             actorId: viewer.userId,
             houseId: result.houseId,
             gameId: result.gameId,
@@ -240,7 +229,7 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
         try {
           dependencies.logger.log({
             level: 'info',
-            requestId: requestId(request),
+            requestId: readRequestId(request),
             actorId: viewer.userId,
             houseId,
             gameId,

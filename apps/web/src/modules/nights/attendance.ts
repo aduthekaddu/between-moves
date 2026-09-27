@@ -16,18 +16,14 @@ import { createHouseAuthorizationDenialRecorder } from '../../server/house-autho
 import { getLogger } from '../../server/logger';
 import type { NightAttendanceHandlerDependencies } from '../../server/night-attendance-handler';
 import { requireViewer } from '../../server/viewer';
+import { readRequestId } from '../../kernel/request';
 
 const clock = new SystemClock();
 const authorizationMetrics = createHouseAuthorizationMetricStubs();
 
-function requestId(request: Request): string {
-  const value = request.headers.get('x-request-id');
-  return value !== null && /^[A-Za-z0-9._:-]{1,128}$/.test(value) ? value : crypto.randomUUID();
-}
-
 function dependencies(request: Request): NightAttendanceDependencies {
   const database = getDatabase().pool;
-  const id = requestId(request);
+  const id = readRequestId(request);
   return {
     authorizeHouseAction: createAuthorizeHouseAction({
       memberships: new PgHouseAuthorizationMembershipRepository(database),
