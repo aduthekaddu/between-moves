@@ -5,7 +5,7 @@ import type {
   NightPresenceSnapshot,
   SignedRealtimePresence,
 } from '@between-moves/domain';
-import { Redis } from '@upstash/redis';
+import { createFailFastRedis } from './upstash-redis';
 
 const KEY_TTL_SECONDS = 60 * 60;
 
@@ -59,7 +59,7 @@ export class UpstashNightPresenceStore implements NightPresenceRepository {
   private readonly client: NightPresenceRedisClient;
 
   constructor(options: UpstashNightPresenceStoreOptions) {
-    this.client = 'client' in options ? options.client : new Redis(options);
+    this.client = 'client' in options ? options.client : createFailFastRedis(options);
   }
 
   private async snapshot(key: string, at: Date): Promise<NightPresenceSnapshot> {
