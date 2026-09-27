@@ -2,6 +2,7 @@ import {
   AccountDeletionBlockedError,
   composeClosingBook,
   DomainError,
+  INVITATION_EMAIL_TOPIC,
   NIGHT_CHAT_POSTED_TOPIC,
   type AccountDeletionInput,
   type AuthorizationContext,
@@ -677,6 +678,72 @@ integration('BM-050 PostgreSQL account export and deletion', () => {
         [id(5098)],
       ),
     ).resolves.toMatchObject({ rowCount: 1 });
+  });
+
+  it('[BM-050] scrubs pending invitations for the deleted email and cancels unsent mail', async () => {
+    const pending = id(5071);
+    const sent = id(5072);
+    const unrelated = id(5073);
+    for (const [invitationId, digest, intendedEmail] of [
+      [pending, 'a', 'Bea-Isolation@Example.Test'],
+      [sent, 'b', 'bea-isolation@example.test'],
+      [unrelated, 'c', 'ada-isolation@example.test'],
+    ] as const) {
+      await database.query(
+        `insert into invitations
+           (id, house_id, token_digest, intended_email, expires_at, use_limit,
+            creator_membership_id, created_at)
+         values ($1, $2, decode($3, 'hex'), $4, $5, 1, $6, $7)`,
+        [
+          invitationId,
+          world.first.houseId,
+          digest.repeat(64),
+          intendedEmail,
+          new Date('2099-01-01T00:00:00.000Z'),
+          ada().membershipId,
+          createdAt,
+        ],
+      );
+    }
+    for (const [eventId, invitationId, sentAt] of [
+      [id(5081), pending, null],
+      [id(5082), sent, createdAt],
+      [id(5083), unrelated, null],
+    ] as const) {
+      await database.query(
+        `insert into outbox_events
+           (id, topic, aggregate_id, sequence, house_id, payload, sent_at, created_at)
+         values ($1, $2, $3, 1, $4, $5, $6, $7)`,
+        [
+          eventId,
+          INVITATION_EMAIL_TOPIC,
+          invitationId,
+          world.first.houseId,
+          { sealed: 'encrypted-recipient-and-token' },
+          sentAt,
+          createdAt,
+        ],
+      );
+    }
+
+    await accounts.deleteAccount(deletion(bea().userId));
+
+    const invitations = await database.query(
+      `select id::text, intended_email::text, revoked_at
+         from invitations where id = any($1::uuid[]) order by id`,
+      [[pending, sent, unrelated]],
+    );
+    expect(invitations.rows).toEqual([
+      { id: pending, intended_email: null, revoked_at: deletedAt },
+      { id: sent, intended_email: null, revoked_at: deletedAt },
+      { id: unrelated, intended_email: 'ada-isolation@example.test', revoked_at: null },
+    ]);
+    const events = await database.query(
+      `select id::text from outbox_events
+        where topic = $1 and aggregate_id = any($2::uuid[]) order by id`,
+      [INVITATION_EMAIL_TOPIC, [pending, sent, unrelated]],
+    );
+    expect(events.rows).toEqual([{ id: id(5082) }, { id: id(5083) }]);
   });
 
   it('[BM-050] keeps Games, Moves, scores, and the published Closing Book intact', async () => {

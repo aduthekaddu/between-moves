@@ -5,6 +5,7 @@ import {
   DomainError,
   FORMER_MEMBER_DISPLAY_NAME,
   GAME_REACTIONS,
+  INVITATION_EMAIL_TOPIC,
   NIGHT_CHAT_POSTED_TOPIC,
   type AccountDataRightsRepository,
   type AccountDeletionInput,
@@ -444,6 +445,21 @@ export class PgAccountDataRightsRepository implements AccountDataRightsRepositor
       await client.query(`delete from verification where strpos(lower(value), $1) > 0`, [
         magicLinkEmailNeedle(email),
       ]);
+      await client.query(
+        `with scrubbed as (
+           update invitations
+              set intended_email = null, revoked_at = $2
+            where intended_email = $1::citext
+              and revoked_at is null
+              and use_count < use_limit
+          returning id
+         )
+         delete from outbox_events
+          where topic = $3
+            and aggregate_id in (select id from scrubbed)
+            and sent_at is null`,
+        [email.trim().toLowerCase(), input.deletedAt, INVITATION_EMAIL_TOPIC],
+      );
       await client.query(
         `update users
             set status = 'deleted',
