@@ -1,4 +1,5 @@
 import type { FormEventHandler } from 'react';
+import { BrandMark } from '../../_components/brand-mark';
 
 export type InvitationRedemptionViewState =
   | { readonly kind: 'sign_in' }
@@ -84,12 +85,14 @@ export function InvitationRedemptionView({
 
   return (
     <main className="invitation-shell">
+      <div className="invitation-shell__scene" aria-hidden="true" />
       <article className="invitation-card" aria-labelledby="invitation-title">
         <header className="invitation-card__masthead">
-          <span className="invitation-card__mark" aria-hidden="true">
-            BM
-          </span>
+          <BrandMark className="invitation-card__mark" />
           <span>Between Moves</span>
+          <span className="invitation-card__seal" aria-hidden="true">
+            Nº 1
+          </span>
         </header>
 
         {showsForm ? (

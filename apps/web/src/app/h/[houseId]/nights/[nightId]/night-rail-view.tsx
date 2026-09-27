@@ -12,7 +12,9 @@ import {
 } from '@between-moves/contracts';
 import { NIGHT_CHAT_DELETED_TOPIC, NIGHT_CHAT_POSTED_TOPIC } from '@between-moves/domain';
 import { useEffect, useRef, useState } from 'react';
-import { parseFenPieces, squareName, type BoardPiece } from '../../games/[gameId]/board-model';
+import { AppMasthead } from '../../../../_components/app-masthead';
+import { Piece } from '../../../../_components/piece';
+import { parseFenPieces, squareName } from '../../games/[gameId]/board-model';
 import {
   applyOrRepairHouseChat,
   postedChatWireEvent,
@@ -25,23 +27,12 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 const PRESENCE_RENEWAL_SKEW_MS = 60_000;
 const PRESENCE_RETRY_MS = 30_000;
-const glyphs: Readonly<Record<string, string>> = {
-  'white-king': '♔',
-  'white-queen': '♕',
-  'white-rook': '♖',
-  'white-bishop': '♗',
-  'white-knight': '♘',
-  'white-pawn': '♙',
-  'black-king': '♚',
-  'black-queen': '♛',
-  'black-rook': '♜',
-  'black-bishop': '♝',
-  'black-knight': '♞',
-  'black-pawn': '♟',
-};
+const SILHOUETTES = ['braid', 'headphones', 'chai', 'dupatta', 'cap'] as const;
 
-function pieceGlyph(piece?: BoardPiece): string {
-  return piece === undefined ? '' : (glyphs[`${piece.color}-${piece.kind}`] ?? '');
+/** Everyone on the rail is a shadow at the table; the name picks which one, every time. */
+function silhouetteFor(name: string): (typeof SILHOUETTES)[number] {
+  const sum = Array.from(name).reduce((total, character) => total + character.charCodeAt(0), 0);
+  return SILHOUETTES[sum % SILHOUETTES.length] ?? 'chai';
 }
 
 function stateLabel(state: NightRailSnapshotResponse['state']): string {
@@ -96,7 +87,9 @@ function RailThumbnail({
                 data-color={(file.charCodeAt(0) + rank) % 2 === 0 ? 'dark' : 'light'}
                 title={squareName(square, piece)}
               >
-                <span aria-hidden="true">{pieceGlyph(piece)}</span>
+                {piece === undefined ? null : (
+                  <Piece className="rail-thumb__piece" color={piece.color} kind={piece.kind} />
+                )}
               </span>
             );
           })}
@@ -418,109 +411,123 @@ export function NightRailView({
 
   return (
     <div className="night-rail">
-      <header className="house-masthead">
-        <a href={`/h/${encodeURIComponent(houseId)}/season`}>← Season</a>
-        <p className="house-masthead__place">Night rail</p>
-      </header>
+      <AppMasthead houseId={houseId} current="night" tone="night" />
       <main className="night-rail__main">
-        <p className="house-home__eyebrow">Between Moves Night</p>
-        <h1>The rail</h1>
-        <p className="night-rail__status">
-          {stateLabel(snapshot.state)} · {presenceLabel(snapshot.presenceCount)}
-        </p>
-        <p className="night-rail__live" aria-live="polite">
-          {live ? 'Live updates are on.' : 'Showing the last saved table.'}
-        </p>
-        <section aria-labelledby="rail-presence-title">
-          <h2 id="rail-presence-title">Here now</h2>
-          {snapshot.presence.length === 0 ? (
-            <p>No one is on the rail yet.</p>
-          ) : (
-            <ul className="night-rail__presence" aria-live="polite">
-              {snapshot.presence.map((member) => (
-                <li key={member.clientId}>{member.displayName}</li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section aria-labelledby="rail-boards-title">
-          <h2 id="rail-boards-title">Boards in play</h2>
-          {snapshot.activeBoards.length === 0 ? (
-            <p>No boards are in play yet.</p>
-          ) : (
-            <ul className="night-rail__boards">
-              {snapshot.activeBoards.map((board) => (
-                <li key={board.gameId}>
-                  <a
-                    href={`/h/${encodeURIComponent(houseId)}/games/${encodeURIComponent(board.gameId)}`}
-                  >
-                    <p>
-                      {board.white.name} <span aria-hidden="true">—</span>{' '}
-                      <span className="visually-hidden">versus </span>
-                      {board.black.name}
-                    </p>
-                    <RailThumbnail board={board} />
-                    <p>
-                      {board.sideToMove === 'white' ? 'White' : 'Black'} to move
-                      {board.lastSan === null ? '' : ` · ${board.lastSan}`}
-                    </p>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section aria-labelledby="rail-results-title">
-          <h2 id="rail-results-title">Recent results</h2>
-          {snapshot.recentResults.length === 0 ? (
-            <p>No results yet tonight.</p>
-          ) : (
-            <ol className="night-rail__results">
-              {snapshot.recentResults.map((result) => (
-                <li key={result.gameId}>
-                  <a
-                    href={`/h/${encodeURIComponent(houseId)}/games/${encodeURIComponent(result.gameId)}`}
-                  >
-                    {result.white.name} versus {result.black.name}: {resultLabel(result)}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-        {chat === undefined ? null : (
-          <HouseChat
-            houseId={houseId}
-            nightId={snapshot.nightId}
-            snapshot={chat}
-            nightState={snapshot.state}
-            acceptsMessages={snapshot.state === 'live'}
-            onPosted={(message) => {
-              const current = chatRef.current;
-              if (current === undefined) return;
-              void applyOrRepairHouseChat(
-                current,
-                postedChatWireEvent(snapshot.nightId, message),
-                () => refetchChat(houseId, snapshot.nightId),
-              )
-                .then((result) => applyChatSnapshot(result.snapshot))
-                .catch(() => {
-                  void refetchChat(houseId, snapshot.nightId).then(applyChatSnapshot);
-                });
-            }}
-            onDeleted={(messageId) => {
-              const current = chatRef.current;
-              if (current === undefined) return;
-              applyChatSnapshot({
-                ...current,
-                messages: current.messages.filter((message) => message.id !== messageId),
-              });
-              void refetchChat(houseId, snapshot.nightId)
-                .then(applyChatSnapshot)
-                .catch(() => undefined);
-            }}
-          />
-        )}
+        <header className="night-rail__head">
+          <p className="house-home__eyebrow">Between Moves Night</p>
+          <h1>The rail</h1>
+          <p className="night-rail__status" data-state={snapshot.state} role="status">
+            {stateLabel(snapshot.state)} · {presenceLabel(snapshot.presenceCount)}
+          </p>
+          <p className="night-rail__live" aria-live="polite" data-live={live}>
+            {live ? 'Live updates are on.' : 'Showing the last saved table.'}
+          </p>
+        </header>
+        <div className="night-rail__grid">
+          <div className="night-rail__tables">
+            <section aria-labelledby="rail-boards-title">
+              <h2 id="rail-boards-title">Boards in play</h2>
+              {snapshot.activeBoards.length === 0 ? (
+                <p className="night-rail__empty">No boards are in play yet.</p>
+              ) : (
+                <ul className="night-rail__boards">
+                  {snapshot.activeBoards.map((board) => (
+                    <li key={board.gameId}>
+                      <a
+                        href={`/h/${encodeURIComponent(houseId)}/games/${encodeURIComponent(board.gameId)}`}
+                      >
+                        <p className="night-rail__players">
+                          {board.white.name} <span aria-hidden="true">—</span>{' '}
+                          <span className="visually-hidden">versus </span>
+                          {board.black.name}
+                        </p>
+                        <RailThumbnail board={board} />
+                        <p className="night-rail__turn">
+                          {board.sideToMove === 'white' ? 'White' : 'Black'} to move
+                          {board.lastSan === null ? '' : ` · ${board.lastSan}`}
+                        </p>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section aria-labelledby="rail-results-title">
+              <h2 id="rail-results-title">Recent results</h2>
+              {snapshot.recentResults.length === 0 ? (
+                <p className="night-rail__empty">No results yet tonight.</p>
+              ) : (
+                <ol className="night-rail__results">
+                  {snapshot.recentResults.map((result) => (
+                    <li key={result.gameId}>
+                      <a
+                        href={`/h/${encodeURIComponent(houseId)}/games/${encodeURIComponent(result.gameId)}`}
+                      >
+                        {result.white.name} versus {result.black.name}: {resultLabel(result)}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          </div>
+          <div className="night-rail__side">
+            <section aria-labelledby="rail-presence-title" className="night-rail__here">
+              <h2 id="rail-presence-title">Here now</h2>
+              <div aria-live="polite">
+                {snapshot.presence.length === 0 ? (
+                  <p className="night-rail__empty">No one is on the rail yet.</p>
+                ) : (
+                  <ul className="night-rail__presence">
+                    {snapshot.presence.map((member) => (
+                      <li key={member.clientId}>
+                        <span
+                          className="night-rail__silhouette"
+                          data-silhouette={silhouetteFor(member.displayName)}
+                          aria-hidden="true"
+                        />
+                        <span>{member.displayName}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+            {chat === undefined ? null : (
+              <HouseChat
+                houseId={houseId}
+                nightId={snapshot.nightId}
+                snapshot={chat}
+                nightState={snapshot.state}
+                acceptsMessages={snapshot.state === 'live'}
+                onPosted={(message) => {
+                  const current = chatRef.current;
+                  if (current === undefined) return;
+                  void applyOrRepairHouseChat(
+                    current,
+                    postedChatWireEvent(snapshot.nightId, message),
+                    () => refetchChat(houseId, snapshot.nightId),
+                  )
+                    .then((result) => applyChatSnapshot(result.snapshot))
+                    .catch(() => {
+                      void refetchChat(houseId, snapshot.nightId).then(applyChatSnapshot);
+                    });
+                }}
+                onDeleted={(messageId) => {
+                  const current = chatRef.current;
+                  if (current === undefined) return;
+                  applyChatSnapshot({
+                    ...current,
+                    messages: current.messages.filter((message) => message.id !== messageId),
+                  });
+                  void refetchChat(houseId, snapshot.nightId)
+                    .then(applyChatSnapshot)
+                    .catch(() => undefined);
+                }}
+              />
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );
