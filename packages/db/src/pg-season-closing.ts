@@ -51,23 +51,25 @@ export function closingDate(value: unknown, field: string): Date {
 }
 
 /**
- * [BM-047] Ledger totals for every Member who scored plus every active Member at close, so
- * a Member with no points still appears in the final table.
+ * [BM-047] Ledger totals earned by `closingAt` for every Member who scored by then plus every
+ * active Member at close, so a Member with no points still appears in the final table.
  */
 async function ledgerTotals(
   client: PoolClient,
   houseId: string,
   seasonId: string,
+  closingAt: Date,
 ): Promise<readonly RankedSeasonStanding[]> {
   const result = await client.query<StandingRow>(
     `select m.id::text as membership_id, coalesce(sum(l.points), 0)::int as points
        from memberships m
        left join season_score_ledger l
          on l.membership_id = m.id and l.house_id = m.house_id and l.season_id = $2
+        and l.created_at <= $3
       where m.house_id = $1
       group by m.id, m.status
      having m.status = 'active' or count(l.id) > 0`,
-    [houseId, seasonId],
+    [houseId, seasonId, closingAt],
   );
   return rankFinalStandings(
     result.rows.map((row) => ({
@@ -103,8 +105,9 @@ export async function readFinalStandings(
 /**
  * [BM-047] Snapshot standings, mark the Season closing, and enqueue `season.closing`.
  * Use the caller's transaction after it has authorized and locked the active Season.
- * Return the ranked snapshot, including active Members with zero points. `closingAt` timestamps
- * the snapshot, state change, and event; `actorMembershipId` identifies the actor in the event.
+ * Return the ranked snapshot, including active Members with zero points. `closingAt` cuts off the
+ * ledger and timestamps the snapshot, state change, and event; `actorMembershipId` identifies the
+ * actor in the event.
  * Query and row-validation failures propagate; throw if the active Season cannot be updated.
  */
 export async function snapshotAndEnqueueClosing(
@@ -113,7 +116,7 @@ export async function snapshotAndEnqueueClosing(
   input: SeasonClosingInput,
   actorMembershipId: string,
 ): Promise<readonly RankedSeasonStanding[]> {
-  const standings = await ledgerTotals(client, context.houseId, input.seasonId);
+  const standings = await ledgerTotals(client, context.houseId, input.seasonId, input.closingAt);
   for (const standing of standings) {
     await client.query(
       `insert into season_final_standings
