@@ -190,8 +190,3 @@ export interface NightDependencies {
   readonly nights: NightRepository;
   readonly changes: NightScheduleChangeRecorder;
 }
-
-/** [BM-020] Ports used by the Between Moves Night scheduling slice. */
-export interface NightsPorts {
-  readonly nights: NightRepository;
-}

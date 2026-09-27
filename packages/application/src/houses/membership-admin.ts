@@ -1,4 +1,3 @@
-import { RetryableTransactionError } from '@between-moves/domain';
 import type {
   ChangeMembershipRoleRequest,
   LeaveHouseRequest,
@@ -10,23 +9,7 @@ import type {
   TransferHouseOwnershipRequest,
   OwnershipTransferResult,
 } from '@between-moves/domain';
-
-const MAXIMUM_TRANSACTION_ATTEMPTS = 3;
-
-async function retryTransaction<T>(operation: () => Promise<T>): Promise<T> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (
-        !(error instanceof RetryableTransactionError) ||
-        attempt >= MAXIMUM_TRANSACTION_ATTEMPTS
-      ) {
-        throw error;
-      }
-    }
-  }
-}
+import { retryTransaction } from '../shared/retry-transaction';
 
 /** [BM-015] [DR-PERM-01/03] Change a permanent House role through Owner authority. */
 export async function changeMembershipRole(

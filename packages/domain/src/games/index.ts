@@ -75,8 +75,3 @@ export type {
   ReadGamePositionDependencies,
   ReadGamePositionQuery,
 } from './game-position';
-
-/** [BM-005] Logical Game module boundary; concrete ports are wired at composition roots. */
-export interface GamesPorts {
-  readonly module: 'games';
-}

@@ -187,19 +187,3 @@ export function isWithinSeasonScoreCap(capKind: SeasonScoreCapKind, ordinal: num
   };
   return Number.isInteger(ordinal) && ordinal > 0 && ordinal <= caps[capKind];
 }
-
-/** [BM-034] [DR-SCORE-07] Sum an immutable ledger into deterministic standings. */
-export function computeSeasonStandings(
-  entries: readonly Pick<SeasonScoreLedgerEntry, 'membershipId' | 'points'>[],
-): readonly SeasonStanding[] {
-  const totals = new Map<string, number>();
-  for (const entry of entries) {
-    totals.set(entry.membershipId, (totals.get(entry.membershipId) ?? 0) + entry.points);
-  }
-  return [...totals]
-    .map(([membershipId, points]) => ({ membershipId, points }))
-    .sort(
-      (left, right) =>
-        right.points - left.points || left.membershipId.localeCompare(right.membershipId),
-    );
-}

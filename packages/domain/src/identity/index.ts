@@ -23,11 +23,6 @@ export interface SessionIdentityReader<RequestContext> {
   read(request: RequestContext): Promise<SessionIdentity | null>;
 }
 
-/** [BM-005] Logical Identity module marker retained for module-boundary checks. */
-export interface IdentityPorts {
-  readonly module: 'identity';
-}
-
 /** [BM-008] [DR-ID-03] Secret-bearing email data exists only at trusted delivery seams. */
 export interface MagicLinkEmail {
   readonly email: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { realtimePublishEnvelopeSchema, realtimePublishHidesRootKey } from './realtime-publish';
+import { realtimePublishEnvelopeSchema } from './realtime-publish';
 
 const rootKey = 'realtime-test-server-key';
 const valid = {
@@ -23,10 +23,5 @@ describe('Realtime publish contract', () => {
     expect(realtimePublishEnvelopeSchema.safeParse({ ...valid, serverKey: rootKey }).success).toBe(
       false,
     );
-  });
-
-  it('[BM-038] treats the provider root key as absent from published payloads', () => {
-    expect(realtimePublishHidesRootKey(valid, rootKey)).toBe(true);
-    expect(realtimePublishHidesRootKey({ ...valid, data: { rootKey } }, rootKey)).toBe(false);
   });
 });

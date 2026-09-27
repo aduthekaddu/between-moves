@@ -4,7 +4,7 @@ import type {
   GameLifecycleResult,
   ResignGameRequest,
 } from '@between-moves/domain';
-import { retryTransaction } from './retry-transaction';
+import { retryTransaction } from '../shared/retry-transaction';
 
 async function authorizedInput(
   request: ResignGameRequest,

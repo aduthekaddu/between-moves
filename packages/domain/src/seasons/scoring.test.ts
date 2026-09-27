@@ -1,7 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
-  computeSeasonStandings,
   isWithinSeasonScoreCap,
   nightAttendanceScore,
   publishedPuzzleScore,
@@ -62,35 +61,6 @@ describe('BM-034 fixed Season scoring recipe', () => {
       points: 1,
       cap: 2,
     });
-  });
-
-  it('[BM-034] [DR-SCORE-07] computes standings independently of ledger order', () => {
-    fc.assert(
-      fc.property(
-        fc.array(
-          fc.record({
-            membershipId: fc.constantFrom(whiteMembershipId, blackMembershipId),
-            points: fc.integer({ min: 1, max: 3 }),
-          }),
-          { maxLength: 60 },
-        ),
-        fc.integer(),
-        (entries, seed) => {
-          const shuffled =
-            fc.sample(
-              fc.shuffledSubarray(entries, {
-                minLength: entries.length,
-                maxLength: entries.length,
-              }),
-              {
-                seed,
-                numRuns: 1,
-              },
-            )[0] ?? [];
-          expect(computeSeasonStandings(shuffled)).toEqual(computeSeasonStandings(entries));
-        },
-      ),
-    );
   });
 
   it('[BM-034] [DR-SCORE-04..06] never admits sources above any cap in any order', () => {
