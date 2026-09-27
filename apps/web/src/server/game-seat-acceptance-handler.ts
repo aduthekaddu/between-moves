@@ -8,15 +8,9 @@ import {
 } from '@between-moves/domain';
 import type { StructuredLogger } from '@between-moves/observability';
 import { z } from 'zod';
-import { problemResponse as problem } from '../kernel/request';
+import { problemResponse as problem, readRequestId } from '../kernel/request';
 
 const identifierSchema = z.string().uuid();
-const requestIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9._:-]+$/);
 
 export interface GameSeatAcceptanceHandlerDependencies {
   readonly expectedOrigin: string;
@@ -24,11 +18,6 @@ export interface GameSeatAcceptanceHandlerDependencies {
   readonly acceptGameSeat: (request: AcceptGameSeatRequest) => Promise<GameSeatAcceptanceResult>;
   readonly logger: StructuredLogger;
   readonly clock: { now(): Date };
-}
-
-function requestId(request: Request): string {
-  const parsed = requestIdSchema.safeParse(request.headers.get('x-request-id'));
-  return parsed.success ? parsed.data : crypto.randomUUID();
 }
 
 function commandError(request: Request, error: unknown): Response | null {
@@ -64,7 +53,7 @@ function logActivation(
   try {
     dependencies.logger.log({
       level: 'info',
-      requestId: requestId(request),
+      requestId: readRequestId(request),
       actorId: viewer.userId,
       houseId: result.houseId,
       gameId: result.gameId,

@@ -1,4 +1,5 @@
 import { AuthenticationRequiredError, type AuthenticatedViewer } from '@between-moves/domain';
+import { problemResponse } from '../../../kernel/request';
 import { requireViewer } from '../../../server/viewer';
 
 export const dynamic = 'force-dynamic';
@@ -17,22 +18,12 @@ export async function createViewerResponse(
   } catch (error) {
     if (!(error instanceof AuthenticationRequiredError)) throw error;
 
-    return Response.json(
-      {
-        type: 'https://betweenmoves.app/problems/unauthenticated',
-        title: 'Authentication required',
-        status: 401,
-        code: 'unauthenticated',
-        detail: 'Sign in to access this resource.',
-        instance: new URL(request.url).pathname,
-      },
-      {
-        status: 401,
-        headers: {
-          'Cache-Control': 'private, no-store',
-          'Content-Type': 'application/problem+json',
-        },
-      },
+    return problemResponse(
+      request,
+      401,
+      'unauthenticated',
+      'Authentication required',
+      'Sign in to access this resource.',
     );
   }
 }

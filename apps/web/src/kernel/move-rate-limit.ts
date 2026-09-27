@@ -1,5 +1,8 @@
-import type { RateLimitInput, RateLimiter, RateLimitResult } from '@between-moves/domain';
-import { createHash } from 'node:crypto';
+import {
+  createAccountRateLimit,
+  type AccountRateLimit,
+  type AccountRateLimitDependencies,
+} from './rate-limit';
 
 const POLICY = {
   account: { limit: 60, windowSeconds: 60 },
@@ -10,65 +13,12 @@ const FALLBACK_POLICY = {
   ip: { limit: 60, windowSeconds: 60 },
 } as const;
 
-export interface MoveRateLimitDependencies {
-  readonly primary: RateLimiter;
-  readonly fallback: RateLimiter;
-  readonly incrementRateLimitHit: () => void;
-  readonly onStoreError: () => void;
-}
-
-export type MoveRateLimit = (request: Request, accountId: string) => Promise<RateLimitResult>;
-
-function digest(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwarded || request.headers.get('x-real-ip')?.trim() || 'unknown';
-}
-
-function checks(
-  request: Request,
-  accountId: string,
-  policy: typeof POLICY | typeof FALLBACK_POLICY,
-): readonly RateLimitInput[] {
-  return [
-    { key: `move:account:${digest(accountId)}`, policy: policy.account },
-    { key: `move:ip:${digest(clientIp(request))}`, policy: policy.ip },
-  ];
-}
-
-async function evaluate(limiter: RateLimiter, inputs: readonly RateLimitInput[]) {
-  const settled = await Promise.allSettled(inputs.map((input) => limiter.limit(input)));
-  return {
-    failures: settled.filter((result) => result.status === 'rejected').length,
-    denied: settled.flatMap((result) =>
-      result.status === 'fulfilled' && !result.value.allowed ? [result.value] : [],
-    ),
-  };
-}
+export type MoveRateLimit = AccountRateLimit;
 
 /** [BM-024] [DR-SEC-04] Fail-open per-account and per-IP Move limiter. */
-export function createMoveRateLimit(dependencies: MoveRateLimitDependencies): MoveRateLimit {
-  return async (request, accountId) => {
-    const primary = await evaluate(dependencies.primary, checks(request, accountId, POLICY));
-    let denied = primary.denied;
-    if (primary.failures > 0) {
-      dependencies.onStoreError();
-      if (denied.length === 0) {
-        const fallback = await evaluate(
-          dependencies.fallback,
-          checks(request, accountId, FALLBACK_POLICY),
-        );
-        denied = fallback.denied;
-      }
-    }
-    if (denied.length === 0) return { allowed: true, retryAfterSeconds: 0 };
-    dependencies.incrementRateLimitHit();
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.max(...denied.map((result) => result.retryAfterSeconds)),
-    };
-  };
+export function createMoveRateLimit(dependencies: AccountRateLimitDependencies): MoveRateLimit {
+  return createAccountRateLimit(
+    { scope: 'move', policy: POLICY, fallbackPolicy: FALLBACK_POLICY },
+    dependencies,
+  );
 }

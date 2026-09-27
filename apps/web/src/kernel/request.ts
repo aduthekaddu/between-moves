@@ -9,6 +9,14 @@ export interface ProblemResponseOptions {
   readonly meta?: Readonly<Record<string, unknown>>;
 }
 
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+
+/** Reuse a well-formed caller `x-request-id`; otherwise mint one for log correlation. */
+export function readRequestId(request: Request): string {
+  const value = request.headers.get('x-request-id');
+  return value !== null && REQUEST_ID_PATTERN.test(value) ? value : crypto.randomUUID();
+}
+
 /** RFC 9457 response with private, non-cacheable defaults. */
 export function problemResponse(
   request: Request,

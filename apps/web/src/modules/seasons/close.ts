@@ -15,16 +15,12 @@ import {
   createSeasonTransitionRecorder,
   type StructuredLogger,
 } from '@between-moves/observability';
-import { problemResponse as problem } from '../../kernel/request';
+import { problemResponse as problem, readRequestId } from '../../kernel/request';
 import { getConfig } from '../../config';
 import { getDatabase } from '../../server/database';
 import { createHouseAuthorizationDenialRecorder } from '../../server/house-authorization-observability';
 import { getLogger } from '../../server/logger';
-import {
-  readSeasonRequestId,
-  resolveSeasonBoundary,
-  seasonCommandError,
-} from '../../server/season-command-boundary';
+import { resolveSeasonBoundary, seasonCommandError } from '../../server/season-command-boundary';
 import { requireViewer } from '../../server/viewer';
 
 export interface CloseSeasonHandlerDependencies {
@@ -46,7 +42,7 @@ function logClosedSeason(
   try {
     dependencies.logger.log({
       level: 'info',
-      requestId: readSeasonRequestId(request),
+      requestId: readRequestId(request),
       actorId,
       houseId: result.houseId,
       gameId: null,
@@ -118,7 +114,7 @@ const authorizationMetrics = createHouseAuthorizationMetricStubs();
 /** [BM-047] Web composition for the Owner/Steward Season close command. */
 export function closeSeasonHandlerDependencies(request: Request): CloseSeasonHandlerDependencies {
   const database = getDatabase().pool;
-  const requestId = readSeasonRequestId(request);
+  const requestId = readRequestId(request);
   const dependencies = {
     authorizeHouseAction: createAuthorizeHouseAction({
       memberships: new PgHouseAuthorizationMembershipRepository(database),

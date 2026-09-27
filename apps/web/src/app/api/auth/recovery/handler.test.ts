@@ -79,4 +79,25 @@ describe('POST /api/auth/recovery', () => {
     expect(requestRecovery).not.toHaveBeenCalled();
     expect(rateLimit).not.toHaveBeenCalled();
   });
+
+  it('[BM-010] rejects an oversized body before rate limiting or recovery', async () => {
+    const requestRecovery = vi.fn();
+    const rateLimit = vi.fn();
+    const metrics = { incrementRecoveryAttempt: vi.fn() };
+    const handler = createRecoveryRequestHandler({
+      expectedOrigin: 'https://app.example.test',
+      requestRecovery,
+      rateLimit,
+      metrics,
+    });
+
+    const response = await handler(request(`${'x'.repeat(5_000)}@example.test`));
+
+    expect(response.status).toBe(413);
+    expect(await response.text()).toBe('');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(rateLimit).not.toHaveBeenCalled();
+    expect(requestRecovery).not.toHaveBeenCalled();
+    expect(metrics.incrementRecoveryAttempt).toHaveBeenCalledWith('rejected');
+  });
 });

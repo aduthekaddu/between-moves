@@ -9,12 +9,6 @@ import { problemResponse as problem, readJsonBody } from '../kernel/request';
 
 const MAXIMUM_BODY_BYTES = 4_096;
 const identifierSchema = z.string().uuid();
-const requestIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9._:-]+$/);
 
 export const draftSeasonBodySchema = z
   .object({ title: z.string().trim().min(1).max(80).optional() })
@@ -207,9 +201,4 @@ export function seasonCommandError(request: Request, error: unknown): Response |
     );
   }
   return null;
-}
-
-export function readSeasonRequestId(request: Request): string {
-  const parsed = requestIdSchema.safeParse(request.headers.get('x-request-id'));
-  return parsed.success ? parsed.data : crypto.randomUUID();
 }

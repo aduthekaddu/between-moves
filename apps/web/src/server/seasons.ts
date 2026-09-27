@@ -22,7 +22,7 @@ import { getConfig } from '../config';
 import { getDatabase } from './database';
 import { createHouseAuthorizationDenialRecorder } from './house-authorization-observability';
 import { getLogger } from './logger';
-import { readSeasonRequestId } from './season-command-boundary';
+import { readRequestId } from '../kernel/request';
 import type { SeasonCommandHandlerDependencies } from './season-command-handler';
 import { getViewer, requireViewer } from './viewer';
 
@@ -52,7 +52,7 @@ function seasonDependencies(requestId: string): SeasonDependencies {
 export function seasonCommandHandlerDependencies(
   request: Request,
 ): SeasonCommandHandlerDependencies {
-  const requestId = readSeasonRequestId(request);
+  const requestId = readRequestId(request);
   const dependencies = seasonDependencies(requestId);
   return {
     expectedOrigin: getConfig().appOrigin.origin,
@@ -70,7 +70,7 @@ export async function getHouseSeason(
   request: Request,
   houseId: string,
 ): Promise<HouseSeasonView | null> {
-  const requestId = readSeasonRequestId(request);
+  const requestId = readRequestId(request);
   const dependencies = seasonDependencies(requestId);
   const query: ReadHouseSeasonRequest = { houseId, viewer: await getViewer(request) };
   return readHouseSeasonUseCase(query, {
@@ -88,7 +88,7 @@ export async function getLastClosedSeason(
   request: Request,
   houseId: string,
 ): Promise<ClosedSeasonView | null> {
-  const dependencies = seasonDependencies(readSeasonRequestId(request));
+  const dependencies = seasonDependencies(readRequestId(request));
   return readLastClosedSeasonUseCase(
     { houseId, viewer: await getViewer(request) },
     {

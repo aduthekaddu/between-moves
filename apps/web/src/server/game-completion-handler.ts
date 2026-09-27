@@ -11,17 +11,11 @@ import {
 } from '@between-moves/domain';
 import type { StructuredLogger } from '@between-moves/observability';
 import { z } from 'zod';
-import { problemResponse as problem, readJsonBody } from '../kernel/request';
+import { problemResponse as problem, readJsonBody, readRequestId } from '../kernel/request';
 import { recordGameCompleted, recordGameCompletionRejected } from './game-completion-observability';
 
 const MAXIMUM_BODY_BYTES = 1_024;
 const identifierSchema = z.string().uuid();
-const requestIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9._:-]+$/);
 
 export interface GameCompletionHandlerDependencies {
   readonly expectedOrigin: string;
@@ -30,11 +24,6 @@ export interface GameCompletionHandlerDependencies {
   readonly handleDraw: (request: DrawGameRequest) => Promise<GameLifecycleResult>;
   readonly logger: StructuredLogger;
   readonly clock: { now(): Date };
-}
-
-function requestId(request: Request): string {
-  const parsed = requestIdSchema.safeParse(request.headers.get('x-request-id'));
-  return parsed.success ? parsed.data : crypto.randomUUID();
 }
 
 function validationProblem(request: Request, detail = 'Game command is invalid.'): Response {
@@ -152,7 +141,7 @@ export function createResignGameHandler(dependencies: GameCompletionHandlerDepen
       recordGameCompleted(
         dependencies,
         {
-          requestId: requestId(request),
+          requestId: readRequestId(request),
           viewer: authorized.viewer,
           houseId,
           gameId,
@@ -169,7 +158,7 @@ export function createResignGameHandler(dependencies: GameCompletionHandlerDepen
         recordGameCompletionRejected(
           dependencies,
           {
-            requestId: requestId(request),
+            requestId: readRequestId(request),
             viewer: authorized.viewer,
             houseId,
             gameId,
@@ -207,7 +196,7 @@ export function createDrawGameHandler(dependencies: GameCompletionHandlerDepende
       recordGameCompleted(
         dependencies,
         {
-          requestId: requestId(request),
+          requestId: readRequestId(request),
           viewer: authorized.viewer,
           houseId,
           gameId,
@@ -224,7 +213,7 @@ export function createDrawGameHandler(dependencies: GameCompletionHandlerDepende
         recordGameCompletionRejected(
           dependencies,
           {
-            requestId: requestId(request),
+            requestId: readRequestId(request),
             viewer: authorized.viewer,
             houseId,
             gameId,

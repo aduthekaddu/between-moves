@@ -10,15 +10,9 @@ import {
 import type { RealtimeMetricStubs, StructuredLogger } from '@between-moves/observability';
 import { z } from 'zod';
 import type { RealtimeTokenRateLimit } from '../kernel/realtime-token-rate-limit';
-import { problemResponse as problem } from '../kernel/request';
+import { problemResponse as problem, readRequestId } from '../kernel/request';
 
 const identifier = z.string().uuid();
-const requestIdSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(128)
-  .regex(/^[A-Za-z0-9._:-]+$/);
 
 export interface NightRealtimeTokenHandlerDependencies {
   readonly expectedOrigin: string;
@@ -33,11 +27,6 @@ export interface NightRealtimeTokenHandlerDependencies {
 
 function routeProblem(request: Request): Response {
   return problem(request, 422, 'validation_failed', 'Validation failed', 'Night route is invalid.');
-}
-
-function requestId(request: Request): string {
-  const parsed = requestIdSchema.safeParse(request.headers.get('x-request-id'));
-  return parsed.success ? parsed.data : crypto.randomUUID();
 }
 
 function clientPayload(issued: IssuedRealtimeToken) {
@@ -107,7 +96,7 @@ export function createMintRealtimeTokenHandler(
       try {
         dependencies.logger.log({
           level: 'info',
-          requestId: requestId(request),
+          requestId: readRequestId(request),
           actorId: viewer.userId,
           houseId,
           gameId: null,

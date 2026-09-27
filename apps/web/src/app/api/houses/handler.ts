@@ -6,7 +6,9 @@ import {
 } from '@between-moves/domain';
 import type { StructuredLogger } from '@between-moves/observability';
 import { z } from 'zod';
+import { problemResponse as problem, readJsonBody } from '../../../kernel/request';
 
+const MAXIMUM_BODY_BYTES = 8_192;
 const bodySchema = z
   .object({
     name: z.string().trim().min(1).max(80),
@@ -24,23 +26,6 @@ export interface HouseRequestHandlerDependencies {
   ) => Promise<HouseCreationResult>;
   readonly logger: StructuredLogger;
   readonly clock: { now(): Date };
-}
-
-function problem(request: Request, status: number, code: string, title: string, detail: string) {
-  return Response.json(
-    {
-      type: `https://betweenmoves.app/problems/${code}`,
-      title,
-      status,
-      code,
-      detail,
-      instance: new URL(request.url).pathname,
-    },
-    {
-      status,
-      headers: { 'Cache-Control': 'private, no-store', 'Content-Type': 'application/problem+json' },
-    },
-  );
 }
 
 function validationProblem(request: Request, detail = 'House details are invalid.') {
@@ -75,13 +60,18 @@ export function createHouseRequestHandler(dependencies: HouseRequestHandlerDepen
       );
     }
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return validationProblem(request);
+    const body = await readJsonBody(request, MAXIMUM_BODY_BYTES);
+    if (body.kind === 'too_large') {
+      return problem(
+        request,
+        413,
+        'payload_too_large',
+        'Payload too large',
+        'House details are too large.',
+      );
     }
-    const parsed = bodySchema.safeParse(body);
+    if (body.kind === 'invalid') return validationProblem(request);
+    const parsed = bodySchema.safeParse(body.value);
     if (!parsed.success) return validationProblem(request);
 
     const command: CreateHouseCommand =

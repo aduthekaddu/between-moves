@@ -1,7 +1,9 @@
 import type { RateLimitResult } from '@between-moves/domain';
 import { z } from 'zod';
 import { invitationReturnPath } from '../../../../kernel/invitation-return-path';
+import { readJsonBody } from '../../../../kernel/request';
 
+const MAXIMUM_BODY_BYTES = 4_096;
 const bodySchema = z.object({ email: z.email(), returnTo: z.string().optional() }).strict();
 
 interface SignInMetrics {
@@ -33,14 +35,12 @@ export function createMagicLinkRequestHandler(
       return empty(403);
     }
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
+    const body = await readJsonBody(request, MAXIMUM_BODY_BYTES);
+    if (body.kind !== 'ok') {
       dependencies.metrics.incrementSignInAttempt('rejected');
-      return empty(422);
+      return empty(body.kind === 'too_large' ? 413 : 422);
     }
-    const parsed = bodySchema.safeParse(body);
+    const parsed = bodySchema.safeParse(body.value);
     if (!parsed.success) {
       dependencies.metrics.incrementSignInAttempt('rejected');
       return empty(422);

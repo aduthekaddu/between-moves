@@ -99,6 +99,7 @@ describe('POST /api/houses', () => {
   it.each([
     ['unexpected origin', request({ name: 'House', timeZone: 'UTC' }, 'https://evil.test'), 403],
     ['malformed fields', request({ name: '', timeZone: 'UTC', role: 'owner' }), 422],
+    ['an oversized body', request({ name: 'House', timeZone: 'x'.repeat(9_000) }), 413],
   ])('[BM-011] rejects %s before persistence', async (_name, input, status) => {
     const deps = dependencies();
     const response = await createHouseRequestHandler(deps)(input);
