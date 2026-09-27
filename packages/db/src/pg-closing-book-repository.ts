@@ -14,6 +14,7 @@ import {
   type ClosingBookWriter,
   type GeneratedClosingBookInput,
   type HouseClosingBook,
+  type MembershipRole,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { parseOutboxRow, type OutboxRow } from './outbox-repository';
@@ -22,6 +23,7 @@ import { readNamedFinalStandings } from './pg-season-closing';
 type Row = QueryResultRow & Readonly<Record<string, unknown>>;
 
 const BOOK_STATES = new Set(['generated', 'published']);
+const MEMBERSHIP_ROLES = new Set(['owner', 'steward', 'member']);
 const GAME_MODES = new Set(['correspondence', 'live']);
 const GAME_RESULTS = new Set(['white_win', 'black_win', 'draw']);
 const GAME_REASONS = new Set([
@@ -382,11 +384,15 @@ export class PgClosingBookRepository
   /**
    * The closing or most recently closed Season and, once published, its Closing Book.
    * A Season still `closing` wins; otherwise the latest close time, then Season ID.
+   * [BM-049] Also names the reader's membership and the House's active Season, if any; a House
+   * holds at most one active or closing Season, so that join never adds a row.
    * Return null when the House or the viewer's membership is not active.
    */
   async readLatest(context: AuthorizationContext): Promise<HouseClosingBook | null> {
     const result = await this.database.query<Row>(
-      `select h.name, h.time_zone, s.id::text as season_id, s.title,
+      `select h.name, h.time_zone, viewer.id::text as membership_id, viewer.role,
+              s.id::text as season_id, s.title,
+              a.id::text as active_season_id, a.title as active_title,
               b.id::text as book_id, b.generation_version, b.payload, b.published_at
          from houses h
          join memberships viewer
@@ -398,6 +404,7 @@ export class PgClosingBookRepository
             order by state = 'closing' desc, closed_at desc, id desc
             limit 1
          ) s on true
+         left join seasons a on a.house_id = h.id and a.state = 'active'
          left join closing_books b
            on b.season_id = s.id and b.house_id = h.id and b.state = 'published'
         where h.id = $1 and h.status = 'active'`,
@@ -405,13 +412,23 @@ export class PgClosingBookRepository
     );
     const row = result.rows[0];
     if (row === undefined) return null;
-    const houseName = text(row.name, 'House name');
-    const timeZone = text(row.time_zone, 'House time zone');
-    if (row.season_id === null) return { houseName, timeZone, season: null, book: null };
+    const shelf = {
+      houseName: text(row.name, 'House name'),
+      timeZone: text(row.time_zone, 'House time zone'),
+      membershipId: text(row.membership_id, 'membership id'),
+      membershipRole: oneOf<MembershipRole>(row.role, MEMBERSHIP_ROLES, 'membership role'),
+      activeSeason:
+        row.active_season_id === null
+          ? null
+          : {
+              seasonId: text(row.active_season_id, 'active Season id'),
+              title: text(row.active_title, 'active Season title'),
+            },
+    };
+    if (row.season_id === null) return { ...shelf, season: null, book: null };
     const seasonId = text(row.season_id, 'Season id');
     return {
-      houseName,
-      timeZone,
+      ...shelf,
       season: { seasonId, title: text(row.title, 'Season title') },
       book:
         row.book_id === null

@@ -433,7 +433,10 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     await expect(books.readLatest(member(world.first.nonOwner.userId))).resolves.toEqual({
       houseName: world.first.name,
       timeZone: 'Asia/Kolkata',
+      membershipId: bea().membershipId,
+      membershipRole: 'member',
       season: { seasonId, title: 'Autumn tables' },
+      activeSeason: null,
       book: null,
     });
 
@@ -593,7 +596,10 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     ).resolves.toEqual({
       houseName: world.second.name,
       timeZone: 'Asia/Kolkata',
+      membershipId: world.second.member.membershipId,
+      membershipRole: 'owner',
       season: null,
+      activeSeason: null,
       book: null,
     });
     await expect(
@@ -601,7 +607,10 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     ).resolves.toEqual({
       houseName: world.second.name,
       timeZone: 'Asia/Kolkata',
+      membershipId: world.switchingMember.secondMembershipId,
+      membershipRole: 'member',
       season: null,
+      activeSeason: null,
       book: null,
     });
     await expect(books.findBySeason(world.second.houseId, seasonId)).resolves.toBeNull();
@@ -619,6 +628,72 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     ]);
 
     await expect(books.readLatest(member(world.first.nonOwner.userId))).resolves.toBeNull();
+  });
+
+  it('[BM-049] names each reader’s own membership and role', async () => {
+    await closeSeasonWithStory();
+    await generate();
+    await books.publish({ houseId: world.first.houseId, bookId, publishedAt });
+
+    for (const [viewerId, membershipId, membershipRole] of [
+      [world.first.member.userId, ada().membershipId, 'owner'],
+      [world.switchingMember.userId, mira().membershipId, 'steward'],
+      [world.first.nonOwner.userId, bea().membershipId, 'member'],
+    ] as const) {
+      await expect(books.readLatest(member(viewerId))).resolves.toMatchObject({
+        membershipId,
+        membershipRole,
+        book: { bookId },
+      });
+    }
+  });
+
+  it('[BM-049] keeps the last Season’s book on the shelf once the next Season is active', async () => {
+    await closeSeasonWithStory();
+    await generate();
+    await books.publish({ houseId: world.first.houseId, bookId, publishedAt });
+    const before = await books.readLatest(member(world.first.nonOwner.userId));
+    const nextSeasonId = id(4991);
+    await seasons.draft(owner, {
+      seasonId: nextSeasonId,
+      title: 'Winter tables',
+      idempotencyKey: null,
+      createdAt: closedAt,
+    });
+    await seasons.draftCharter(owner, {
+      charterId: id(nextId++),
+      seasonId: nextSeasonId,
+      correspondencePaceHours: 48,
+      nightRecurrence: { weekday: 2, localTime: '20:00', count: 4 },
+      pointsRecipe: {
+        completedGame: 1,
+        win: 2,
+        draw: 1,
+        nightAttendance: 1,
+        publishedPuzzle: 1,
+        caps: { games: 8, nights: 4, puzzles: 2 },
+      },
+      createdAt: closedAt,
+    });
+    await seasons.publish(owner, {
+      seasonId: nextSeasonId,
+      title: 'Winter tables',
+      startsAt: new Date('2026-10-09T12:00:00.000Z'),
+      endsAt: new Date('2026-11-06T12:00:00.000Z'),
+      publishedAt: closedAt,
+      nightIds: [id(4992), id(4993), id(4994), id(4995)],
+    });
+
+    const after = await books.readLatest(member(world.first.nonOwner.userId));
+
+    expect(after).toEqual({
+      ...before,
+      activeSeason: { seasonId: nextSeasonId, title: 'Winter tables' },
+    });
+    await expect(books.findBySeason(world.first.houseId, nextSeasonId)).resolves.toBeNull();
+    await expect(
+      books.readLatest(member(world.second.member.userId, world.second.houseId)),
+    ).resolves.toMatchObject({ season: null, activeSeason: null });
   });
 
   it('[BM-048] rejects a stored payload written for another Season', async () => {

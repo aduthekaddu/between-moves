@@ -37,6 +37,8 @@ export type ClosingBookReader = (
 /**
  * [BM-048] Read the House's latest Closing Book, hiding the House from anyone who is not an
  * active Member. Each render of a published book records `bm.closing_book.viewed` (AE-24).
+ * [BM-049] The event names the reader's membership and role, so a non-owner's return to the
+ * book — the pilot's renewal signal — can be told apart from the Owner's own reading.
  */
 export function createClosingBookReader(
   dependencies: ClosingBookReaderDependencies,
@@ -67,6 +69,8 @@ export function createClosingBookReader(
           season_id: shelf.season.seasonId,
           closing_book_id: shelf.book.bookId,
           generation_version: shelf.book.generationVersion,
+          actor_membership_id: shelf.membershipId,
+          actor_role: shelf.membershipRole,
         },
       });
     } catch {

@@ -58,10 +58,14 @@ const viewer = {
   displayName: 'Ada',
   imageUrl: null,
 } as const;
+const membershipId = '01941f29-7c00-7000-8000-000000000621';
 const pending: HouseClosingBook = {
   houseName: 'Knights at Dusk',
   timeZone: 'Asia/Kolkata',
+  membershipId,
+  membershipRole: 'owner',
   season: { seasonId, title: 'Autumn tables' },
+  activeSeason: null,
   book: null,
 };
 const published: HouseClosingBook = {
@@ -117,8 +121,54 @@ describe('Closing Book request seam', () => {
       house_id: houseId,
       event: 'bm.closing_book.viewed',
       outcome: 'success',
-      data: { season_id: seasonId, closing_book_id: bookId, generation_version: 1 },
+      data: {
+        season_id: seasonId,
+        closing_book_id: bookId,
+        generation_version: 1,
+        actor_membership_id: membershipId,
+        actor_role: 'owner',
+      },
     });
+  });
+
+  it.each([
+    ['a Member', 'member', '01941f29-7c00-7000-8000-000000000623'],
+    ['a Steward', 'steward', '01941f29-7c00-7000-8000-000000000625'],
+  ] as const)(
+    '[BM-049] records the non-owner role when %s reads the book',
+    async (_label, membershipRole, readerMembershipId) => {
+      const log = vi.fn();
+      const shelf = { ...published, membershipId: readerMembershipId, membershipRole };
+
+      await expect(reader(async () => shelf, { log })(request(), houseId)).resolves.toBe(shelf);
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'bm.closing_book.viewed',
+          data: expect.objectContaining({
+            actor_membership_id: readerMembershipId,
+            actor_role: membershipRole,
+          }),
+        }),
+      );
+    },
+  );
+
+  it('[BM-049] still counts a view of the last book once the next Season is active', async () => {
+    const log = vi.fn();
+    const renewed = {
+      ...published,
+      activeSeason: { seasonId: '01941f29-7c00-7000-8000-000000004991', title: 'Winter tables' },
+    };
+
+    await reader(async () => renewed, { log })(request(), houseId);
+
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'bm.closing_book.viewed',
+        data: expect.objectContaining({ season_id: seasonId, closing_book_id: bookId }),
+      }),
+    );
   });
 
   it.each([

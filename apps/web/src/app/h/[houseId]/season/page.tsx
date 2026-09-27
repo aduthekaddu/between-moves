@@ -21,7 +21,8 @@ interface SeasonPageProps {
 
 /**
  * Render the House Season page, including frozen standings for a closing Season or the last
- * closed Season when none is underway.
+ * closed Season when none is underway, and [BM-049] a link to that Season's Closing Book once
+ * the next Season is active.
  * Show the not-found page when the House is unavailable; other read failures propagate.
  */
 export default async function SeasonPage({ params }: SeasonPageProps) {
@@ -32,10 +33,7 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
   const home = await getHouseHome(request, houseId);
   if (home === null) notFound();
   const season = await getHouseSeason(request, houseId);
-  const lastClosed =
-    season === null || season.state === 'draft' || season.state === 'closing'
-      ? await getLastClosedSeason(request, houseId)
-      : null;
+  const lastClosed = await getLastClosedSeason(request, houseId);
   const nights = await getScheduledNights(request, houseId);
   const hostCandidates =
     home.membershipRole === 'member' ? [] : await getNightHostCandidates(request, houseId);

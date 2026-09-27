@@ -2228,7 +2228,8 @@ a.move-card:focus-visible {
 }
 
 /* [BM-048] the recap's way into the Closing Book: the lamp's colour on the scoreboard */
-.season-final__book {
+.season-final__book,
+.closing-book-next__action {
   justify-self: start;
   display: inline-flex;
   align-items: center;
@@ -2245,12 +2246,14 @@ a.move-card:focus-visible {
   transition: transform 90ms var(--ease);
 }
 
-.season-final__book::after {
+.season-final__book::after,
+.closing-book-next__action::after {
   content: '→';
   font-family: var(--font-mono);
 }
 
-.season-final__book:hover {
+.season-final__book:hover,
+.closing-book-next__action:hover {
   transform: translateY(1px);
 }
 
@@ -2272,6 +2275,42 @@ a.move-card:focus-visible {
 
 .charter-form > .season-final {
   margin-bottom: calc(var(--season-gap) - 28px);
+}
+
+/* [BM-049] a renewed Season keeps the last Season's book on the shelf, one quiet line */
+.season-previous {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+/* under the ruled details it reads as one more row, so it keeps their rule rather than doubling it */
+.season-active__details + .season-previous {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.season-previous__label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.season-previous a {
+  font-weight: 700;
+  color: var(--indigo-2);
+  text-underline-offset: 4px;
+}
+
+.season-previous a::after {
+  content: ' →';
+  font-family: var(--font-mono);
 }
 
 .season-passive {
@@ -2963,6 +3002,36 @@ a.move-card:focus-visible {
 .closing-book-waiting p:last-child {
   max-width: 46ch;
   font-size: 1.15rem;
+  color: var(--ink-2);
+}
+
+/* [BM-049] the slip tucked in the back of the book: what the House does next */
+.closing-book-next {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  width: min(100%, 720px);
+  margin: clamp(52px, 7vw, 92px) auto 0;
+  padding: clamp(24px, 4vw, 40px);
+  border: 1.5px dashed var(--rule-2);
+}
+
+.closing-book-next .season-eyebrow {
+  margin: 0;
+}
+
+.closing-book-next h2 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 780;
+  font-stretch: 76%;
+  line-height: 0.9;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.closing-book-next h2 + p {
+  max-width: 52ch;
+  font-size: 1.1rem;
   color: var(--ink-2);
 }
 

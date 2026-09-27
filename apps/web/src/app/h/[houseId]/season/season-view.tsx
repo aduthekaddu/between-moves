@@ -12,6 +12,7 @@ import { CloseSeasonPanel } from './close-season-panel';
 import { FinalStandings } from './final-standings';
 import { NightSchedule } from './night-schedule';
 import { PointsRecipe } from './points-recipe';
+import { PreviousSeason } from './previous-season';
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -22,6 +23,7 @@ function nightLabel(recurrence: NightRecurrence): string {
 /**
  * Render Season details and role-appropriate controls, or only the recap if its Charter or
  * dates are missing. Owners and Stewards can close an active Season or resume a closing one.
+ * [BM-049] `previous` links a renewed Season back to the last Season's Closing Book.
  */
 function ActiveSeason({
   houseId,
@@ -30,6 +32,7 @@ function ActiveSeason({
   hostCandidates,
   season,
   recap,
+  previous,
   timeZone,
 }: {
   readonly houseId: string;
@@ -38,6 +41,7 @@ function ActiveSeason({
   readonly hostCandidates: readonly NightHostCandidate[];
   readonly season: HouseSeasonView;
   readonly recap: ReactNode;
+  readonly previous: ReactNode;
   readonly timeZone: string;
 }) {
   const charter = season.charter;
@@ -66,6 +70,7 @@ function ActiveSeason({
           <dd>{nightLabel(charter.nightRecurrence)}, four weeks</dd>
         </div>
       </dl>
+      {previous}
       <PointsRecipe recipe={charter.pointsRecipe} />
       <NightSchedule
         houseId={houseId}
@@ -86,6 +91,8 @@ function ActiveSeason({
  * Show the supplied frozen-standings recap when the current Season is absent, a draft, or
  * itself still closing. The recap follows the page's h1 in the document so the outline
  * starts there; CSS lifts it above that heading on screen.
+ * [BM-049] After a close, the Charter starts the next Season from zero; once it is active the
+ * recap gives way to a link to the last Season's Closing Book.
  */
 export function SeasonView({
   houseId,
@@ -109,6 +116,10 @@ export function SeasonView({
   if (season !== null && season.state !== 'draft') {
     const frozen =
       season.state === 'closing' && lastClosed?.seasonId === season.seasonId ? recap : null;
+    const previous =
+      season.state === 'active' && lastClosed !== null ? (
+        <PreviousSeason houseId={houseId} title={lastClosed.title} />
+      ) : null;
     return (
       <ActiveSeason
         houseId={houseId}
@@ -117,6 +128,7 @@ export function SeasonView({
         hostCandidates={hostCandidates}
         season={season}
         recap={frozen}
+        previous={previous}
         timeZone={timeZone}
       />
     );
@@ -127,7 +139,11 @@ export function SeasonView({
         <section className="season-passive" aria-labelledby="season-passive-title">
           <p className="season-eyebrow">Season</p>
           <h1 id="season-passive-title">The table is waiting.</h1>
-          <p>Your House is quiet. Publish a Charter to start the season.</p>
+          <p>
+            {lastClosed === null
+              ? 'Your House is quiet. Publish a Charter to start the season.'
+              : `${lastClosed.title} is closed. When an Owner or Steward publishes the next Charter, a new Season starts from zero.`}
+          </p>
         </section>
         {recap}
       </>
@@ -142,6 +158,7 @@ export function SeasonView({
       initialWeekday={season?.charter?.nightRecurrence.weekday}
       initialLocalTime={season?.charter?.nightRecurrence.localTime}
       initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
+      previousSeasonTitle={lastClosed?.title}
       recap={recap}
     />
   );

@@ -1,6 +1,6 @@
 import type { ClaimedOutboxEvent } from '../delivery';
 import type { Viewer } from '../identity';
-import type { AuthorizeHouseAction } from '../houses';
+import type { AuthorizeHouseAction, MembershipRole } from '../houses';
 import type { CompletedGameResult, GameCompletionReason } from '../games/complete';
 import type { FinalSeasonStanding } from '../seasons/closing';
 import type { AuthorizationContext } from '../shared/authorization-context';
@@ -171,8 +171,13 @@ export interface HouseClosingBook {
   readonly houseName: string;
   /** The House's IANA time zone, for dating the book's Games and Puzzles. */
   readonly timeZone: string;
+  /** [BM-049] The reading Member's own membership, recorded with each view of the book. */
+  readonly membershipId: string;
+  readonly membershipRole: MembershipRole;
   /** The closing or most recently closed Season; null before any Season has closed. */
   readonly season: { readonly seasonId: string; readonly title: string } | null;
+  /** [BM-049] The House's active Season, once a new Charter is published; null while none is. */
+  readonly activeSeason: { readonly seasonId: string; readonly title: string } | null;
   /** Null until that Season's book is published. */
   readonly book: PublishedClosingBook | null;
 }

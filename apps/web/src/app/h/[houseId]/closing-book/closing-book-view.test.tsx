@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { ClosingBookView } from './closing-book-view';
 
+const houseId = '01941f29-7c00-7000-8000-000000000601';
 const seasonId = '01941f29-7c00-7000-8000-000000004901';
 const ada = { membershipId: '01941f29-7c00-7000-8000-000000000621', displayName: 'Ada' };
 const bea = { membershipId: '01941f29-7c00-7000-8000-000000000623', displayName: 'Bea' };
@@ -102,7 +103,10 @@ function shelf(overrides: Partial<HouseClosingBook> = {}): HouseClosingBook {
   return {
     houseName: 'Knights at Dusk',
     timeZone: 'Asia/Kolkata',
+    membershipId: ada.membershipId,
+    membershipRole: 'owner',
     season: { seasonId, title: 'Autumn tables' },
+    activeSeason: null,
     book: {
       bookId: '01941f29-7c00-7000-8000-000000004903',
       generationVersion: 1,
@@ -115,7 +119,7 @@ function shelf(overrides: Partial<HouseClosingBook> = {}): HouseClosingBook {
 
 /** Server-render the Closing Book view to static HTML. */
 function render(value: HouseClosingBook): string {
-  return renderToStaticMarkup(<ClosingBookView shelf={value} />);
+  return renderToStaticMarkup(<ClosingBookView houseId={houseId} shelf={value} />);
 }
 
 /** The published shelf with its book contents adjusted by `overrides`. */
@@ -250,5 +254,69 @@ describe('Closing Book view', () => {
 
     expect(html).toContain('<h1 id="closing-book-title">Nothing bound yet.</h1>');
     expect(html).toContain('When a Season closes');
+  });
+});
+
+describe('Closing Book next Season', () => {
+  const seasonHref = `href="/h/${houseId}/season"`;
+
+  it.each(['owner', 'steward'] as const)(
+    '[BM-049] invites an %s to start the next Season from zero',
+    (membershipRole) => {
+      const html = render(shelf({ membershipRole }));
+
+      expect(html).toContain('aria-labelledby="closing-book-next-title"');
+      expect(html).toContain('<h2 id="closing-book-next-title">The table is open.</h2>');
+      expect(html).toContain(
+        'Nothing carries over from Autumn tables: points, standings and awards begin again from zero.',
+      );
+      expect(html).toContain(
+        `<a class="closing-book-next__action" ${seasonHref}>Start the next Season</a>`,
+      );
+    },
+  );
+
+  it('[BM-049] tells a Member the table is open without offering the Charter', () => {
+    const html = render(shelf({ membershipId: bea.membershipId, membershipRole: 'member' }));
+
+    expect(html).toContain('<h2 id="closing-book-next-title">The table is open.</h2>');
+    expect(html).toContain('When an Owner or Steward publishes the next Charter');
+    expect(html).toContain('Autumn tables stays here, on the House’s shelf.');
+    expect(html).not.toContain('Start the next Season');
+    expect(html).not.toContain(seasonHref);
+  });
+
+  it.each(['owner', 'member'] as const)(
+    '[BM-049] shows an %s the next Season once it is under way',
+    (membershipRole) => {
+      const html = render(
+        shelf({
+          membershipRole,
+          activeSeason: {
+            seasonId: '01941f29-7c00-7000-8000-000000004991',
+            title: 'Winter tables',
+          },
+        }),
+      );
+
+      expect(html).toContain('<h2 id="closing-book-next-title">Winter tables is under way.</h2>');
+      expect(html).toContain('started again from zero');
+      expect(html).toContain(
+        `<a class="closing-book-next__action" ${seasonHref}>Open the Season table</a>`,
+      );
+      expect(html).not.toContain('Start the next Season');
+    },
+  );
+
+  it('[BM-049] keeps the next Season after the book, outside its article', () => {
+    const html = render(shelf());
+
+    expect(html.indexOf('</article>')).toBeLessThan(html.indexOf('closing-book-next'));
+    expect(html.match(/<h1/g)).toHaveLength(1);
+  });
+
+  it('[BM-049] says nothing about the next Season while the book is being bound', () => {
+    expect(render(shelf({ book: null }))).not.toContain('closing-book-next');
+    expect(render(shelf({ season: null, book: null }))).not.toContain('closing-book-next');
   });
 });

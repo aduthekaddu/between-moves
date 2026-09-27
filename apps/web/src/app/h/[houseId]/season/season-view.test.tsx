@@ -417,4 +417,110 @@ describe('SeasonView', () => {
     expect(html).toContain('<h2 id="season-final-title">Autumn tables</h2>');
     expect(html.indexOf('Read the Closing Book')).toBeLessThan(html.indexOf('Start Night 1'));
   });
+
+  it('[BM-049] frames an Owner’s Charter after a close as a fresh next Season', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        season={null}
+        lastClosed={lastClosed}
+      />,
+    );
+
+    expectOutlineLedByH1(html);
+    expect(html).toContain('The next Season</p><h1>Publish a Charter</h1>');
+    expect(html).toContain(
+      'Nothing carries over from Summer tables: points, standings and awards start again from zero.',
+    );
+    expect(html).toContain(
+      '<input id="charter-title" required="" maxLength="80" name="title" value=""/>',
+    );
+    expect(html).toContain('Season closed · Final standings');
+  });
+
+  it('[BM-049] keeps a House’s first Charter free of renewal wording', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="steward"
+        season={null}
+      />,
+    );
+
+    expect(html).toContain('Four weeks at the table');
+    expect(html).not.toContain('The next Season');
+    expect(html).not.toContain('Nothing carries over');
+  });
+
+  it('[BM-049] tells a Member between Seasons who opens the next one', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        season={null}
+        lastClosed={lastClosed}
+      />,
+    );
+
+    expect(html).toContain(
+      'Summer tables is closed. When an Owner or Steward publishes the next Charter, a new Season starts from zero.',
+    );
+    expect(html).not.toContain('Your House is quiet.');
+  });
+
+  it.each(['owner', 'member'] as const)(
+    '[BM-049] links an %s from a renewed Season back to the last Closing Book',
+    (membershipRole) => {
+      const html = renderToStaticMarkup(
+        <SeasonView
+          houseId="01941f29-7c00-7000-8000-000000000201"
+          membershipRole={membershipRole}
+          nights={nights}
+          season={activeSeason}
+          lastClosed={lastClosed}
+        />,
+      );
+
+      expect(html).toContain(
+        '<p class="season-previous"><span class="season-previous__label">Last Season</span><a href="/h/01941f29-7c00-7000-8000-000000000201/closing-book">Read the Summer tables Closing Book</a></p>',
+      );
+      expect(html).not.toContain('season-final');
+      expect(html).not.toContain('Final standings');
+      expect(html.indexOf('season-previous')).toBeLessThan(html.indexOf('Night 1'));
+    },
+  );
+
+  it('[BM-049] offers no Last Season link before any Season has closed', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        season={activeSeason}
+      />,
+    );
+
+    expect(html).not.toContain('season-previous');
+  });
+
+  it('[BM-049] leaves a closing Season’s recap as its only way to the Closing Book', () => {
+    const closing = { ...activeSeason, state: 'closing' as const };
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="owner"
+        season={closing}
+        lastClosed={{
+          ...lastClosed,
+          seasonId: closing.seasonId,
+          title: closing.title,
+          state: 'closing',
+          closedAt: null,
+        }}
+      />,
+    );
+
+    expect(html).not.toContain('season-previous');
+    expect(html.match(/closing-book"/g)).toHaveLength(1);
+  });
 });
