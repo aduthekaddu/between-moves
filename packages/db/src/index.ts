@@ -13,6 +13,7 @@ export { PgAnalysisJobRepository } from './pg-analysis-job-repository';
 export { PgPuzzleCandidateRepository } from './pg-puzzle-candidate-repository';
 export { PgHousePuzzleRepository } from './pg-house-puzzle-repository';
 export type { HousePuzzleBoard, PublishedHousePuzzle } from './pg-house-puzzle-repository';
+export { PgClosingBookRepository } from './pg-closing-book-repository';
 export type {
   AnalysisJob,
   AnalysisCompletion,

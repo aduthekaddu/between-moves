@@ -1019,6 +1019,41 @@ export const housePuzzles = pgTable(
   ],
 );
 
+/** [BM-048] One Closing Book per Season, generated privately and then published to the House. */
+export const closingBooks = pgTable(
+  'closing_books',
+  {
+    id: uuid('id').primaryKey().notNull(),
+    houseId: uuid('house_id').notNull(),
+    seasonId: uuid('season_id').notNull(),
+    sourceEventId: uuid('source_event_id').notNull(),
+    generationVersion: integer('generation_version').notNull(),
+    state: text('state').notNull().default('generated'),
+    payload: jsonb('payload').notNull(),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+  },
+  (table) => [
+    unique('closing_books_season_unique').on(table.seasonId),
+    unique('closing_books_source_event_unique').on(table.sourceEventId),
+    foreignKey({
+      columns: [table.seasonId, table.houseId],
+      foreignColumns: [seasons.id, seasons.houseId],
+      name: 'closing_books_season_house_fk',
+    }).onDelete('cascade'),
+    check('closing_books_id_check', sql`is_uuid_v7(${table.id})`),
+    check('closing_books_generation_version_check', sql`${table.generationVersion} > 0`),
+    check('closing_books_state_check', sql`${table.state} in ('generated', 'published')`),
+    check('closing_books_payload_check', sql`jsonb_typeof(${table.payload}) = 'object'`),
+    check(
+      'closing_books_publication_shape_check',
+      sql`(${table.state} = 'generated' and ${table.publishedAt} is null)
+        or (${table.state} = 'published' and ${table.publishedAt} is not null
+          and ${table.publishedAt} >= ${table.generatedAt})`,
+    ),
+  ],
+);
+
 /** [BM-029] [DR-CORR-04] One durable delivery record per Nudge natural key. */
 export const nudgeDeliveries = pgTable(
   'nudge_deliveries',

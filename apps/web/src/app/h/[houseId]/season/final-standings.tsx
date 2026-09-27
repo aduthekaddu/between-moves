@@ -7,9 +7,15 @@ function pointsLabel(points: number): string {
 
 /**
  * [BM-047] Frozen standings for a closing Season or the last closed one, shown until a new
- * Season begins.
+ * Season begins. [BM-048] Links to that Season's Closing Book.
  */
-export function FinalStandings({ season }: { readonly season: ClosedSeasonView }) {
+export function FinalStandings({
+  houseId,
+  season,
+}: {
+  readonly houseId: string;
+  readonly season: ClosedSeasonView;
+}) {
   return (
     <section className="season-final" aria-labelledby="season-final-title">
       <p className="season-eyebrow">
@@ -42,6 +48,9 @@ export function FinalStandings({ season }: { readonly season: ClosedSeasonView }
           ))}
         </ol>
       )}
+      <a className="season-final__book" href={`/h/${encodeURIComponent(houseId)}/closing-book`}>
+        Read the Closing Book
+      </a>
     </section>
   );
 }

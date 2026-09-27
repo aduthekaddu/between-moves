@@ -50,11 +50,14 @@ export {
   startNight,
 } from './nights';
 export {
+  createClosingBookConsumer,
   publishHousePuzzle,
+  readClosingBook,
   readCurrentGameReaction,
   readGameNotes,
   saveGameNote,
   setGameReaction,
+  type ClosingBookConsumerDependencies,
 } from './stories';
 export {
   createEmailDeliveryConsumer,

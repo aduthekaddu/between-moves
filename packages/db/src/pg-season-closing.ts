@@ -192,6 +192,26 @@ export async function readLatestClosedSeason(
   const seasonId = stringValue(row.id, 'Season id');
   const state = row.state;
   if (state !== 'closing' && state !== 'closed') throw new Error('Invalid Season closing state');
+  return {
+    seasonId,
+    title: stringValue(row.title, 'title'),
+    state,
+    startsAt: closingDate(row.starts_at, 'start'),
+    endsAt: closingDate(row.ends_at, 'end'),
+    closedAt: state === 'closed' ? closingDate(row.closed_at, 'closed time') : null,
+    standings: await readNamedFinalStandings(database, context.houseId, seasonId),
+  };
+}
+
+/**
+ * Frozen standings with each Member's display name, keeping a departed Member's snapshot name.
+ * Order by rank, name, then membership ID.
+ */
+export async function readNamedFinalStandings(
+  database: Queryable,
+  houseId: string,
+  seasonId: string,
+): Promise<readonly FinalSeasonStanding[]> {
   const standings = await database.query<StandingRow>(
     `select f.membership_id::text, f.points, f.rank,
             coalesce(m.display_name_snapshot, u.display_name) as display_name
@@ -200,20 +220,12 @@ export async function readLatestClosedSeason(
        join users u on u.id = m.user_id
       where f.house_id = $1 and f.season_id = $2
       order by f.rank, display_name, f.membership_id`,
-    [context.houseId, seasonId],
+    [houseId, seasonId],
   );
-  return {
-    seasonId,
-    title: stringValue(row.title, 'title'),
-    state,
-    startsAt: closingDate(row.starts_at, 'start'),
-    endsAt: closingDate(row.ends_at, 'end'),
-    closedAt: state === 'closed' ? closingDate(row.closed_at, 'closed time') : null,
-    standings: standings.rows.map((standing): FinalSeasonStanding => ({
-      membershipId: stringValue(standing.membership_id, 'membership id'),
-      displayName: stringValue(standing.display_name, 'display name'),
-      points: integerValue(standing.points, 'points'),
-      rank: integerValue(standing.rank, 'rank'),
-    })),
-  };
+  return standings.rows.map((standing) => ({
+    membershipId: stringValue(standing.membership_id, 'membership id'),
+    displayName: stringValue(standing.display_name, 'display name'),
+    points: integerValue(standing.points, 'points'),
+    rank: integerValue(standing.rank, 'rank'),
+  }));
 }

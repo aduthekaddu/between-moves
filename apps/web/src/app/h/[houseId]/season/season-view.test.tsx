@@ -292,6 +292,21 @@ describe('SeasonView', () => {
     expect(html.indexOf('Summer tables')).toBeLessThan(html.indexOf('The table is waiting.'));
   });
 
+  it('[BM-048] opens the Closing Book from the final standings recap', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        membershipRole="member"
+        season={null}
+        lastClosed={lastClosed}
+      />,
+    );
+
+    expect(html).toContain(
+      '<a class="season-final__book" href="/h/01941f29-7c00-7000-8000-000000000201/closing-book">Read the Closing Book</a>',
+    );
+  });
+
   it('[BM-047] shows the frozen standings above a Season left in closing', () => {
     const closing = { ...activeSeason, state: 'closing' as const };
     const html = renderToStaticMarkup(

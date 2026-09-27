@@ -11,6 +11,7 @@ import {
   SystemClock,
 } from '@between-moves/adapters';
 import {
+  createClosingBookConsumer,
   createMagicLinkEmailConsumer,
   createEmailDeliveryConsumer,
   createInvitationEmailConsumer,
@@ -27,6 +28,7 @@ import {
 import {
   createDatabase,
   PgAnalysisJobRepository,
+  PgClosingBookRepository,
   PgNudgeEmailReader,
   PgNudgeRepository,
   PgOutboxRepository,
@@ -38,11 +40,13 @@ import {
   NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
   NUDGE_DUE_TOPIC,
   PUZZLE_PUBLISHED_SCORING_TOPIC,
+  SEASON_CLOSING_TOPIC,
   type OutboxConsumer,
 } from '@between-moves/domain';
 import {
   createDeliveryMetricStubs,
   createAnalysisMetricStubs,
+  createClosingBookEventRecorder,
   createRealtimeMetricStubs,
   createSeasonScoringEventRecorder,
   createStructuredLogger,
@@ -101,6 +105,12 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       events: createSeasonScoringEventRecorder({ logger }),
       clock,
     });
+    const closingBook = createClosingBookConsumer({
+      books: new PgClosingBookRepository(database.pool),
+      ids: { generate: () => generateUuidV7() },
+      clock,
+      events: createClosingBookEventRecorder({ logger }),
+    });
     const emailTopics = new Set([MAGIC_LINK_EMAIL_TOPIC, INVITATION_EMAIL_TOPIC, NUDGE_DUE_TOPIC]);
     const scoringTopics = new Set([
       GAME_COMPLETED_SCORING_TOPIC,
@@ -127,6 +137,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
     const consumer: OutboxConsumer = {
       async consume(event) {
         if (emailTopics.has(event.topic)) return email.consume(event);
+        if (event.topic === SEASON_CLOSING_TOPIC) return closingBook.consume(event);
         if (event.topic === 'game.analysis-requested') {
           return enqueueAnalysisRequest(event, analysisJobs, {
             enabled: process.env.ANALYSIS_ENABLED !== 'false',

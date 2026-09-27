@@ -99,7 +99,8 @@ export function SeasonView({
   readonly lastClosed?: ClosedSeasonView | null;
   readonly timeZone?: string;
 }) {
-  const recap = lastClosed === null ? null : <FinalStandings season={lastClosed} />;
+  const recap =
+    lastClosed === null ? null : <FinalStandings houseId={houseId} season={lastClosed} />;
   if (season !== null && season.state !== 'draft') {
     const frozen =
       season.state === 'closing' && lastClosed?.seasonId === season.seasonId ? recap : null;

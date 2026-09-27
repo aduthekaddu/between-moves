@@ -200,6 +200,8 @@ export const nonHouseWriteExports = Object.freeze([
   'readHouseChat',
   'readCurrentGameReaction',
   'readGameNotes',
+  'readClosingBook',
+  'createClosingBookConsumer',
 ]);
 
 /** POST routes which do not mutate an existing House. */
