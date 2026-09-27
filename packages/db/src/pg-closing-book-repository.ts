@@ -1,18 +1,22 @@
-import type {
-  AuthorizationContext,
-  ClosingBookAttendance,
-  ClosingBookContents,
-  ClosingBookGame,
-  ClosingBookPuzzle,
-  ClosingBookReader,
-  ClosingBookRecord,
-  ClosingBookSource,
-  ClosingBookSwingSource,
-  ClosingBookWriter,
-  GeneratedClosingBookInput,
-  HouseClosingBook,
+import {
+  SEASON_CLOSING_TOPIC,
+  type AuthorizationContext,
+  type ClaimedOutboxEvent,
+  type ClosingBookAttendance,
+  type ClosingBookContents,
+  type ClosingBookGame,
+  type ClosingBookPuzzle,
+  type ClosingBookReader,
+  type ClosingBookRecord,
+  type ClosingBookRepairSource,
+  type ClosingBookSource,
+  type ClosingBookSwingSource,
+  type ClosingBookWriter,
+  type GeneratedClosingBookInput,
+  type HouseClosingBook,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
+import { parseOutboxRow, type OutboxRow } from './outbox-repository';
 import { readNamedFinalStandings } from './pg-season-closing';
 
 type Row = QueryResultRow & Readonly<Record<string, unknown>>;
@@ -32,11 +36,13 @@ const GAME_REASONS = new Set([
   'timeout',
 ]);
 
+/** Return a string unchanged, or throw an Error naming the invalid field. */
 function text(value: unknown, field: string): string {
   if (typeof value !== 'string') throw new Error(`Invalid Closing Book ${field}`);
   return value;
 }
 
+/** Return an integer unchanged, or throw an Error naming the invalid field. */
 function integer(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value)) {
     throw new Error(`Invalid Closing Book ${field}`);
@@ -44,6 +50,7 @@ function integer(value: unknown, field: string): number {
   return value;
 }
 
+/** Return a valid Date unchanged, or throw an Error naming the invalid field. */
 function instant(value: unknown, field: string): Date {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
     throw new Error(`Invalid Closing Book ${field}`);
@@ -51,6 +58,7 @@ function instant(value: unknown, field: string): Date {
   return value;
 }
 
+/** Return a value from an allowed set, or throw an Error naming the invalid field. */
 function oneOf<T extends string>(value: unknown, allowed: ReadonlySet<string>, field: string): T {
   if (typeof value !== 'string' || !allowed.has(value)) {
     throw new Error(`Invalid Closing Book ${field}`);
@@ -58,6 +66,7 @@ function oneOf<T extends string>(value: unknown, allowed: ReadonlySet<string>, f
   return value as T;
 }
 
+/** Parse a stored book's identity and publication state. */
 function record(row: Row): ClosingBookRecord {
   return {
     bookId: text(row.id, 'id'),
@@ -86,6 +95,7 @@ function contents(value: unknown, seasonId: string): ClosingBookContents {
   return payload as ClosingBookContents;
 }
 
+/** Run reads in one repeatable-read, read-only transaction so they share a snapshot. */
 async function readOnlySnapshot<T>(
   database: Pool,
   operation: (client: PoolClient) => Promise<T>,
@@ -104,6 +114,7 @@ async function readOnlySnapshot<T>(
   }
 }
 
+/** Completed Games with a result, finished by the closing instant, in the order they ended. */
 async function completedGames(
   client: PoolClient,
   houseId: string,
@@ -169,6 +180,7 @@ async function swings(
   }));
 }
 
+/** House Puzzles published in the Season by the closing instant, with contributor names. */
 async function puzzles(
   client: PoolClient,
   houseId: string,
@@ -198,6 +210,7 @@ async function puzzles(
   }));
 }
 
+/** Count the Season's Nights that had started by the closing instant. */
 async function nightsHeld(
   client: PoolClient,
   houseId: string,
@@ -214,6 +227,7 @@ async function nightsHeld(
   return integer(result.rows[0]?.nights, 'Nights held');
 }
 
+/** Qualifying Night attendance per Member, counted up to the closing instant. */
 async function attendance(
   client: PoolClient,
   houseId: string,
@@ -239,9 +253,12 @@ async function attendance(
  * [BM-048] PostgreSQL Closing Book authority. Generation is private: only a published book is
  * ever returned to a House Member, and publication is its only permitted change.
  */
-export class PgClosingBookRepository implements ClosingBookWriter, ClosingBookReader {
+export class PgClosingBookRepository
+  implements ClosingBookWriter, ClosingBookReader, ClosingBookRepairSource
+{
   constructor(private readonly database: Pool) {}
 
+  /** The book already written for a Season, if any. */
   async findBySeason(houseId: string, seasonId: string): Promise<ClosingBookRecord | null> {
     const result = await this.database.query<Row>(
       `select id::text, state from closing_books where house_id = $1 and season_id = $2`,
@@ -287,6 +304,7 @@ export class PgClosingBookRepository implements ClosingBookWriter, ClosingBookRe
     });
   }
 
+  /** Store an unpublished book; when one already exists for the Season, return that instead. */
   async saveGenerated(input: GeneratedClosingBookInput): Promise<ClosingBookRecord> {
     const inserted = await this.database.query<Row>(
       `insert into closing_books
@@ -312,6 +330,7 @@ export class PgClosingBookRepository implements ClosingBookWriter, ClosingBookRe
     return existing;
   }
 
+  /** Publish a generated book; false when already published, and an Error when it is missing. */
   async publish(input: {
     readonly houseId: string;
     readonly bookId: string;
@@ -330,6 +349,31 @@ export class PgClosingBookRepository implements ClosingBookWriter, ClosingBookRe
     );
     if (existing.rowCount === 0) throw new Error('Closing Book is unavailable');
     return false;
+  }
+
+  /**
+   * Oldest-first `season.closing` events already acknowledged while their closing or closed
+   * Season still has no published book. Only events carrying a closing instant are returned,
+   * so a replay cannot loop on a malformed event.
+   */
+  async findUnboundClosingEvents(limit: number): Promise<readonly ClaimedOutboxEvent[]> {
+    const result = await this.database.query<OutboxRow>(
+      `select e.id::text, e.topic, e.aggregate_id::text, e.sequence::text, e.house_id::text,
+              e.payload, e.attempts, e.available_at, e.created_at
+         from outbox_events e
+         join seasons s
+           on s.id = e.aggregate_id and s.house_id = e.house_id
+          and s.state in ('closing', 'closed')
+        where e.topic = $1 and e.sent_at is not null
+          and jsonb_typeof(e.payload -> 'closingAt') = 'string'
+          and not exists (
+            select 1 from closing_books b where b.season_id = s.id and b.state = 'published'
+          )
+        order by e.created_at, e.id
+        limit $2`,
+      [SEASON_CLOSING_TOPIC, limit],
+    );
+    return result.rows.map(parseOutboxRow);
   }
 
   /**

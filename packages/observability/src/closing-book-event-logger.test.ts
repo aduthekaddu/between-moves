@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createClosingBookEventRecorder } from './closing-book-event-logger';
 import { createStructuredLogger } from './logger';
 
+/** A recorder whose structured log lines are collected into `lines`. */
 function recorder(lines: string[]) {
   return createClosingBookEventRecorder({
     logger: createStructuredLogger({

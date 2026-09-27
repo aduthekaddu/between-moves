@@ -22,6 +22,7 @@ import {
   createSeasonScoringConsumer,
   MAGIC_LINK_EMAIL_TOPIC,
   REALTIME_PUBLISH_TOPIC_SET,
+  repairClosingBooks,
   type DispatchSummary,
   type NudgeDispatchSummary,
 } from '@between-moves/application';
@@ -105,8 +106,9 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       events: createSeasonScoringEventRecorder({ logger }),
       clock,
     });
+    const closingBooks = new PgClosingBookRepository(database.pool);
     const closingBook = createClosingBookConsumer({
-      books: new PgClosingBookRepository(database.pool),
+      books: closingBooks,
       ids: { generate: () => generateUuidV7() },
       clock,
       events: createClosingBookEventRecorder({ logger }),
@@ -163,6 +165,11 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       metrics,
     });
     const summary = await dispatcher.dispatchAvailable();
+    // [BM-048] Bind books for Seasons whose closing was acknowledged by an older worker.
+    const repairedClosingBooks = await repairClosingBooks({
+      books: closingBooks,
+      consumer: closingBook,
+    });
     logger.log({
       level: 'info',
       requestId: 'worker',
@@ -173,7 +180,12 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       event: 'delivery.outbox-dispatch-complete',
       outcome: 'success',
       durationMs: 0,
-      data: { ...summary, ...metrics.snapshot(), ...realtimeMetrics.snapshot() },
+      data: {
+        ...summary,
+        ...metrics.snapshot(),
+        ...realtimeMetrics.snapshot(),
+        closing_books_repaired: repairedClosingBooks,
+      },
     });
     return summary;
   } finally {

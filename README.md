@@ -115,9 +115,12 @@ participation, the largest swing from each Game (top three), and Season awards. 
 names the count that earned it, ties share it, and nothing is carried onto a Member. The
 book is stored privately as `generated`, then published; a retry resumes an unpublished
 book and a replay is a duplicate. Once published, the payload and its `generation_version`
-are immutable. Active Members read the latest Season's book at `/h/{houseId}/closing-book`
-(`noindex`), which is linked from the final standings; anyone else gets the House not-found
-page. Worker logs expose `closing_book.generation`; each view of a published book logs
+are immutable. After each dispatch the worker also replays, ten at a time, any
+`season.closing` event that was acknowledged while its Season still has no published book,
+such as events consumed by a worker deployed before Closing Books. Active Members read the
+latest Season's book at `/h/{houseId}/closing-book` (`noindex`), which is linked from the
+final standings; anyone else gets the House not-found page. Worker logs expose
+`closing_book.generation` and `closing_books_repaired`; each view of a published book logs
 `bm.closing_book.viewed`.
 
 ## Design system: paper and lamplight

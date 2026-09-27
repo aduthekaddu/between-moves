@@ -12,14 +12,17 @@ import { PositionBoard } from '../../../_components/position-board';
 
 const names = new Intl.ListFormat('en-GB', { style: 'long', type: 'conjunction' });
 
+/** Pair a count with its noun, singular only for exactly one. */
 function count(value: number, singular: string, plural = `${singular}s`): string {
   return `${value} ${value === 1 ? singular : plural}`;
 }
 
+/** Join display names the way the House would say them: `Ada, Bea and Cy`. */
 function nameList(members: readonly ClosingBookMember[]): string {
   return names.format(members.map((member) => member.displayName));
 }
 
+/** Format a day and short month in the House's time zone, optionally with the year. */
 function dateLabel(iso: string | Date, timeZone: string, withYear = false): string {
   return new Date(iso).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -74,6 +77,7 @@ const SCORES: Readonly<Record<ClosingBookGame['result'], string>> = {
   draw: '½–½',
 };
 
+/** Describe a finished Game's result and how it ended, naming the winner first. */
 function gameSummary(game: ClosingBookGame): string {
   if (game.result === 'draw') {
     return `${game.white.displayName} and ${game.black.displayName} drew ${REASONS[game.resultReason]}`;
@@ -88,10 +92,12 @@ function moveLabel(swing: ClosingBookSwing): string {
   return `${Math.ceil(swing.ply / 2)}${swing.ply % 2 === 1 ? '.' : '…'} ${swing.san}`;
 }
 
+/** Express an evaluation swing in pawns to one decimal place. */
 function pawns(centipawns: number): string {
   return (centipawns / 100).toFixed(1);
 }
 
+/** The booklet cover: House, Season title and dates, the leader, and Season totals. */
 function Cover({ shelf, book }: { shelf: HouseClosingBook; book: PublishedClosingBook }) {
   const { season, totals, participation } = book.contents;
   const leaders = participation.filter(
@@ -136,6 +142,7 @@ function Cover({ shelf, book }: { shelf: HouseClosingBook; book: PublishedClosin
   );
 }
 
+/** Season awards, each explained by the count that earned it. */
 function Awards({ contents }: { contents: ClosingBookContents }) {
   return (
     <section className="closing-book-section" aria-labelledby="closing-book-awards">
@@ -189,6 +196,7 @@ function participationRecord(participant: ClosingBookParticipant): string {
   return parts.length === 0 ? 'No games, Nights or puzzles this Season' : parts.join(' · ');
 }
 
+/** Every Member on the final table, ranked, with what they did this Season. */
 function Participation({ contents }: { contents: ClosingBookContents }) {
   return (
     <section className="closing-book-section" aria-labelledby="closing-book-participation">
@@ -218,6 +226,7 @@ function Participation({ contents }: { contents: ClosingBookContents }) {
   );
 }
 
+/** The Season's memorable swings, one per Game, largest first. */
 function Swings({ contents }: { contents: ClosingBookContents }) {
   const games = new Map(contents.games.map((game) => [game.gameId, game]));
   return (
@@ -256,6 +265,7 @@ function Swings({ contents }: { contents: ClosingBookContents }) {
   );
 }
 
+/** Every finished Game in the order it ended, as a scoresheet. */
 function Games({ contents, timeZone }: { contents: ClosingBookContents; timeZone: string }) {
   return (
     <section className="closing-book-section" aria-labelledby="closing-book-games">
@@ -286,6 +296,7 @@ function Games({ contents, timeZone }: { contents: ClosingBookContents; timeZone
   );
 }
 
+/** House Puzzles confirmed this Season, each with its position. */
 function Puzzles({ contents, timeZone }: { contents: ClosingBookContents; timeZone: string }) {
   return (
     <section className="closing-book-section" aria-labelledby="closing-book-puzzles">
@@ -315,6 +326,7 @@ function Puzzles({ contents, timeZone }: { contents: ClosingBookContents; timeZo
   );
 }
 
+/** A published Closing Book, cover to colophon. */
 function PublishedBook({ shelf, book }: { shelf: HouseClosingBook; book: PublishedClosingBook }) {
   const { contents } = book;
   return (

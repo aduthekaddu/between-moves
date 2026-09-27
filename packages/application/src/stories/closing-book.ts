@@ -6,6 +6,7 @@ import {
   type ClaimedOutboxEvent,
   type ClosingBookEventRecorder,
   type ClosingBookOutcome,
+  type ClosingBookRepairSource,
   type ClosingBookWriter,
   type Clock,
   type HouseClosingBook,
@@ -28,10 +29,12 @@ interface ClosingEvent {
   readonly closingAt: Date;
 }
 
+/** A malformed closing event can never succeed, so it is parked rather than retried. */
 function invalidEvent(): PermanentOutboxError {
   return new PermanentOutboxError('Invalid Season closing event');
 }
 
+/** Read the House, Season, and closing instant from a `season.closing` event, or park it. */
 function closingEvent(event: ClaimedOutboxEvent): ClosingEvent {
   const { seasonId, closingAt } = event.payload;
   if (event.houseId === null || seasonId !== event.aggregateId) throw invalidEvent();
@@ -41,6 +44,7 @@ function closingEvent(event: ClaimedOutboxEvent): ClosingEvent {
   return { houseId: event.houseId, seasonId: event.aggregateId, closingAt: instant };
 }
 
+/** Record a generation outcome without letting a diagnostics failure change the result. */
 function record(
   event: ClaimedOutboxEvent,
   outcome: ClosingBookOutcome,
@@ -70,6 +74,7 @@ export function createClosingBookConsumer(
   dependencies: ClosingBookConsumerDependencies,
 ): OutboxConsumer {
   return {
+    /** Generate the event's Season book if none exists, then publish it. */
     async consume(event) {
       let bookId: string | null = null;
       try {
@@ -111,6 +116,31 @@ export function createClosingBookConsumer(
       }
     },
   };
+}
+
+export interface ClosingBookRepairDependencies {
+  readonly books: ClosingBookRepairSource;
+  readonly consumer: OutboxConsumer;
+}
+
+/**
+ * [BM-048] Replay `season.closing` events that were acknowledged without a published book, for
+ * example by a worker deployed before Closing Books, through the idempotent consumer. A Season
+ * that fails is left for the next run and never blocks the others. Returns books published.
+ */
+export async function repairClosingBooks(
+  dependencies: ClosingBookRepairDependencies,
+  limit = 10,
+): Promise<number> {
+  let published = 0;
+  for (const event of await dependencies.books.findUnboundClosingEvents(limit)) {
+    try {
+      if ((await dependencies.consumer.consume(event)) === 'processed') published += 1;
+    } catch {
+      // The consumer has recorded the failure; the next run retries this Season.
+    }
+  }
+  return published;
 }
 
 /**

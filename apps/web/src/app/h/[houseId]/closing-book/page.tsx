@@ -23,12 +23,12 @@ export default async function ClosingBookPage({
   params: Promise<{ houseId: string }>;
 }) {
   const { houseId } = await params;
-  if (!z.uuid().safeParse(houseId).success) notFound();
+  if (!z.uuid().safeParse(houseId).success) return notFound();
   const request = new Request(new URL(`/h/${houseId}/closing-book`, getConfig().appOrigin), {
     headers: await headers(),
   });
   const shelf = await readHouseClosingBook(request, houseId);
-  if (shelf === null) notFound();
+  if (shelf === null) return notFound();
   return (
     <div className="closing-book-shell">
       <AppMasthead houseId={houseId} houseName={shelf.houseName} current="season" />

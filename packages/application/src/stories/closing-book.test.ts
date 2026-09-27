@@ -9,7 +9,7 @@ import {
 } from '@between-moves/domain';
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { createClosingBookConsumer, readClosingBook } from './closing-book';
+import { createClosingBookConsumer, readClosingBook, repairClosingBooks } from './closing-book';
 
 const houseId = '01941f29-7c00-7000-8000-000000000601';
 const seasonId = '01941f29-7c00-7000-8000-000000004701';
@@ -35,6 +35,7 @@ const source: ClosingBookSource = {
   attendance: [{ membershipId: ada.membershipId, nights: 3 }],
 };
 
+/** A claimed `season.closing` event as BM-047 enqueues it, adjusted by `overrides`. */
 function closingEvent(overrides: Partial<ClaimedOutboxEvent> = {}): ClaimedOutboxEvent {
   return {
     id: eventId,
@@ -55,6 +56,7 @@ function closingEvent(overrides: Partial<ClaimedOutboxEvent> = {}): ClaimedOutbo
   };
 }
 
+/** Consumer ports over a stored book (none by default) that generate and publish successfully. */
 function dependencies(existing: ClosingBookRecord | null = null) {
   const books = {
     findBySeason: vi.fn<ClosingBookWriter['findBySeason']>(async () => existing),
@@ -197,6 +199,55 @@ describe('Closing Book consumer', () => {
     await expect(createClosingBookConsumer(deps).consume(closingEvent())).resolves.toBe(
       'processed',
     );
+  });
+});
+
+describe('Closing Book repair', () => {
+  const legacy = [
+    closingEvent(),
+    closingEvent({ id: '01941f29-7c00-7000-8000-000000004712' }),
+    closingEvent({ id: '01941f29-7c00-7000-8000-000000004713' }),
+  ];
+
+  it('[BM-048] replays closings acknowledged without a book and counts the books it publishes', async () => {
+    const findUnboundClosingEvents = vi.fn(async () => legacy);
+    const consume = vi
+      .fn<(event: ClaimedOutboxEvent) => Promise<'processed' | 'duplicate'>>()
+      .mockResolvedValueOnce('processed')
+      .mockResolvedValueOnce('duplicate')
+      .mockResolvedValueOnce('processed');
+
+    await expect(
+      repairClosingBooks({ books: { findUnboundClosingEvents }, consumer: { consume } }, 5),
+    ).resolves.toBe(2);
+    expect(findUnboundClosingEvents).toHaveBeenCalledWith(5);
+    expect(consume.mock.calls.map(([event]) => event.id)).toEqual(legacy.map((event) => event.id));
+  });
+
+  it('[BM-048] leaves a failing Season for the next run without blocking the others', async () => {
+    const consume = vi
+      .fn<(event: ClaimedOutboxEvent) => Promise<'processed' | 'duplicate'>>()
+      .mockRejectedValueOnce(new Error('connection reset'))
+      .mockResolvedValue('processed');
+
+    await expect(
+      repairClosingBooks({
+        books: { findUnboundClosingEvents: async () => legacy },
+        consumer: { consume },
+      }),
+    ).resolves.toBe(2);
+    expect(consume).toHaveBeenCalledTimes(3);
+  });
+
+  it('[BM-048] asks for ten closings by default and does nothing when every book is bound', async () => {
+    const findUnboundClosingEvents = vi.fn(async () => []);
+    const consume = vi.fn();
+
+    await expect(
+      repairClosingBooks({ books: { findUnboundClosingEvents }, consumer: { consume } }),
+    ).resolves.toBe(0);
+    expect(findUnboundClosingEvents).toHaveBeenCalledWith(10);
+    expect(consume).not.toHaveBeenCalled();
   });
 });
 

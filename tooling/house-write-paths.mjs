@@ -202,6 +202,7 @@ export const nonHouseWriteExports = Object.freeze([
   'readGameNotes',
   'readClosingBook',
   'createClosingBookConsumer',
+  'repairClosingBooks',
 ]);
 
 /** POST routes which do not mutate an existing House. */

@@ -1,16 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { createClosingBookConsumer, createOutboxDispatcher } from '@between-moves/application';
-import { PgClosingBookRepository, PgOutboxRepository } from '@between-moves/db';
 import { createDatabase, type Database } from '@between-moves/db/database';
 import {
   resetTwoHousesWithMembers,
   twoHousesWithMembers,
   type TwoHousesWithMembers,
 } from '@between-moves/db/testing';
-import { SEASON_CLOSING_TOPIC } from '@between-moves/domain';
-import { createDeliveryMetricStubs } from '@between-moves/observability';
 import { makeSignature } from 'better-auth/crypto';
+import { execFile } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
@@ -54,6 +53,7 @@ async function purgeFixtureLedger(db: Database): Promise<void> {
   }
 }
 
+/** The seeded database and Houses, once `beforeAll` has prepared them. */
 function fixture(): { database: Database; world: TwoHousesWithMembers } {
   if (database === undefined || world === undefined) {
     throw new Error('Closing Book E2E fixture is not ready');
@@ -61,10 +61,12 @@ function fixture(): { database: Database; world: TwoHousesWithMembers } {
   return { database, world };
 }
 
+/** A Better Auth session cookie for a fixture Member's session token. */
 async function signedCookie(token: string): Promise<string> {
   return `between-moves.session_token=${token}.${await makeSignature(token, secret)}`;
 }
 
+/** Fail on serious or critical axe violations and on horizontal overflow. */
 async function expectAccessible(page: Page): Promise<void> {
   const scan = await new AxeBuilder({ page }).analyze();
   expect(
@@ -254,26 +256,20 @@ async function seedSeason(): Promise<void> {
   }
 }
 
-/** The worker's outbox path, composed exactly as in apps/worker for `season.closing`. */
+/**
+ * Publish pending Closing Books through the worker's `season.closing` path, run in its own
+ * process (see `support/closing-book-worker.ts` for why it is not imported here).
+ */
 async function runClosingBookWorker(): Promise<void> {
-  const { database: db } = fixture();
-  const clock = { now: () => new Date() };
-  const closingBook = createClosingBookConsumer({
-    books: new PgClosingBookRepository(db.pool),
-    ids: { generate: () => id(nextId++) },
-    clock,
-    events: { record: () => undefined },
+  const { stdout } = await promisify(execFile)(
+    'pnpm',
+    ['exec', 'tsx', fileURLToPath(new URL('./support/closing-book-worker.ts', import.meta.url))],
+    { cwd: fileURLToPath(new URL('..', import.meta.url)), env: process.env },
+  );
+  expect(JSON.parse(stdout.trim().split('\n').at(-1) ?? '{}')).toMatchObject({
+    sent: expect.any(Number),
+    failed: 0,
   });
-  const summary = await createOutboxDispatcher({
-    clock,
-    repository: new PgOutboxRepository(db.pool),
-    consumer: {
-      consume: async (event) =>
-        event.topic === SEASON_CLOSING_TOPIC ? closingBook.consume(event) : 'processed',
-    },
-    metrics: createDeliveryMetricStubs(),
-  }).dispatchAvailable();
-  expect(summary.failed).toBe(0);
 }
 
 test.describe('BM-048 Closing Book', () => {

@@ -97,6 +97,7 @@ const contents: ClosingBookContents = {
   ],
 };
 
+/** Knights at Dusk with its published Autumn tables book, adjusted by `overrides`. */
 function shelf(overrides: Partial<HouseClosingBook> = {}): HouseClosingBook {
   return {
     houseName: 'Knights at Dusk',
@@ -112,10 +113,12 @@ function shelf(overrides: Partial<HouseClosingBook> = {}): HouseClosingBook {
   };
 }
 
+/** Server-render the Closing Book view to static HTML. */
 function render(value: HouseClosingBook): string {
   return renderToStaticMarkup(<ClosingBookView shelf={value} />);
 }
 
+/** The published shelf with its book contents adjusted by `overrides`. */
 function withContents(overrides: Partial<ClosingBookContents>): HouseClosingBook {
   const base = shelf();
   if (base.book === null) throw new Error('fixture has a book');

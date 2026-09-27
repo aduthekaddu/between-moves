@@ -16,6 +16,7 @@ export interface ClosingBookEventRecorderOptions {
 /** [BM-048] Record Closing Book generation and publication without any of its contents. */
 export function createClosingBookEventRecorder(options: ClosingBookEventRecorderOptions) {
   return {
+    /** Log one generation outcome as `closing_book.generation`. */
     record(observation: ClosingBookObservation): void {
       const failed = observation.outcome === 'failed';
       options.logger.log({

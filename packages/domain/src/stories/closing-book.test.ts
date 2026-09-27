@@ -13,6 +13,7 @@ const bea = { membershipId: 'm-bea', displayName: 'Bea' };
 const cy = { membershipId: 'm-cy', displayName: 'Cy' };
 const dev = { membershipId: 'm-dev', displayName: 'Dev' };
 
+/** A finished correspondence Game of 40 plies; draws end by agreement, wins by checkmate. */
 function game(
   gameId: string,
   white: typeof ada,
@@ -82,6 +83,7 @@ const source: ClosingBookSource = {
   ],
 };
 
+/** A participant with every count at zero, adjusted by `overrides`. */
 function participant(
   member: typeof ada,
   overrides: Partial<ClosingBookParticipant> = {},

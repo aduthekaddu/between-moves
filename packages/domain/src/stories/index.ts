@@ -41,6 +41,7 @@ export type {
   ClosingBookPuzzle,
   ClosingBookReader,
   ClosingBookRecord,
+  ClosingBookRepairSource,
   ClosingBookSeason,
   ClosingBookSource,
   ClosingBookState,

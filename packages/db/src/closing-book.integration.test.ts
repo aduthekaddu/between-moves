@@ -53,6 +53,7 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     displayName: world.switchingMember.displayName,
   });
 
+  /** Draft, charter, and publish the first House's Autumn tables Season with four Nights. */
   async function publishSeason(): Promise<void> {
     await seasons.draft(owner, {
       seasonId,
@@ -85,6 +86,7 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     });
   }
 
+  /** Insert a correspondence Game in the Season, completed when `finished` is given. */
   async function game(
     gameIdValue: string,
     white: string,
@@ -113,6 +115,7 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     );
   }
 
+  /** Record the Game's first `count` plies of the Scholar's Mate. */
   async function moves(gameIdValue: string, white: string, black: string, count: number) {
     for (let ply = 1; ply <= count; ply += 1) {
       await database.query(
@@ -136,6 +139,7 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     }
   }
 
+  /** Record an analysed swing at `ply` as a pending puzzle candidate; returns its ID. */
   async function candidate(
     gameIdValue: string,
     ply: number,
@@ -161,6 +165,7 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     return candidateId;
   }
 
+  /** Append one Season ledger row for a Member. */
   async function award(membershipId: string, sourceKind: string, points: number): Promise<void> {
     await database.query(
       `insert into season_score_ledger
@@ -179,6 +184,7 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     );
   }
 
+  /** Record a Member's Night attendance, qualifying it when `qualified`. */
   async function attend(nightId: string, membershipId: string, qualified: boolean) {
     const joinedAt = new Date('2026-09-04T14:00:00.000Z');
     await database.query(
@@ -276,6 +282,7 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     await seasons.finalize(owner, { seasonId, closedAt });
   }
 
+  /** Read the closed Season's source and store its unpublished book. */
   async function generate(): Promise<void> {
     const source = await books.readSource(world.first.houseId, seasonId, closingAt);
     if (source === null) throw new Error('Closing Book source is unavailable');
@@ -290,6 +297,7 @@ integration('BM-048 PostgreSQL Closing Book', () => {
     });
   }
 
+  /** An authorization context for a viewer in a House (the first House by default). */
   function member(viewerId: string, houseId = world.first.houseId): AuthorizationContext {
     return fakeAuthorizationContext({ viewerId, houseId });
   }
@@ -493,6 +501,42 @@ integration('BM-048 PostgreSQL Closing Book', () => {
         [id(4906), world.first.houseId, id(4908), id(4907), generatedAt],
       ),
     ).rejects.toMatchObject({ code: '23514' });
+  });
+
+  it('[BM-048] finds closings acknowledged without a published book until one is bound', async () => {
+    await closeSeasonWithStory();
+    await expect(books.findUnboundClosingEvents(10)).resolves.toEqual([]);
+
+    await database.query('update outbox_events set sent_at = $2, attempts = 1 where id = $1', [
+      closingEventId,
+      closedAt,
+    ]);
+    await expect(books.findUnboundClosingEvents(10)).resolves.toEqual([
+      expect.objectContaining({
+        id: closingEventId,
+        topic: 'season.closing',
+        aggregateId: seasonId,
+        houseId: world.first.houseId,
+        payload: expect.objectContaining({ seasonId, closingAt: closingAt.toISOString() }),
+      }),
+    ]);
+    await expect(books.findUnboundClosingEvents(0)).resolves.toEqual([]);
+
+    await generate();
+    await expect(books.findUnboundClosingEvents(10)).resolves.toHaveLength(1);
+    await books.publish({ houseId: world.first.houseId, bookId, publishedAt });
+    await expect(books.findUnboundClosingEvents(10)).resolves.toEqual([]);
+  });
+
+  it('[BM-048] never replays a closing event without a closing instant', async () => {
+    await closeSeasonWithStory();
+    await database.query(
+      `update outbox_events set sent_at = $2, attempts = 1, payload = payload - 'closingAt'
+        where id = $1`,
+      [closingEventId, closedAt],
+    );
+
+    await expect(books.findUnboundClosingEvents(10)).resolves.toEqual([]);
   });
 
   it('[BM-048] refuses a Season that has not begun closing or belongs to another House', async () => {

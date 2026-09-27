@@ -7,6 +7,7 @@ import {
   draftSeasonCharter,
   publishSeason,
   readClosingBook,
+  repairClosingBooks,
 } from '@between-moves/application';
 import {
   migrateDown,
@@ -36,6 +37,7 @@ const migrationsDirectory = fileURLToPath(
 const startsAt = new Date('2026-09-04T00:00:00.000Z');
 const endsAt = new Date('2026-10-02T00:00:00.000Z');
 
+/** An authenticated viewer for a fixture Member. */
 function viewer(member: { readonly userId: string; readonly displayName: string }) {
   return {
     kind: 'authenticated',
@@ -67,25 +69,36 @@ integration('BM-048 Closing Book from Season close to House view', () => {
     transitions: { record: () => undefined },
   };
 
-  /** Run the worker's outbox dispatcher with only the Closing Book consumer attached. */
-  function dispatch() {
-    const closingBook = createClosingBookConsumer({
+  /** The worker's Closing Book consumer, recording each outcome for assertions. */
+  function closingBookConsumer() {
+    return createClosingBookConsumer({
       books,
       ids,
       clock,
       events: { record: (observation) => observations.push(observation) },
     });
+  }
+
+  /**
+   * Run the worker's outbox dispatcher. A worker that predates Closing Books acknowledges every
+   * event through its logging fallback, as the deployed BM-047 worker did.
+   */
+  function dispatch(worker: 'current' | 'before-closing-books' = 'current') {
+    const closingBook = closingBookConsumer();
     return createOutboxDispatcher({
       clock,
       repository: new PgOutboxRepository(database),
       consumer: {
         consume: async (event) =>
-          event.topic === SEASON_CLOSING_TOPIC ? closingBook.consume(event) : 'processed',
+          worker === 'current' && event.topic === SEASON_CLOSING_TOPIC
+            ? closingBook.consume(event)
+            : 'processed',
       },
       metrics: createDeliveryMetricStubs(),
     }).dispatchAvailable();
   }
 
+  /** Read the latest Closing Book as `who` through House authorization. */
   function read(houseId: string, who: Viewer) {
     return readClosingBook({ houseId, viewer: who }, { authorizeHouseAction, books });
   }
@@ -250,6 +263,29 @@ integration('BM-048 Closing Book from Season close to House view', () => {
     await expect(read(world.first.houseId, viewer(world.first.member))).resolves.toEqual(first);
     const rows = await database.query('select state from closing_books');
     expect(rows.rows).toEqual([{ state: 'published' }]);
+  });
+
+  it('[BM-048] binds the book for a closing that an older worker acknowledged without one', async () => {
+    const seasonId = await seasonWithAGame();
+    await closeSeason(
+      { houseId: world.first.houseId, seasonId, viewer: viewer(world.first.member) },
+      seasonDependencies,
+    );
+    await dispatch('before-closing-books');
+    await expect(read(world.first.houseId, viewer(world.first.nonOwner))).resolves.toMatchObject({
+      season: { seasonId },
+      book: null,
+    });
+
+    await expect(repairClosingBooks({ books, consumer: closingBookConsumer() })).resolves.toBe(1);
+
+    const shelf = await read(world.first.houseId, viewer(world.first.nonOwner));
+    expect(shelf?.book?.contents).toMatchObject({
+      season: { seasonId, title: 'Autumn tables' },
+      totals: { gamesCompleted: 1 },
+    });
+    await expect(repairClosingBooks({ books, consumer: closingBookConsumer() })).resolves.toBe(0);
+    expect(observations.map((observation) => observation.outcome)).toEqual(['published']);
   });
 
   it('[BM-048] AC3: a non-member is denied another House’s Closing Book', async () => {

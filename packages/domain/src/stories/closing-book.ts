@@ -1,3 +1,4 @@
+import type { ClaimedOutboxEvent } from '../delivery';
 import type { Viewer } from '../identity';
 import type { AuthorizeHouseAction } from '../houses';
 import type { CompletedGameResult, GameCompletionReason } from '../games/complete';
@@ -151,6 +152,14 @@ export interface ClosingBookWriter {
   }): Promise<boolean>;
 }
 
+/**
+ * Finds `season.closing` events that were acknowledged without a book being published, such as
+ * events consumed by a worker that predates Closing Books.
+ */
+export interface ClosingBookRepairSource {
+  findUnboundClosingEvents(limit: number): Promise<readonly ClaimedOutboxEvent[]>;
+}
+
 export interface PublishedClosingBook {
   readonly bookId: string;
   readonly generationVersion: number;
@@ -198,6 +207,7 @@ export interface ClosingBookEventRecorder {
   record(observation: ClosingBookObservation): void;
 }
 
+/** Order Members by display name, then membership ID. */
 function byName(left: ClosingBookMember, right: ClosingBookMember): number {
   return (
     left.displayName.localeCompare(right.displayName) ||
@@ -205,16 +215,19 @@ function byName(left: ClosingBookMember, right: ClosingBookMember): number {
   );
 }
 
+/** Order ISO instants chronologically. */
 function byInstant(left: string, right: string): number {
   return new Date(left).getTime() - new Date(right).getTime();
 }
 
+/** Count items by key. */
 function countBy<T>(items: readonly T[], key: (item: T) => string): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   for (const item of items) counts.set(key(item), (counts.get(key(item)) ?? 0) + 1);
   return counts;
 }
 
+/** Each finalized Member's Season in rank then name order, with results, Nights and puzzles. */
 function participation(source: ClosingBookSource): readonly ClosingBookParticipant[] {
   const nights = new Map(source.attendance.map((entry) => [entry.membershipId, entry.nights]));
   const puzzles = countBy(source.puzzles, (puzzle) => puzzle.contributor.membershipId);

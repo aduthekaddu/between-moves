@@ -74,12 +74,14 @@ const published: HouseClosingBook = {
   },
 };
 
+/** A Closing Book page request carrying a stable request ID. */
 function request(): Request {
   return new Request(`https://betweenmoves.test/h/${houseId}/closing-book`, {
     headers: { 'x-request-id': 'bm-048-closing-book-view' },
   });
 }
 
+/** A Closing Book reader for the signed-in viewer over the given read and logger. */
 function reader(
   readClosingBook: () => Promise<HouseClosingBook | null>,
   logger: StructuredLogger = { log: vi.fn() },

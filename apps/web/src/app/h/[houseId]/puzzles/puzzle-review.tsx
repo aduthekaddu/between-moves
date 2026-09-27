@@ -13,6 +13,7 @@ type Puzzle = {
   publishedAt: string;
 };
 
+/** [BM-046] Review pending positions and publish confirmed House Puzzles with a prompt. */
 export function PuzzleReview({
   houseId,
   initial,
