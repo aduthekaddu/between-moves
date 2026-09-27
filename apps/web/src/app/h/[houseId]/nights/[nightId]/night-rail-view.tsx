@@ -416,7 +416,7 @@ export function NightRailView({
         <header className="night-rail__head">
           <p className="house-home__eyebrow">Between Moves Night</p>
           <h1>The rail</h1>
-          <p className="night-rail__status" data-state={snapshot.state}>
+          <p className="night-rail__status" data-state={snapshot.state} role="status">
             {stateLabel(snapshot.state)} · {presenceLabel(snapshot.presenceCount)}
           </p>
           <p className="night-rail__live" aria-live="polite" data-live={live}>
@@ -474,22 +474,24 @@ export function NightRailView({
           <div className="night-rail__side">
             <section aria-labelledby="rail-presence-title" className="night-rail__here">
               <h2 id="rail-presence-title">Here now</h2>
-              {snapshot.presence.length === 0 ? (
-                <p className="night-rail__empty">No one is on the rail yet.</p>
-              ) : (
-                <ul className="night-rail__presence" aria-live="polite">
-                  {snapshot.presence.map((member) => (
-                    <li key={member.clientId}>
-                      <span
-                        className="night-rail__silhouette"
-                        data-silhouette={silhouetteFor(member.displayName)}
-                        aria-hidden="true"
-                      />
-                      <span>{member.displayName}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <div aria-live="polite">
+                {snapshot.presence.length === 0 ? (
+                  <p className="night-rail__empty">No one is on the rail yet.</p>
+                ) : (
+                  <ul className="night-rail__presence">
+                    {snapshot.presence.map((member) => (
+                      <li key={member.clientId}>
+                        <span
+                          className="night-rail__silhouette"
+                          data-silhouette={silhouetteFor(member.displayName)}
+                          aria-hidden="true"
+                        />
+                        <span>{member.displayName}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </section>
             {chat === undefined ? null : (
               <HouseChat

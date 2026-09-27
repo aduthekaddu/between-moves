@@ -37,7 +37,7 @@
   --square-dark-hot: #cf9448;
 
   --font-sans: var(--font-anek), system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: var(--font-mono), ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-mono: var(--font-plex), ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
   --radius: 3px;
   --card-shadow:

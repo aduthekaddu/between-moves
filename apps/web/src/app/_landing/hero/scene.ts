@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   DEMO_GAME,
   START_POSITION,
@@ -25,6 +25,8 @@ export interface HeroSceneOptions extends HeroSceneCallbacks {
   readonly modelUrl: string;
   readonly silhouetteBase: string;
   readonly reducedMotion: boolean;
+  /** The resolved IBM Plex Mono family from next/font, for the printed board margin. */
+  readonly monoFamily?: string;
   /** Development only: pin the timeline to one instant for frame-by-frame review. */
   readonly freezeAt?: number;
   readonly freezeLamp?: readonly [number, number];
@@ -111,6 +113,9 @@ export async function createHeroScene(
   canvas: HTMLCanvasElement,
   options: HeroSceneOptions,
 ): Promise<HeroScene> {
+  const monoFamily = options.monoFamily ?? '"IBM Plex Mono"';
+  // the margin is rasterised once, so the face has to be there before it is drawn
+  await document.fonts.load(`500 22px ${monoFamily}`).catch(() => undefined);
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -149,7 +154,7 @@ export async function createHeroScene(
     roughness: 0.92,
   });
   const frameMaterial = new THREE.MeshStandardMaterial({
-    map: boardMargin(FRAME, BOARD),
+    map: boardMargin(FRAME, BOARD, monoFamily),
     bumpMap: paper.bump,
     bumpScale: 0.6,
     roughness: 0.92,
@@ -275,10 +280,18 @@ export async function createHeroScene(
   const LAMP_POWER = 640;
 
   // ————— pieces —————
-  const [gltf, silhouettes] = await Promise.all([
-    new GLTFLoader().loadAsync(options.modelUrl),
-    loadSilhouettes(options.silhouetteBase),
-  ]);
+  let loaded: [GLTF, Awaited<ReturnType<typeof loadSilhouettes>>];
+  try {
+    loaded = await Promise.all([
+      new GLTFLoader().loadAsync(options.modelUrl),
+      loadSilhouettes(options.silhouetteBase),
+    ]);
+  } catch (error) {
+    // the renderer already holds the canvas's WebGL context; release it before giving up
+    renderer.dispose();
+    throw error;
+  }
+  const [gltf, silhouettes] = loaded;
   const geometries = new Map<string, THREE.BufferGeometry>();
   gltf.scene.traverse((node) => {
     if ((node as THREE.Mesh).isMesh) {
@@ -632,6 +645,11 @@ export async function createHeroScene(
 
     // timeline
     const loopT = options.reducedMotion ? length - RESET - 0.01 : clock % length;
+    // reduced motion pins the final position, so the caption has to be told about it directly
+    if (options.reducedMotion && lastMoveAnnounced !== DEMO_GAME.length - 1) {
+      lastMoveAnnounced = DEMO_GAME.length - 1;
+      options.onMove?.(lastMoveAnnounced);
+    }
     if (!options.reducedMotion && clock > length && loopT < dt * 2) {
       lastMoveAnnounced = -1;
       stampAnnounced.clear();

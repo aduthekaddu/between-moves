@@ -61,48 +61,62 @@ export function HeroStage() {
         : undefined;
     let stampKey = 0;
     const lastLamp = { x: 0, z: 0 };
+    // next/font publishes a generated family name; the canvas margin must use that, not the literal
+    const monoFamily = getComputedStyle(document.documentElement)
+      .getPropertyValue('--font-plex')
+      .trim();
+    let intersecting = true;
+    const syncActive = () => scene?.setActive(intersecting && !document.hidden);
 
-    void import('./scene').then(async ({ createHeroScene }) => {
-      if (disposed) return;
-      const created = await createHeroScene(canvas, {
-        modelUrl: '/models/house-set.glb',
-        silhouetteBase: '/landing/silhouettes',
-        reducedMotion,
-        ...(freezeAt === undefined ? {} : { freezeAt }),
-        ...(freezeLamp === undefined ? {} : { freezeLamp }),
-        onReady: () => setReady(true),
-        onMove: (index) => {
-          setMoveIndex(index);
-          sound.current?.tock();
-        },
-        onStamp: (kind, x, y) => {
-          sound.current?.stamp();
-          stampKey += 1;
-          setStamp({ kind, x, y, key: stampKey, tilt: (Math.random() - 0.5) * 16 });
-        },
-        onReset: () => {
-          setMoveIndex(-1);
-          setStamp(null);
-        },
-        onLampMoved: () => setLampMoved(true),
-        // the headline is lit by the same lamp as the board: its shadow falls away from it
-        onLamp: (x, z) => {
-          const nx = x / 8;
-          const nz = z / 8;
-          if (Math.abs(nx - lastLamp.x) + Math.abs(nz - lastLamp.z) < 0.006) return;
-          lastLamp.x = nx;
-          lastLamp.z = nz;
-          hero.style.setProperty('--lamp-x', nx.toFixed(3));
-          hero.style.setProperty('--lamp-z', nz.toFixed(3));
-        },
+    void import('./scene')
+      .then(async ({ createHeroScene }) => {
+        if (disposed) return;
+        const created = await createHeroScene(canvas, {
+          modelUrl: '/models/house-set.glb',
+          silhouetteBase: '/landing/silhouettes',
+          reducedMotion,
+          ...(monoFamily === '' ? {} : { monoFamily }),
+          ...(freezeAt === undefined ? {} : { freezeAt }),
+          ...(freezeLamp === undefined ? {} : { freezeLamp }),
+          onReady: () => setReady(true),
+          onMove: (index) => {
+            setMoveIndex(index);
+            sound.current?.tock();
+          },
+          onStamp: (kind, x, y) => {
+            sound.current?.stamp();
+            stampKey += 1;
+            setStamp({ kind, x, y, key: stampKey, tilt: (Math.random() - 0.5) * 16 });
+          },
+          onReset: () => {
+            setMoveIndex(-1);
+            setStamp(null);
+          },
+          onLampMoved: () => setLampMoved(true),
+          // the headline is lit by the same lamp as the board: its shadow falls away from it
+          onLamp: (x, z) => {
+            const nx = x / 8;
+            const nz = z / 8;
+            if (Math.abs(nx - lastLamp.x) + Math.abs(nz - lastLamp.z) < 0.006) return;
+            lastLamp.x = nx;
+            lastLamp.z = nz;
+            hero.style.setProperty('--lamp-x', nx.toFixed(3));
+            hero.style.setProperty('--lamp-z', nz.toFixed(3));
+          },
+        });
+        if (disposed) {
+          created.dispose();
+          return;
+        }
+        scene = created;
+        // an observer callback that fired before the scene existed would otherwise be lost
+        syncActive();
+        if (review !== null) (window as unknown as { __hero?: HeroScene }).__hero = created;
+      })
+      .catch(() => {
+        // the model or silhouettes failed to load: show the still instead of a blank stage
+        if (!disposed) setFallback(true);
       });
-      if (disposed) {
-        created.dispose();
-        return;
-      }
-      scene = created;
-      if (review !== null) (window as unknown as { __hero?: HeroScene }).__hero = created;
-    });
 
     const onPointer = (event: PointerEvent) => {
       if (scene === null) return;
@@ -128,12 +142,14 @@ export function HeroStage() {
     hero.addEventListener('pointerleave', onLeave);
 
     const visibility = new IntersectionObserver(
-      ([entry]) => scene?.setActive(Boolean(entry?.isIntersecting) && !document.hidden),
+      ([entry]) => {
+        intersecting = Boolean(entry?.isIntersecting);
+        syncActive();
+      },
       { threshold: 0 },
     );
     visibility.observe(stage);
-    const onVisibility = () => scene?.setActive(!document.hidden);
-    document.addEventListener('visibilitychange', onVisibility);
+    document.addEventListener('visibilitychange', syncActive);
 
     return () => {
       disposed = true;
@@ -142,8 +158,10 @@ export function HeroStage() {
       hero.removeEventListener('pointerdown', onTap);
       hero.removeEventListener('pointerleave', onLeave);
       visibility.disconnect();
-      document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener('visibilitychange', syncActive);
       scene?.dispose();
+      sound.current?.dispose();
+      sound.current = null;
     };
   }, []);
 

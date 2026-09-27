@@ -20,7 +20,7 @@ export const plexMono = localFont({
     { path: '../fonts/plex-mono-medium.woff2', weight: '500', style: 'normal' },
     { path: '../fonts/plex-mono-semibold.woff2', weight: '600', style: 'normal' },
   ],
-  variable: '--font-mono',
+  variable: '--font-plex',
   display: 'swap',
   adjustFontFallback: false,
 });

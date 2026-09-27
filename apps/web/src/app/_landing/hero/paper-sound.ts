@@ -25,6 +25,14 @@ export class PaperSound {
 
   disable() {
     this.enabled = false;
+    void this.context?.suspend();
+  }
+
+  dispose() {
+    this.enabled = false;
+    void this.context?.close();
+    this.context = null;
+    this.noise = null;
   }
 
   private burst(frequency: number, q: number, decay: number, gain: number, type: BiquadFilterType) {

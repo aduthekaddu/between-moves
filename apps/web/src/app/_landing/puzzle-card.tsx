@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PUZZLE } from './content';
 import { fenToPieces, isDark, squaresFromWhite } from './mini-board';
 
@@ -12,6 +12,16 @@ export function PuzzleCard() {
   const [from, setFrom] = useState<string | null>(null);
   const [state, setState] = useState<State>('idle');
   const [attempt, setAttempt] = useState(0);
+  const boardRef = useRef<HTMLDivElement>(null);
+
+  // replay the shake on every wrong try without remounting the squares (and losing focus)
+  useEffect(() => {
+    if (attempt === 0) return;
+    for (const animation of boardRef.current?.getAnimations?.() ?? []) {
+      animation.cancel();
+      animation.play();
+    }
+  }, [attempt]);
 
   const pieces: Record<string, string> = { ...start };
   if (state === 'solved') {
@@ -61,7 +71,7 @@ export function PuzzleCard() {
         className="lp-puzzle__board"
         role="grid"
         aria-label="House Puzzle board. White to play."
-        key={attempt}
+        ref={boardRef}
       >
         {Array.from({ length: 8 }, (_, row) => (
           <div role="row" key={row} className="lp-puzzle__row">

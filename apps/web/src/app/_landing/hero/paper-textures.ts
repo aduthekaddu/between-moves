@@ -176,7 +176,11 @@ export function contactShadow(): THREE.CanvasTexture {
  * Printed board margin: coordinates in graphite and a small imprint, drawn once onto the
  * top face of the paper frame.
  */
-export function boardMargin(frameSize: number, innerSize: number): THREE.CanvasTexture {
+export function boardMargin(
+  frameSize: number,
+  innerSize: number,
+  monoFamily: string,
+): THREE.CanvasTexture {
   const size = 1024;
   const [element, c] = canvas(size);
   const random = mulberry32(3);
@@ -191,7 +195,7 @@ export function boardMargin(frameSize: number, innerSize: number): THREE.CanvasT
   c.lineWidth = 1.5;
   c.strokeRect(margin - 6, margin - 6, inner + 12, inner + 12);
   c.fillStyle = 'rgba(38, 34, 30, 0.78)';
-  c.font = '500 22px "IBM Plex Mono", ui-monospace, monospace';
+  c.font = `500 22px ${monoFamily}, ui-monospace, monospace`;
   c.textAlign = 'center';
   c.textBaseline = 'middle';
   const square = inner / 8;
@@ -213,7 +217,7 @@ export function boardMargin(frameSize: number, innerSize: number): THREE.CanvasT
     c.fillText(String(rank), 0, 0);
     c.restore();
   }
-  c.font = '500 13px "IBM Plex Mono", ui-monospace, monospace';
+  c.font = `500 13px ${monoFamily}, ui-monospace, monospace`;
   c.textAlign = 'left';
   c.fillStyle = 'rgba(38, 34, 30, 0.5)';
   c.fillText('BETWEEN MOVES · HOUSE SET · Nº 07', margin, size - margin / 2 + 30);
