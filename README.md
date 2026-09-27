@@ -121,7 +121,14 @@ such as events consumed by a worker deployed before Closing Books. Active Member
 latest Season's book at `/h/{houseId}/closing-book` (`noindex`), which is linked from the
 final standings; anyone else gets the House not-found page. Worker logs expose
 `closing_book.generation` and `closing_books_repaired`; each view of a published book logs
-`bm.closing_book.viewed`.
+`bm.closing_book.viewed` with the reader's `actor_membership_id` and `actor_role`, so a
+non-owner's return to the book can be counted.
+
+Renewal reuses the Charter flow. After a close, an Owner or Steward publishes the next Charter
+from `/h/{houseId}/season`, which the end of the Closing Book also links to. The new Season
+starts from an empty ledger: standings, awards and the Charter itself carry nothing over, and
+late results from the closed Season still score only that Season. Once the next Season is
+active, the Season page drops the final standings but keeps a link to the last Closing Book.
 
 ## Design system: paper and lamplight
 

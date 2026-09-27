@@ -261,7 +261,10 @@ describe('Closing Book read', () => {
   const shelf: HouseClosingBook = {
     houseName: 'Knights at Dusk',
     timeZone: 'Asia/Kolkata',
+    membershipId: '01941f29-7c00-7000-8000-000000000621',
+    membershipRole: 'owner',
     season: { seasonId, title: 'Autumn tables' },
+    activeSeason: null,
     book: null,
   };
 

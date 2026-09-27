@@ -348,12 +348,70 @@ function PublishedBook({ shelf, book }: { shelf: HouseClosingBook; book: Publish
 }
 
 /**
+ * [BM-049] What follows the book: the next Season once it is under way or, while the table is
+ * open, the way into a new Charter for an Owner or Steward. Nothing in the book carries over.
+ */
+function NextSeason({
+  houseId,
+  shelf,
+  book,
+}: {
+  houseId: string;
+  shelf: HouseClosingBook;
+  book: PublishedClosingBook;
+}) {
+  const seasonHref = `/h/${encodeURIComponent(houseId)}/season`;
+  const renews = shelf.membershipRole !== 'member';
+  const { title } = book.contents.season;
+  return (
+    <section className="closing-book-next" aria-labelledby="closing-book-next-title">
+      <p className="season-eyebrow">The next Season</p>
+      {shelf.activeSeason === null ? (
+        <>
+          <h2 id="closing-book-next-title">The table is open.</h2>
+          <p>
+            {renews
+              ? `Publish a Charter to start the next Season. Nothing carries over from ${title}: points, standings and awards begin again from zero.`
+              : `When an Owner or Steward publishes the next Charter, a new Season begins from zero. ${title} stays here, on the House’s shelf.`}
+          </p>
+          {renews ? (
+            <a className="closing-book-next__action" href={seasonHref}>
+              Start the next Season
+            </a>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <h2 id="closing-book-next-title">{shelf.activeSeason.title} is under way.</h2>
+          <p>A fresh table: its points, standings and awards started again from zero.</p>
+          <a className="closing-book-next__action" href={seasonHref}>
+            Open the Season table
+          </a>
+        </>
+      )}
+    </section>
+  );
+}
+
+/**
  * [BM-048] The House's Closing Book for its latest Season: a stitched paper booklet of who
  * turned up, every finished game, the memorable swings, House Puzzles and Season awards.
+ * [BM-049] A published book ends with the House's next Season.
  */
-export function ClosingBookView({ shelf }: { readonly shelf: HouseClosingBook }) {
+export function ClosingBookView({
+  houseId,
+  shelf,
+}: {
+  readonly houseId: string;
+  readonly shelf: HouseClosingBook;
+}) {
   if (shelf.season !== null && shelf.book !== null) {
-    return <PublishedBook shelf={shelf} book={shelf.book} />;
+    return (
+      <>
+        <PublishedBook shelf={shelf} book={shelf.book} />
+        <NextSeason houseId={houseId} shelf={shelf} book={shelf.book} />
+      </>
+    );
   }
   return (
     <section className="closing-book-waiting" aria-labelledby="closing-book-title">

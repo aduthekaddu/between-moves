@@ -33,7 +33,7 @@ export default async function ClosingBookPage({
     <div className="closing-book-shell">
       <AppMasthead houseId={houseId} houseName={shelf.houseName} current="season" />
       <main className="closing-book-main">
-        <ClosingBookView shelf={shelf} />
+        <ClosingBookView houseId={houseId} shelf={shelf} />
       </main>
     </div>
   );

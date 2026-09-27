@@ -3,6 +3,7 @@
 import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { PointsRecipe } from './points-recipe';
+import { PreviousSeason } from './previous-season';
 
 interface CharterAuthoringFormProps {
   readonly houseId: string;
@@ -12,6 +13,8 @@ interface CharterAuthoringFormProps {
   readonly initialWeekday?: number | undefined;
   readonly initialLocalTime?: string | undefined;
   readonly initialCharterVersioned?: boolean | undefined;
+  /** [BM-049] The last closed Season's title when this Charter renews the House. */
+  readonly previousSeasonTitle?: string | undefined;
   /** Frozen standings shown above the Charter but placed after its h1 in the document. */
   readonly recap?: ReactNode;
 }
@@ -90,7 +93,11 @@ function FieldError({
   );
 }
 
-/** [BM-019] [UX-CMP-09] Narrow-first Charter authoring and three-command publication flow. */
+/**
+ * [BM-019] [UX-CMP-09] Narrow-first Charter authoring and three-command publication flow.
+ * [BM-049] After a close the same flow renews the House: a fresh Season that carries nothing
+ * over, which once published links back to the last Season's Closing Book.
+ */
 export function CharterAuthoringForm({
   houseId,
   draftSeasonId,
@@ -99,6 +106,7 @@ export function CharterAuthoringForm({
   initialWeekday = 5,
   initialLocalTime = '19:30',
   initialCharterVersioned = false,
+  previousSeasonTitle,
   recap = null,
 }: CharterAuthoringFormProps) {
   const [draftIdempotencyKey] = useState(() => crypto.randomUUID());
@@ -157,26 +165,32 @@ export function CharterAuthoringForm({
 
   if (publishedVersion !== null) {
     return (
-      <>
-        <section className="season-active" role="status" aria-labelledby="season-active-title">
-          <p className="season-eyebrow">Season active</p>
-          <h1 id="season-active-title">{title}</h1>
-          <p>
-            Charter version {publishedVersion} is published. The House can begin its four-week
-            Season.
-          </p>
-        </section>
-        {recap}
-      </>
+      <section className="season-active" role="status" aria-labelledby="season-active-title">
+        <p className="season-eyebrow">Season active</p>
+        <h1 id="season-active-title">{title}</h1>
+        <p>
+          Charter version {publishedVersion} is published. The House can begin its four-week Season.
+        </p>
+        {previousSeasonTitle === undefined ? null : (
+          <PreviousSeason houseId={houseId} title={previousSeasonTitle} />
+        )}
+      </section>
     );
   }
 
   return (
     <form className="charter-form" onSubmit={publish} noValidate>
       <div className="charter-form__heading">
-        <p className="season-eyebrow">Four weeks at the table</p>
+        <p className="season-eyebrow">
+          {previousSeasonTitle === undefined ? 'Four weeks at the table' : 'The next Season'}
+        </p>
         <h1>Publish a Charter</h1>
-        <p>Set the rhythm for correspondence Games and your weekly Between Moves Night.</p>
+        <p>
+          Set the rhythm for correspondence Games and your weekly Between Moves Night.
+          {previousSeasonTitle === undefined
+            ? null
+            : ` Nothing carries over from ${previousSeasonTitle}: points, standings and awards start again from zero.`}
+        </p>
       </div>
       {recap}
 
