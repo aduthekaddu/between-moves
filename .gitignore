@@ -50,3 +50,7 @@ test-results/
 .idea/
 .vscode/
 *.swp
+.vercel
+**/.env.local
+**/.env.*.local
+*.dump

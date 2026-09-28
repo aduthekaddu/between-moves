@@ -124,7 +124,6 @@ const integritySql = `select json_build_object(
 
 export async function runDrill(env = process.env, run = command) {
   const config = validateConfig(env);
-  await access(config.backup);
   await mkdir(dirname(config.record), { recursive: true });
   // Reserve the evidence path before touching the staging database. A second drill
   // cannot claim it midway through this run and hide the original outcome.
@@ -140,6 +139,7 @@ export async function runDrill(env = process.env, run = command) {
     status: 'failed',
   };
   try {
+    await access(config.backup);
     await run('pg_restore', ['--list', config.backup]);
     const existing = await run('psql', [
       '-X',
