@@ -14,7 +14,7 @@
     "@between-moves/db": "workspace:*",
     "@between-moves/domain": "workspace:*",
     "@between-moves/observability": "workspace:*",
-    "@trigger.dev/sdk": "3.3.17"
+    "@trigger.dev/sdk": "4.5.6"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

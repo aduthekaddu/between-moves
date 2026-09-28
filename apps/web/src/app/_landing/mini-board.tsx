@@ -68,12 +68,7 @@ export function MiniBoard({
             data-dark={isDark(square) || undefined}
             data-hot={highlight.includes(square) || undefined}
           >
-            {piece === undefined ? null : (
-              <span
-                className="lp-piece"
-                style={{ backgroundImage: `url(/pieces/${piece}.webp)` }}
-              />
-            )}
+            {piece === undefined ? null : <span className="lp-piece" data-piece={piece} />}
           </span>
         );
       })}

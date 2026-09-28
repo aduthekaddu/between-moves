@@ -46,7 +46,9 @@ async function latestSealedMagicLink(): Promise<string | null> {
 function openMagicLink(sealed: string): MagicLinkMessage {
   const envelope = Buffer.from(sealed, 'base64url');
   const key = createHash('sha256').update(secret, 'utf8').digest();
-  const decipher = createDecipheriv('aes-256-gcm', key, envelope.subarray(0, 12));
+  const decipher = createDecipheriv('aes-256-gcm', key, envelope.subarray(0, 12), {
+    authTagLength: 16,
+  });
   decipher.setAuthTag(envelope.subarray(12, 28));
   const plaintext = Buffer.concat([
     decipher.update(envelope.subarray(28)),

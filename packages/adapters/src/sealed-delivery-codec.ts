@@ -34,7 +34,7 @@ export class AesGcmDeliveryCodec<Message> {
     const iv = envelope.subarray(0, IV_BYTES);
     const tag = envelope.subarray(IV_BYTES, IV_BYTES + TAG_BYTES);
     const ciphertext = envelope.subarray(IV_BYTES + TAG_BYTES);
-    const decipher = createDecipheriv('aes-256-gcm', this.key, iv);
+    const decipher = createDecipheriv('aes-256-gcm', this.key, iv, { authTagLength: TAG_BYTES });
     decipher.setAuthTag(tag);
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString();
     return this.parse(JSON.parse(plaintext));

@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
-    "@playwright/test": "1.51.1",
+    "@playwright/test": "1.55.1",
     "@types/node": "24.13.3",
     "@types/pg": "8.23.1",
     "@types/react": "19.2.18",

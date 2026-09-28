@@ -972,6 +972,8 @@
 }
 
 .lp-night__photo img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: 50% 62%;
 }
@@ -2157,6 +2159,143 @@
 
 .lp-cast__card:hover .lp-turntable__strip {
   animation-duration: 666ms;
+}
+
+/* [BM-051:AC-1] Keep landing artwork and animation in stylesheets under the nonce CSP. */
+.lp-postcard:nth-child(1),
+.lp-scoreboard__rows li:nth-child(1),
+.lp-cast__card:nth-child(1) {
+  --i: 0;
+}
+.lp-postcard:nth-child(2),
+.lp-scoreboard__rows li:nth-child(2),
+.lp-cast__card:nth-child(2) {
+  --i: 1;
+}
+.lp-postcard:nth-child(3),
+.lp-scoreboard__rows li:nth-child(3),
+.lp-cast__card:nth-child(3) {
+  --i: 2;
+}
+.lp-postcard:nth-child(4),
+.lp-scoreboard__rows li:nth-child(4),
+.lp-cast__card:nth-child(4) {
+  --i: 3;
+}
+.lp-scoreboard__rows li:nth-child(5),
+.lp-cast__card:nth-child(5) {
+  --i: 4;
+}
+.lp-cast__card:nth-child(6) {
+  --i: 5;
+}
+
+.lp-cast__card[data-piece='king'] {
+  --sprite: url('/landing/turntable/king.webp');
+}
+.lp-cast__card[data-piece='queen'] {
+  --sprite: url('/landing/turntable/queen.webp');
+}
+.lp-cast__card[data-piece='rook'] {
+  --sprite: url('/landing/turntable/rook.webp');
+}
+.lp-cast__card[data-piece='bishop'] {
+  --sprite: url('/landing/turntable/bishop.webp');
+}
+.lp-cast__card[data-piece='knight'] {
+  --sprite: url('/landing/turntable/knight.webp');
+}
+.lp-cast__card[data-piece='pawn'] {
+  --sprite: url('/landing/turntable/pawn.webp');
+}
+
+.lp-piece[data-piece='white-king'] {
+  background-image: url('/pieces/white-king.webp');
+}
+.lp-piece[data-piece='white-queen'] {
+  background-image: url('/pieces/white-queen.webp');
+}
+.lp-piece[data-piece='white-rook'] {
+  background-image: url('/pieces/white-rook.webp');
+}
+.lp-piece[data-piece='white-bishop'] {
+  background-image: url('/pieces/white-bishop.webp');
+}
+.lp-piece[data-piece='white-knight'] {
+  background-image: url('/pieces/white-knight.webp');
+}
+.lp-piece[data-piece='white-pawn'] {
+  background-image: url('/pieces/white-pawn.webp');
+}
+.lp-piece[data-piece='black-king'] {
+  background-image: url('/pieces/black-king.webp');
+}
+.lp-piece[data-piece='black-queen'] {
+  background-image: url('/pieces/black-queen.webp');
+}
+.lp-piece[data-piece='black-rook'] {
+  background-image: url('/pieces/black-rook.webp');
+}
+.lp-piece[data-piece='black-bishop'] {
+  background-image: url('/pieces/black-bishop.webp');
+}
+.lp-piece[data-piece='black-knight'] {
+  background-image: url('/pieces/black-knight.webp');
+}
+.lp-piece[data-piece='black-pawn'] {
+  background-image: url('/pieces/black-pawn.webp');
+}
+
+.lp-avatar[data-silhouette='braid'] {
+  mask-image: url('/landing/silhouettes/braid.png');
+}
+.lp-avatar[data-silhouette='headphones'] {
+  mask-image: url('/landing/silhouettes/headphones.png');
+}
+.lp-avatar[data-silhouette='chai'] {
+  mask-image: url('/landing/silhouettes/chai.png');
+}
+.lp-avatar[data-silhouette='dupatta'] {
+  mask-image: url('/landing/silhouettes/dupatta.png');
+}
+.lp-avatar[data-silhouette='cap'] {
+  mask-image: url('/landing/silhouettes/cap.png');
+}
+
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='en'] {
+  font-family: var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='hi'],
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='mr'],
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='sa'] {
+  font-family: var(--font-deva), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='ta'] {
+  font-family: var(--font-taml), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='te'] {
+  font-family: var(--font-telu), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='bn'] {
+  font-family: var(--font-beng), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='kn'] {
+  font-family: var(--font-knda), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='ml'] {
+  font-family: var(--font-mlym), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='gu'] {
+  font-family: var(--font-gujr), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='pa'] {
+  font-family: var(--font-guru), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='or'] {
+  font-family: var(--font-orya), var(--font-anek), system-ui;
+}
+.lp-scripts :is(.lp-scripts__word, .lp-scripts__list span)[lang='ur'] {
+  font-family: var(--font-arab), var(--font-anek), system-ui;
 }
 
 @keyframes lp-turn {

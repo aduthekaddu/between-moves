@@ -7,6 +7,8 @@ import {
   createNoteMetricStubs,
   createReactionMetricStubs,
   createRealtimeMetricStubs,
+  createRateLimitMetricStubs,
+  type SecurityRateLimitSurface,
 } from '@between-moves/observability';
 import { getConfig, type AppConfig } from '../config';
 import {
@@ -33,6 +35,8 @@ import { createPresenceRateLimit, type PresenceRateLimit } from '../kernel/prese
 import { getIdentityMetrics } from './identity-metrics';
 import { getLogger } from './logger';
 
+// [BM-051:AC-2] Shared composition roots for all account and invitation HTTP limits.
+
 type EmailRateLimit = (request: Request, email: string) => Promise<RateLimitResult>;
 
 const globalRateLimit = globalThis as typeof globalThis & {
@@ -50,9 +54,28 @@ const globalRateLimit = globalThis as typeof globalThis & {
   betweenMovesRealtimeTokenRateLimit?: RealtimeTokenRateLimit;
   betweenMovesPresenceRateLimit?: PresenceRateLimit;
   betweenMovesRealtimeMetrics?: ReturnType<typeof createRealtimeMetricStubs>;
+  betweenMovesRateLimitMetrics?: ReturnType<typeof createRateLimitMetricStubs>;
 };
 
 const invitationMetrics = createInvitationMetricStubs();
+
+export function getRateLimitMetrics(): ReturnType<typeof createRateLimitMetricStubs> {
+  globalRateLimit.betweenMovesRateLimitMetrics ??= createRateLimitMetricStubs();
+  return globalRateLimit.betweenMovesRateLimitMetrics;
+}
+
+function recordRateLimitHit(surface: SecurityRateLimitSurface, legacy: () => void): void {
+  try {
+    legacy();
+  } catch {
+    // A metric failure must never replace a rate-limit denial.
+  }
+  try {
+    getRateLimitMetrics().incrementRateLimitHit(surface);
+  } catch {
+    // Keep the denial even if the aggregate metric is unavailable.
+  }
+}
 
 export function createSharedRateLimiter(
   config: Pick<AppConfig, 'environment' | 'upstashRedisRestUrl' | 'upstashRedisRestToken'>,
@@ -83,20 +106,23 @@ function authRateLimitDependencies(): AuthRateLimitDependencies {
   return {
     primary: createSharedRateLimiter(getConfig()),
     fallback: new InMemoryRateLimiter(),
-    metrics: getIdentityMetrics(),
+    metrics: {
+      incrementRateLimitHit: (surface) =>
+        recordRateLimitHit(surface, () => getIdentityMetrics().incrementRateLimitHit(surface)),
+    },
     onStoreError: (surface) => logStoreUnavailable(surface, 'in-process'),
   };
 }
 
 function accountRateLimit(
   create: (dependencies: AccountRateLimitDependencies) => AccountRateLimit,
-  surface: string,
+  surface: SecurityRateLimitSurface,
   incrementRateLimitHit: () => void,
 ): AccountRateLimit {
   return create({
     primary: createSharedRateLimiter(getConfig()),
     fallback: new InMemoryRateLimiter(),
-    incrementRateLimitHit,
+    incrementRateLimitHit: () => recordRateLimitHit(surface, incrementRateLimitHit),
     onStoreError: () => logStoreUnavailable(surface, 'in-process'),
   });
 }
@@ -121,7 +147,10 @@ export function getRecoveryRateLimit(): EmailRateLimit {
 export function getInvitationRateLimit(): InvitationRateLimit {
   globalRateLimit.betweenMovesInvitationRateLimit ??= createInvitationRateLimit({
     primary: createSharedRateLimiter(getConfig()),
-    incrementRateLimitHit: (surface) => invitationMetrics.incrementRateLimitHit(surface),
+    incrementRateLimitHit: (surface) =>
+      recordRateLimitHit(`invitation-${surface}`, () =>
+        invitationMetrics.incrementRateLimitHit(surface),
+      ),
     onStoreError: (surface) => logStoreUnavailable(`invitation-${surface}`, 'fail-open'),
   });
   return globalRateLimit.betweenMovesInvitationRateLimit;

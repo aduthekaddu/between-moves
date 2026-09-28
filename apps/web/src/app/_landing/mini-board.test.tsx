@@ -43,7 +43,8 @@ describe('mini board', () => {
     expect(html).toContain('class="lp-mini lp-mini--small"');
     expect(html.match(/class="lp-mini__sq"/g)).toHaveLength(64);
     expect(html.match(/data-hot="true"/g)).toHaveLength(1);
-    expect(html).toContain('url(/pieces/white-pawn.webp)');
+    expect(html).toContain('data-piece="white-pawn"');
+    expect(html).not.toContain('style=');
   });
 
   it('defaults to no highlights and no extra class', () => {

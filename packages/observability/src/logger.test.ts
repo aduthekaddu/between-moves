@@ -73,4 +73,41 @@ describe('structured logger', () => {
     });
     for (const sensitiveValue of sensitiveValues) expect(lines[0]).not.toContain(sensitiveValue);
   });
+
+  it('[BM-051:AC-2] redacts nested credentials, private content, and email addresses', () => {
+    const lines: string[] = [];
+    const logger = createStructuredLogger({
+      clock: { now: () => new Date('2026-08-29T00:00:00.000Z') },
+      sink: (line) => lines.push(line),
+    });
+    logger.log({
+      level: 'warn',
+      requestId: 'request-id',
+      actorId: 'anonymous',
+      houseId: null,
+      gameId: null,
+      commandId: null,
+      event: 'rate-limit.store-unavailable',
+      outcome: 'error',
+      durationMs: 0,
+      data: {
+        surface: 'invitation-create',
+        fallback: 'fail-open',
+        nested: [
+          { authorization: 'Bearer private-credential', chatBody: 'private chat text' },
+          { email: 'member@example.com', gameNoteBody: 'private note' },
+        ],
+      },
+    });
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('invitation-create');
+    for (const secret of [
+      'private-credential',
+      'private chat text',
+      'member@example.com',
+      'private note',
+    ]) {
+      expect(lines[0]).not.toContain(secret);
+    }
+  });
 });

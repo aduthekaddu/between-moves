@@ -41,7 +41,6 @@ export function ScriptCycler() {
         className="lp-scripts__word"
         lang={current.lang}
         dir={current.lang === 'ur' ? 'rtl' : 'ltr'}
-        style={{ fontFamily: `${current.font}, var(--font-anek), system-ui` }}
         aria-hidden="true"
       >
         {current.word}
@@ -61,12 +60,7 @@ export function ScriptCycler() {
                 setHeldUntil(Date.now() + 5000);
               }}
             >
-              <span
-                lang={entry.lang}
-                style={{ fontFamily: `${entry.font}, var(--font-anek), system-ui` }}
-              >
-                {entry.word}
-              </span>
+              <span lang={entry.lang}>{entry.word}</span>
               <span className="lp-mono">{entry.language}</span>
             </button>
           </li>

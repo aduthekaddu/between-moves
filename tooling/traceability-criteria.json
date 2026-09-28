@@ -1,0 +1,28 @@
+[
+  {
+    "id": "BM-051:AC-1",
+    "criterion": "Every response carries a nonce CSP, frame denial, nosniff, referrer policy, and HSTS without unsafe-inline.",
+    "implementation": ["apps/web/src/proxy.ts", "apps/web/src/app/layout.tsx"],
+    "tests": ["apps/web/src/proxy.test.ts", "apps/web/e2e/security-headers.spec.ts"]
+  },
+  {
+    "id": "BM-051:AC-2",
+    "criterion": "Moves, chat, reactions, and invitations return non-disclosing 429 responses with Retry-After after their thresholds.",
+    "implementation": [
+      "apps/web/src/server/rate-limit.ts",
+      "apps/web/src/kernel/invitation-rate-limit.ts",
+      "packages/observability/src/rate-limit-metrics.ts"
+    ],
+    "tests": [
+      "apps/web/src/kernel/security-rate-limits.test.ts",
+      "packages/observability/src/logger.test.ts",
+      "packages/observability/src/rate-limit-metrics.test.ts"
+    ]
+  },
+  {
+    "id": "BM-051:AC-3",
+    "criterion": "PR CI blocks on high-severity dependency, secret, and SAST findings and unmapped criteria.",
+    "implementation": [".github/workflows/ci.yml", "tooling/traceability.mjs"],
+    "tests": ["tooling/traceability.test.mjs"]
+  }
+]
