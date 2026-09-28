@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { AppEnvironment } from '../config';
 import { InMemoryRateLimiter } from '../kernel/rate-limit';
 import { getIdentityMetrics } from './identity-metrics';
+import type { SecurityRateLimitSurface } from '@between-moves/observability';
 import {
   createSharedRateLimiter,
   getChatMetrics,
@@ -14,6 +15,7 @@ import {
   getNoteMetrics,
   getNoteRateLimit,
   getPresenceRateLimit,
+  getRateLimitMetrics,
   getReactionMetrics,
   getReactionRateLimit,
   getRealtimeMetrics,
@@ -178,6 +180,20 @@ describe('shared rate-limit provider', () => {
 });
 
 describe('rate-limit composition roots', () => {
+  it('[BM-051:AC-2] records invitation inspect and redeem denials under distinct surface labels', async () => {
+    environment.current = 'preview';
+    store.limit.mockResolvedValue({ allowed: false, retryAfterSeconds: 7 });
+    for (const surface of ['inspect', 'redeem'] as const) {
+      const label = `invitation-${surface}` as const;
+      const before = getRateLimitMetrics().snapshot().rate_limit_hit_total[label];
+      await expect(getInvitationRateLimit()(request, 'actor-id', surface)).resolves.toEqual({
+        allowed: false,
+        retryAfterSeconds: 7,
+      });
+      expect(getRateLimitMetrics().snapshot().rate_limit_hit_total[label]).toBe(before + 1);
+    }
+  });
+
   it.each(surfaces)(
     '[DR-SEC-04] keeps the $name limiter in process locally and reuses it',
     async ({ limiter, check }) => {
@@ -207,13 +223,16 @@ describe('rate-limit composition roots', () => {
 
   it.each(surfaces)(
     '[DR-SEC-04] records a $name denial from the shared store',
-    async ({ check, hits, hitArguments }) => {
+    async ({ check, hits, hitArguments, surface }) => {
       environment.current = 'preview';
       store.limit.mockResolvedValue({ allowed: false, retryAfterSeconds: 7 });
       const recorded = hits?.();
+      const label = surface as SecurityRateLimitSurface;
+      const before = getRateLimitMetrics().snapshot().rate_limit_hit_total[label];
 
       await expect(check()).resolves.toEqual({ allowed: false, retryAfterSeconds: 7 });
       if (recorded) expect(recorded).toHaveBeenCalledExactlyOnceWith(...hitArguments);
+      expect(getRateLimitMetrics().snapshot().rate_limit_hit_total[label]).toBe(before + 1);
       expect(log).not.toHaveBeenCalled();
     },
   );

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import Image, { type StaticImageData } from 'next/image';
+import type { StaticImageData } from 'next/image';
+/* eslint-disable @next/next/no-img-element -- Native images avoid Next/Image inline styles under strict CSP. */
 import Link from 'next/link';
-import type { CSSProperties } from 'react';
 import { BrandMark } from './_components/brand-mark';
 import { CAST, STANDINGS, WEEK_POSTCARDS } from './_landing/content';
 import { DoorForm } from './_landing/door-form';
@@ -125,8 +125,8 @@ export default function HomePage() {
               </p>
             </div>
             <ol className="lp-postcards" data-reveal>
-              {WEEK_POSTCARDS.map((card, i) => (
-                <li key={card.move} className="lp-postcard" style={{ '--i': i } as CSSProperties}>
+              {WEEK_POSTCARDS.map((card) => (
+                <li key={card.move} className="lp-postcard">
                   {card.gap === null ? null : (
                     <span className="lp-postcard__gap lp-mono">
                       <span aria-hidden="true">{card.gap}</span>
@@ -137,11 +137,12 @@ export default function HomePage() {
                   )}
                   <figure>
                     <div className="lp-postcard__photo">
-                      <Image
-                        src={weekImages[card.image]}
+                      <img
+                        src={weekImages[card.image].src}
                         alt={weekAlt[card.image]}
-                        sizes="(max-width: 860px) 86vw, 25vw"
-                        placeholder="blur"
+                        width={weekImages[card.image].width}
+                        height={weekImages[card.image].height}
+                        loading="lazy"
                       />
                     </div>
                     <figcaption>
@@ -164,12 +165,12 @@ export default function HomePage() {
         {/* ————— 02 · The Night ————— */}
         <section id="night" className="lp-night" aria-labelledby="night-title">
           <div className="lp-night__photo">
-            <Image
-              src={nightTerrace}
+            <img
+              src={nightTerrace.src}
               alt="A papercraft rooftop terrace at night: two chess boards on a low table, chai glasses, marigold lanterns and the city beyond."
-              sizes="100vw"
-              placeholder="blur"
-              fill
+              width={nightTerrace.width}
+              height={nightTerrace.height}
+              loading="lazy"
             />
           </div>
           <div className="lp-wrap lp-night__inner">
@@ -242,8 +243,8 @@ export default function HomePage() {
                 <span className="lp-mono">Week 4 of 4</span>
               </figcaption>
               <ol className="lp-scoreboard__rows">
-                {STANDINGS.map((row, i) => (
-                  <li key={row.name} style={{ '--i': i } as CSSProperties}>
+                {STANDINGS.map((row) => (
+                  <li key={row.name}>
                     <span className="lp-plate lp-plate--rank">{row.rank}</span>
                     <span className="lp-scoreboard__name">{row.name}</span>
                     <span className="lp-plate">{String(row.points).padStart(2, '0')}</span>
@@ -280,11 +281,12 @@ export default function HomePage() {
               </div>
               <figure className="lp-book" data-reveal>
                 <div className="lp-book__photo">
-                  <Image
-                    src={closingBook}
+                  <img
+                    src={closingBook.src}
                     alt="A small paper booklet beside a folded-paper king lying on its side."
-                    sizes="(max-width: 860px) 92vw, 44vw"
-                    placeholder="blur"
+                    width={closingBook.width}
+                    height={closingBook.height}
+                    loading="lazy"
                   />
                   <p className="lp-book__cover" aria-hidden="true">
                     <span>Monsoon Season</span>
@@ -316,25 +318,14 @@ export default function HomePage() {
               </p>
             </div>
             <ol className="lp-cast" data-reveal>
-              {CAST.map((piece, i) => (
-                <li
-                  key={piece.kind}
-                  className="lp-cast__card"
-                  style={{ '--i': i } as CSSProperties}
-                >
+              {CAST.map((piece) => (
+                <li key={piece.kind} className="lp-cast__card" data-piece={piece.kind}>
                   <div
                     className="lp-turntable"
                     role="img"
                     aria-label={`The folded-paper ${piece.english.toLowerCase()}, turning.`}
                   >
-                    <span
-                      className="lp-turntable__strip"
-                      style={
-                        {
-                          '--sprite': `url(/landing/turntable/${piece.kind}.webp)`,
-                        } as CSSProperties
-                      }
-                    />
+                    <span className="lp-turntable__strip" />
                   </div>
                   <p className="lp-cast__sanskrit" lang="sa">
                     {piece.sanskrit}
@@ -371,11 +362,12 @@ export default function HomePage() {
         <section id="door" className="lp-section lp-door" aria-labelledby="door-title">
           <div className="lp-wrap lp-door__grid">
             <div className="lp-door__photo" data-reveal>
-              <Image
-                src={invitation}
+              <img
+                src={invitation.src}
                 alt="An open paper envelope sealed with a marigold chess-knight seal, an invitation card sliding out."
-                sizes="(max-width: 860px) 92vw, 46vw"
-                placeholder="blur"
+                width={invitation.width}
+                height={invitation.height}
+                loading="lazy"
               />
             </div>
             <div className="lp-door__copy" data-reveal>

@@ -2,6 +2,7 @@ import type { RateLimitInput, RateLimiter, RateLimitResult } from '@between-move
 import { clientIp, digest } from './rate-limit';
 
 const MINUTE_SECONDS = 60;
+// [BM-051:AC-2] Invitation limits apply before token inspection or redemption.
 const HOUR_SECONDS = 60 * 60;
 
 export type InvitationRateLimitSurface = 'create' | 'inspect' | 'redeem';

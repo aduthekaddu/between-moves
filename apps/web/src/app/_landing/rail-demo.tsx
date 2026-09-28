@@ -76,11 +76,7 @@ export function RailDemo() {
       <ul className="lp-rail__presence" aria-label="Here now">
         {RAIL_PRESENCE.map((member) => (
           <li key={member.name} title={member.name}>
-            <span
-              className="lp-avatar"
-              style={{ maskImage: `url(/landing/silhouettes/${member.silhouette}.png)` }}
-              aria-hidden="true"
-            />
+            <span className="lp-avatar" data-silhouette={member.silhouette} aria-hidden="true" />
             <span className="lp-rail__name">{member.name}</span>
           </li>
         ))}

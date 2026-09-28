@@ -91,12 +91,7 @@ export function PuzzleCard() {
                     aria-label={`${square}${piece === undefined ? '' : `, ${piece.replace('-', ' ')}`}`}
                     onClick={() => choose(square)}
                   >
-                    {piece === undefined ? null : (
-                      <span
-                        className="lp-piece"
-                        style={{ backgroundImage: `url(/pieces/${piece}.webp)` }}
-                      />
-                    )}
+                    {piece === undefined ? null : <span className="lp-piece" data-piece={piece} />}
                   </button>
                 );
               })}

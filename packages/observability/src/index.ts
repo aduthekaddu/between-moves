@@ -1,4 +1,6 @@
 export { createStructuredLogger } from './logger';
+export { createRateLimitMetricStubs } from './rate-limit-metrics';
+export type { RateLimitMetricStubs, SecurityRateLimitSurface } from './rate-limit-metrics';
 export type {
   LogClock,
   LogLevel,

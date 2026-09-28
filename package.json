@@ -16,6 +16,8 @@
     "test:coverage": "pnpm test:boundaries && pnpm test:isolation-coverage && turbo run test -- --coverage",
     "test:boundaries": "node --test tooling/import-boundaries.test.mjs",
     "test:isolation-coverage": "node --test tooling/house-write-isolation-coverage.test.mjs",
+    "traceability:generate": "node tooling/traceability.mjs --write",
+    "traceability:check": "node --test tooling/traceability.test.mjs && node tooling/traceability.mjs --check",
     "test:e2e": "turbo run test:e2e",
     "db:migrate": "pnpm --filter @between-moves/db migrate",
     "db:migrate:down": "pnpm --filter @between-moves/db migrate:down",

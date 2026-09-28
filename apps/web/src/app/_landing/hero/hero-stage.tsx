@@ -181,7 +181,13 @@ export function HeroStage() {
         <span
           key={stamp.key}
           className={`lp-stamp lp-stamp--${stamp.kind}`}
-          style={{ left: stamp.x, top: stamp.y, rotate: `${stamp.tilt}deg` }}
+          ref={(element) => {
+            if (element !== null) {
+              element.style.left = `${stamp.x}px`;
+              element.style.top = `${stamp.y}px`;
+              element.style.rotate = `${stamp.tilt}deg`;
+            }
+          }}
           aria-hidden="true"
         >
           {stamp.kind === 'mate' ? 'Mate' : 'Check'}

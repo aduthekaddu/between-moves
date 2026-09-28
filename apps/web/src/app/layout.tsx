@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { connection } from 'next/server';
 import { anek, plexMono } from '../lib/fonts';
 import { siteMetadata } from '../lib/site-metadata';
 import './globals.css';
@@ -29,7 +30,9 @@ export const viewport: Viewport = {
   colorScheme: 'light dark',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // [BM-051:AC-1] Nonces can only be attached to scripts/styles rendered for this request.
+  await connection();
   return (
     <html lang="en" className={`${anek.variable} ${plexMono.variable}`}>
       <body>{children}</body>

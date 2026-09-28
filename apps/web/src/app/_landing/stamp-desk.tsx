@@ -36,7 +36,9 @@ export function StampDesk() {
             key={stamped.key}
             className="lp-gamecard__stamp"
             data-kind={current.value}
-            style={{ rotate: `${stamped.tilt}deg` }}
+            ref={(element) => {
+              if (element !== null) element.style.rotate = `${stamped.tilt}deg`;
+            }}
           >
             <span aria-hidden="true">{current.glyph}</span> {current.label}
           </span>
