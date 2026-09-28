@@ -74,7 +74,7 @@ export function verifyReplay(games, Chess) {
       }
       replayedMoves += 1;
     }
-    if (game.moves.length > 0 && chess.fen() !== game.current_fen) {
+    if (chess.fen() !== game.current_fen) {
       throw new Error(`Game snapshot differs from replay for ${game.id}`);
     }
   }

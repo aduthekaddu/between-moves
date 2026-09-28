@@ -39,7 +39,9 @@ export async function summarizeLogs(path, since, open = createReadStream) {
       result.accepted_moves += 1;
       if (Number.isFinite(entry.duration_ms)) result.move_latencies.push(entry.duration_ms);
     }
-    if (entry.event === 'game.move-write-failed') result.failed_move_writes += 1;
+    if (entry.event === 'game.move-write-failed' && entry.outcome === 'error') {
+      result.failed_move_writes += 1;
+    }
     if (entry.event === 'realtime.token-issued') result.realtime_tokens += 1;
     if (entry.event === 'house.authorization-denied' && entry.data?.cross_house === true) {
       result.cross_house_denials += 1;
@@ -131,7 +133,12 @@ export function renderDashboard({ timestamp, signals, logs, products }) {
         ['Tokens issued in 28 days', logs.realtime_tokens],
         [
           'Latest publish p95 (ms)',
-          percentile(logs.realtime?.realtime_publish_delay_ms ?? [], 0.95),
+          percentile(
+            Array.isArray(logs.realtime?.realtime_publish_delay_ms)
+              ? logs.realtime.realtime_publish_delay_ms.filter(Number.isFinite)
+              : [],
+            0.95,
+          ),
         ],
       ],
     ],

@@ -24,8 +24,8 @@ local test result into a staging sign-off.
 | Pilot launch approved                                                                          | [ ]    | Decision maker and timestamp             |
 
 Local preparation: the seeded SQL test, alert test-fire unit coverage, and the 360/768
-Playwright matrix passed in the development workspace on 2026-09-28. A Docker PostgreSQL
-16 restore rehearsal also passed with one replayed Move, two scored standings, and zero
+Playwright matrix passed in the development workspace on 2026-09-28. A Docker
+restore rehearsal also passed with one replayed Move and zero
 integrity mismatches in 5 seconds against a trial 900-second target
 ([record](evidence/local-docker-restore-2026-09-28.json)). These are
 development evidence only. The missing operations document leaves the approved RTO

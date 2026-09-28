@@ -25,12 +25,15 @@ with active_houses as (
   select distinct a.membership_id from night_attendance a
   join ended_nights n on n.id = a.night_id
 ), correspondence_intervals as (
-  select extract(epoch from (m.server_received_at -
-    lag(m.server_received_at, 1, g.created_at) over
-      (partition by m.game_id order by m.ply))) / 3600 as hours
-  from moves m join games g on g.id = m.game_id
-  where g.mode = 'correspondence'
-    and m.server_received_at >= now() - interval '28 days'
+  select hours from (
+    select m.server_received_at,
+      extract(epoch from (m.server_received_at -
+        lag(m.server_received_at, 1, g.created_at) over
+          (partition by m.game_id order by m.ply))) / 3600 as hours
+    from moves m join games g on g.id = m.game_id
+    where g.mode = 'correspondence'
+  ) intervals
+  where server_received_at >= now() - interval '28 days'
 )
 select 'houses_with_a_move_28d' as metric,
   count(distinct moved_houses.house_id)::numeric as value,
