@@ -175,6 +175,27 @@ describe('BM-024 submit Move HTTP boundary', () => {
     expect(deps.metrics.incrementMoveConflict).toHaveBeenCalledOnce();
   });
 
+  it('[BM-052] emits a safe alert signal for an unexpected Move write failure', async () => {
+    const failure = new Error('database password and private details');
+    const deps = dependencies({
+      submitMove: vi.fn(async () => {
+        throw failure;
+      }),
+    });
+
+    await expect(createSubmitMoveHandler(deps)(request(), houseId, gameId)).rejects.toBe(failure);
+    expect(deps.logger.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'game.move-write-failed',
+        outcome: 'error',
+        data: { error_name: 'Error' },
+      }),
+    );
+    expect(JSON.stringify(vi.mocked(deps.logger.log).mock.calls)).not.toContain(
+      'database password',
+    );
+  });
+
   it('[BM-028] logs game.completed when the accepted Move is terminal', async () => {
     const deps = dependencies();
     vi.mocked(deps.submitMove).mockResolvedValue(acceptedResult(true));

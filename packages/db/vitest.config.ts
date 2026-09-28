@@ -6,5 +6,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     passWithNoTests: false,
     fileParallelism: false,
+    // Integration hooks repeatedly rebuild the schema on Docker PostgreSQL.
+    hookTimeout: 30_000,
   },
 });

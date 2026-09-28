@@ -58,6 +58,13 @@ Dependencies point inward: apps compose packages, `application` imports only `do
 `contracts`, and `domain` imports `contracts` as types only. `pnpm lint:boundaries`
 enforces these rules and `tooling/import-boundaries.test.mjs` pins the allow-lists.
 
+## Pilot operations
+
+Pilot operators: see [BM-052 pilot runbook](ops/pilot-runbook.md) for dashboard generation,
+alert test fires, the isolated staging restore drill, product queries, and the
+[go/no-go record](ops/pilot-go-no-go.md). Pilot launch is blocked until staging
+evidence and approval are recorded.
+
 ## Database migrations
 
 Reviewed SQL in `packages/db/migrations/NNNN_name/{up,down}.sql` is the source of truth.
