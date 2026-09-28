@@ -1,0 +1,19 @@
+{
+  "event": "pilot.restore-drill",
+  "environment": "local",
+  "started_at": "2026-09-28T08:32:57.174Z",
+  "database": "bm_restore_docker_0928",
+  "rto_target_seconds": 900,
+  "status": "passed",
+  "integrity": {
+    "move_sequence_gaps": 0,
+    "standings_mismatches": 0,
+    "missing_scored_standings": 0,
+    "cross_house_rows": 0,
+    "replayed_moves": 1,
+    "games_checked": 1
+  },
+  "finished_at": "2026-09-28T08:33:02.118Z",
+  "rto_seconds": 5,
+  "within_rto": true
+}

@@ -2,11 +2,11 @@ import { spawn } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 import { e2eEnvironment } from './environment';
 
-test('[BM-003] app boot aborts and names only a missing configuration key', async () => {
+test('[BM-003] app boot aborts and names only an invalid configuration key', async () => {
   const environment = { ...e2eEnvironment } as NodeJS.ProcessEnv;
-  const omitted = environment.REALTIME_SERVER_KEY;
-  delete environment.REALTIME_SERVER_KEY;
-  expect(omitted).toBeTruthy();
+  expect(environment.REALTIME_SERVER_KEY).toBeTruthy();
+  // An explicit empty value stays invalid even when Next loads a local .env file.
+  environment.REALTIME_SERVER_KEY = '';
 
   const result = await new Promise<{ code: number | null; output: string }>((resolve, reject) => {
     const child = spawn('pnpm', ['exec', 'next', 'start', '--port', '3199'], {

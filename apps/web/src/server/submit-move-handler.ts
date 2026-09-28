@@ -244,6 +244,22 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
         }
         return response;
       }
+      try {
+        dependencies.logger.log({
+          level: 'error',
+          requestId: readRequestId(request),
+          actorId: viewer.userId,
+          houseId,
+          gameId,
+          commandId: command.clientCommandId,
+          event: 'game.move-write-failed',
+          outcome: 'error',
+          durationMs: Math.max(0, dependencies.clock.now().getTime() - startedAt.getTime()),
+          data: { error_name: error instanceof Error ? error.name : 'UnknownError' },
+        });
+      } catch {
+        // Keep the original write failure when diagnostics are unavailable.
+      }
       throw error;
     }
   };
