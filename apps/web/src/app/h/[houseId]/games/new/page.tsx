@@ -35,7 +35,8 @@ export default async function NewGamePage({ params }: NewGamePageProps) {
     getHouseHome(request, houseId),
     getHouseRoster(request, houseId),
   ]);
-  if (home === null || roster === null) return notFound();
+  if (home === null) return notFound();
+  if (roster === null) return notFound();
   const [season, nights] = await Promise.all([
     getHouseSeason(request, houseId),
     getScheduledNights(request, houseId),
