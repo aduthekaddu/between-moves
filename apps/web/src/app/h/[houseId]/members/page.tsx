@@ -26,12 +26,12 @@ export default async function MembersPage({ params }: MembersPageProps) {
 
   const url = new URL(`/h/${encodeURIComponent(houseId)}/members`, getConfig().appOrigin);
   const request = new Request(url, { headers: await headers() });
-  const [home, roster] = await Promise.all([
+  const [houseHome, houseRoster] = await Promise.all([
     getHouseHome(request, houseId),
     getHouseRoster(request, houseId),
   ]);
-  if (home === null) return notFound();
-  if (roster === null) return notFound();
+  const home = houseHome ?? notFound();
+  const roster = houseRoster ?? notFound();
   const invitations =
     roster.viewerRole === 'member' ? [] : await getPendingInvitations(request, houseId);
 

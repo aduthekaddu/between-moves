@@ -30,18 +30,20 @@ describe('Better Auth magic-link configuration', () => {
       queueMagicLink,
     });
     const plugin = options.plugins?.find((candidate) => candidate.id === 'magic-link');
-    if (plugin?.options === undefined) throw new Error('Magic-link plugin is not configured');
-    const pluginOptions = plugin.options as {
-      expiresIn: number;
-      storeToken: string;
-      generateToken(email: string): Promise<string> | string;
-      sendMagicLink(data: {
-        email: string;
-        url: string;
-        token: string;
-        metadata?: Record<string, unknown>;
-      }): Promise<void> | void;
-    };
+    const pluginOptions = plugin?.options as
+      | {
+          expiresIn: number;
+          storeToken: string;
+          generateToken(email: string): Promise<string> | string;
+          sendMagicLink(data: {
+            email: string;
+            url: string;
+            token: string;
+            metadata?: Record<string, unknown>;
+          }): Promise<void> | void;
+        }
+      | undefined;
+    if (pluginOptions === undefined) throw new Error('Magic-link plugin is not configured');
 
     expect(pluginOptions).toMatchObject({ expiresIn: 15 * 60, storeToken: 'hashed' });
     const token = await pluginOptions.generateToken('member@example.test');

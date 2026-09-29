@@ -31,12 +31,12 @@ export default async function NewGamePage({ params }: NewGamePageProps) {
 
   const url = new URL(`/h/${encodeURIComponent(houseId)}/games/new`, getConfig().appOrigin);
   const request = new Request(url, { headers: await headers() });
-  const [home, roster] = await Promise.all([
+  const [houseHome, houseRoster] = await Promise.all([
     getHouseHome(request, houseId),
     getHouseRoster(request, houseId),
   ]);
-  if (home === null) return notFound();
-  if (roster === null) return notFound();
+  const home = houseHome ?? notFound();
+  const roster = houseRoster ?? notFound();
   const [season, nights] = await Promise.all([
     getHouseSeason(request, houseId),
     getScheduledNights(request, houseId),
