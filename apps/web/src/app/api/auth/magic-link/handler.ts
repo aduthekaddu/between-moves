@@ -4,7 +4,13 @@ import { invitationReturnPath } from '../../../../kernel/invitation-return-path'
 import { readJsonBody } from '../../../../kernel/request';
 
 const MAXIMUM_BODY_BYTES = 4_096;
-const bodySchema = z.object({ email: z.email(), returnTo: z.string().optional() }).strict();
+const bodySchema = z
+  .object({
+    email: z.email(),
+    name: z.string().trim().min(1).max(80).optional(),
+    returnTo: z.string().optional(),
+  })
+  .strict();
 
 interface SignInMetrics {
   incrementSignInAttempt(outcome: 'accepted' | 'rejected' | 'error'): void;
@@ -14,6 +20,7 @@ export interface MagicLinkRequestHandlerDependencies {
   readonly expectedOrigin: string;
   readonly requestMagicLink: (
     email: string,
+    name: string | undefined,
     headers: Headers,
     returnTo: string | null,
   ) => Promise<void>;
@@ -61,7 +68,12 @@ export function createMagicLinkRequestHandler(
     }
 
     try {
-      await dependencies.requestMagicLink(parsed.data.email, request.headers, returnTo);
+      await dependencies.requestMagicLink(
+        parsed.data.email,
+        parsed.data.name,
+        request.headers,
+        returnTo,
+      );
       dependencies.metrics.incrementSignInAttempt('accepted');
     } catch {
       // Deliberately suppress account/provider details at the public enumeration boundary.

@@ -4,6 +4,12 @@ import { connection } from 'next/server';
 import { anek, plexMono } from '../lib/fonts';
 import { siteMetadata } from '../lib/site-metadata';
 import './globals.css';
+import './styles/house.css';
+import './styles/game.css';
+import './styles/night.css';
+import './styles/season.css';
+import './styles/stories.css';
+import './styles/account.css';
 
 const origin = process.env.APP_ORIGIN;
 
@@ -26,7 +32,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0b0e19',
+  themeColor: '#120c08',
   colorScheme: 'light dark',
 };
 

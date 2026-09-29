@@ -58,6 +58,7 @@ export function PuzzleReview({
       <AppMasthead houseId={houseId} current="puzzles" />
       <main className="puzzle-main">
         <div className="puzzle-heading">
+          <span className="bm-puppet puzzle-heading__art" data-puppet="bishop" aria-hidden="true" />
           <p className="house-home__eyebrow">From the games we played</p>
           <h1>House Puzzles</h1>
           <p>Choose a moment, check the position, and write a prompt for your House.</p>

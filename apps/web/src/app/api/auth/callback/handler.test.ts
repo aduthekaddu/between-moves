@@ -39,7 +39,7 @@ describe('GET /api/auth/callback', () => {
 
     await handler(incoming);
 
-    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', incoming.headers, '/');
+    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', incoming.headers, '/account');
   });
 
   it('[BM-008] [DR-ID-02] forwards the rotated secure session cookie on valid redemption', async () => {
@@ -59,7 +59,7 @@ describe('GET /api/auth/callback', () => {
     const response = await handler(request);
 
     expect(isExpectedPurpose).toHaveBeenCalledWith('valid-token', 'signin-proof');
-    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', request.headers, '/');
+    expect(verifyMagicLink).toHaveBeenCalledWith('valid-token', request.headers, '/account');
     expect(response.status).toBe(302);
     expect(response.headers.get('set-cookie')).toContain('new-session');
   });

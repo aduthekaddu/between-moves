@@ -1,7 +1,7 @@
 'use client';
 
 import type { HouseChatSnapshotResponse } from '@between-moves/contracts';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 function codePointLength(value: string): number {
   return [...value].length;
@@ -46,6 +46,14 @@ export function HouseChat({
   const bodyLength = codePointLength(body);
   const visibleFieldError =
     fieldError || (bodyLength > 2_000 ? 'House chat must be 1–2000 characters.' : '');
+  // the chat reads bottom-up: keep the newest chit in view unless the reader has scrolled back
+  const listRef = useRef<HTMLDivElement>(null);
+  const pinnedToNewest = useRef(true);
+  const newestId = snapshot.messages.at(-1)?.id;
+  useEffect(() => {
+    const list = listRef.current;
+    if (list !== null && pinnedToNewest.current) list.scrollTop = list.scrollHeight;
+  }, [newestId]);
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -115,7 +123,16 @@ export function HouseChat({
         <h2 id="house-chat-heading">House chat</h2>
         <p>One conversation for everyone at tonight’s table.</p>
       </div>
-      <div className="house-chat__list" aria-label="House chat messages" aria-live="polite">
+      <div
+        ref={listRef}
+        className="house-chat__list"
+        aria-label="House chat messages"
+        aria-live="polite"
+        onScroll={(event) => {
+          const list = event.currentTarget;
+          pinnedToNewest.current = list.scrollHeight - list.scrollTop - list.clientHeight < 48;
+        }}
+      >
         {snapshot.messages.length === 0 ? (
           <p>No messages yet.</p>
         ) : (

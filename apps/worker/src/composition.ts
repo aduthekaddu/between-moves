@@ -74,11 +74,12 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
     const analysisJobs = new PgAnalysisJobRepository(database.pool);
     const secret = requiredEnvironment('BETTER_AUTH_SECRET');
     const apiKey = requiredEnvironment('RESEND_API_KEY');
+    const from = requiredEnvironment('RESEND_FROM_EMAIL');
     const magicLink = createMagicLinkEmailConsumer({
       codec: new AesGcmMagicLinkDeliveryCodec(secret),
       sender: new ResendMagicLinkEmailSender({
         apiKey,
-        from: 'Between Moves <sign-in@betweenmoves.app>',
+        from,
         metrics,
       }),
     });
@@ -87,7 +88,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       invitations: new PgInvitationEmailDeliveryGate(database.pool),
       sender: new ResendInvitationEmailSender({
         apiKey,
-        from: 'Between Moves <invitations@betweenmoves.app>',
+        from,
         metrics,
       }),
     });
@@ -96,7 +97,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       reader: new PgNudgeEmailReader(database.pool),
       sender: new ResendNudgeEmailSender({
         apiKey,
-        from: 'Between Moves <nudges@betweenmoves.app>',
+        from,
         metrics,
       }),
       metrics,

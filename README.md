@@ -76,6 +76,49 @@ Review the draft, then copy what you keep into the next numbered directory with 
 
 ## Analysis worker
 
+### Deploy the Trigger.dev jobs
+
+The web app on Vercel handles pages and API routes. The scheduled outbox, nudge, and
+analysis jobs live in `apps/worker` and run on Trigger.dev. Create a Trigger.dev project,
+then find its `proj_...` project reference in Project Settings. The project URL slug is
+not this reference.
+
+Set `TRIGGER_PROJECT_ID` to that reference in the shell used for deployment. Add the
+runtime values in `apps/worker/.env.example` to the matching Trigger.dev environment.
+For the live Vercel site, use the **Production** environment with the same Neon database,
+`BETTER_AUTH_SECRET`, and `REALTIME_SERVER_KEY` as Vercel. Set `APP_ORIGIN` to the deployed
+web origin. The `RESEND_FROM_EMAIL` address must use a domain verified in Resend. Keep
+`ANALYSIS_ENABLED=false` until an analysis engine is deployed; otherwise set
+`ANALYSIS_WORKER_URL` and `ANALYSIS_WORKER_SECRET` as well. Sign-in links are queued in
+PostgreSQL and will not be emailed until the outbox dispatcher is running against that
+same database.
+
+From `apps/worker`, authenticate and deploy with the CLI version matching the SDK:
+
+```bash
+pnpm dlx trigger.dev@4.5.6 login
+pnpm trigger:deploy
+```
+
+The config already discovers `src/trigger`. After deployment, check the Trigger.dev
+**Production** dashboard for `outbox-dispatcher-schedule` (each minute),
+`nudge-dispatcher-schedule` (every fifteen minutes), and `analysis-worker-schedule`
+(each minute; inactive with the environment flag). The outbox also exposes
+`outbox-dispatcher` for event-triggered runs. `pnpm trigger:dev` connects the Development
+environment only while that CLI process stays running. Deploy separately with
+`pnpm trigger:deploy --env staging` if you use a Staging environment; give it its own
+database and secrets.
+
+### Resend delivery webhook
+
+In Resend, register `https://between-moves-web.vercel.app/api/webhooks/resend` as the
+webhook endpoint and select the email delivery events you want recorded (at least
+`email.sent`, `email.delivered`, `email.bounced`, and `email.failed`). Copy the webhook's
+`whsec_...` signing secret into the web app's `RESEND_WEBHOOK_SECRET` on Vercel. This is
+separate from the Resend API key used by the Trigger.dev worker to send mail.
+
+### Analysis engine
+
 The outbox dispatcher turns each `game.analysis-requested` event into one durable
 `analysis_jobs` row. The separate `analysis-worker-schedule` leases jobs and sends
 `POST` requests to `ANALYSIS_WORKER_URL`. The request contains a job ID, game ID,
@@ -159,24 +202,33 @@ user can never be reactivated, hold a session, or rejoin a House, and a later si
 address creates a new identity. The handlers log `identity.account.exported` and
 `identity.account.deleted` with counts only.
 
-## Design system: paper and lamplight
+## Design system: Lamplight
 
-The interface is built from folded paper, indigo card and one lamp. Three dyes carry
-meaning: indigo for the House, vermilion for your turn and alarms, marigold for the lamp
-(selection, live, the leader). House, Season and Puzzle pages are day paper; the Night rail,
-live Games and Invitations are lamp-lit indigo.
+Between Moves is staged as a silhouette theatre: one lamp behind one cloth screen, and a
+company of cut-paper puppets in between, after Lotte Reiniger's silhouette films and the
+shadow theatres before them. Day pages are the lit cloth (warm, grained, brightest under the
+lamp); the Night rail, live Games, the Closing Book, Invitations and the auth pages are the
+dark stage around lit panels. Colour is rare and means something: amber for the lamp (live,
+selected, the leader), vermilion for your turn and alarms, indigo for the House, leaf for done.
+Motifs: dotted perforation rules, notched ticket stubs, rivet pips and a black scalloped valance
+across the top of every page.
 
-- **Type:** Anek by Ek Type (one variable family, weight 100–800 and width 75–125) for Latin
-  and nine Indian scripts, with IBM Plex Mono for notation, clocks and labels. Fonts are
-  self-hosted from `apps/web/src/fonts` with their OFL licences; the landing page loads
-  small per-script subsets that carry only the glyphs it shows.
-- **Pieces:** `apps/web/public/models/house-set.glb` is a low-poly, folded-paper rebuild of
-  the CC0 Poly Haven chess set by Riley Queen. The in-app board sprites in
-  `apps/web/public/pieces` and the landing turntables are rendered from the same models, so
-  every surface shows the same set.
-- **Motion:** pieces, stamps and reveals move on twos (12 fps) while light and camera stay
-  continuous. Entrances animate transforms only, so text never drops below its contrast
-  ratio mid-animation, and `prefers-reduced-motion` stills them.
-- **Landing hero:** `apps/web/src/app/_landing/hero` is a Three.js scene loaded after first
-  paint: a paper-stencil board under a lamp that follows the pointer, with the House present
-  only as shadows. In development, `/?t=<seconds>&lamp=<x>,<z>` pins one frame for review.
+- **Type:** Anek by Ek Type (variable, weight 100–800, width 75–125) for the interface, set in
+  condensed capitals for titles; IBM Plex Mono for notation, clocks and labels. The landing's
+  word journey adds two tiny subsets (Anek Devanagari for चतुरङ्ग, Noto Nastaliq Urdu for شطرنج).
+  Fonts are self-hosted from `apps/web/src/fonts` with their OFL licences.
+- **Company:** the chess pieces are the cast (King, Queen, Rook, Bishop, Knight and a chorus of
+  Pawns), with the House's friends, a lamplighter and the scenery in the same black card. Sprites
+  live in `apps/web/public/theatre` (large and `-s` small WebP) and are listed with their sizes in
+  `apps/web/src/app/_theatre/assets.ts`. Board pieces in `apps/web/public/pieces` are cut from the
+  same set: ivory paper with a black keyline, and black card.
+- **Motion:** puppets move on twos (12 fps) with a puppeteer's small hand-held jitter; light stays
+  continuous. Titles rise into place on rods, a word at a time (the landing's title letter by
+  letter). Buttons press down on twos. `prefers-reduced-motion` stills all of it.
+- **Landing theatre:** `apps/web/src/app/_theatre/engine.ts` is a small WebGL2 renderer. A
+  puppet at distance z from the screen casts a shadow magnified by 1 / (1 − z) about the lamp and
+  softened by the lamp's size; sprites multiply the screen's light, so black card blocks it and
+  coloured tissue windows glow. The lamp follows the pointer. `apps/web/src/app/_landing/stage`
+  cues each act's puppets from how far the reader has scrolled into it. Without WebGL2, or with
+  reduced motion, static posters stand in. In development, `/?t=<seconds>&lamp=<x>,<y>` pins one
+  frame for review.

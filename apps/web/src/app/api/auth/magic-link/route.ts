@@ -12,12 +12,12 @@ export function POST(request: Request): Promise<Response> {
     expectedOrigin: getConfig().appOrigin.origin,
     metrics: getIdentityMetrics(),
     rateLimit: getSignInRateLimit(),
-    async requestMagicLink(email, headers, returnTo) {
+    async requestMagicLink(email, name, headers, returnTo) {
       await getAuth().api.signInMagicLink({
         body: {
           email,
-          name: 'Member',
-          callbackURL: returnTo ?? '/',
+          name: name ?? 'Member',
+          callbackURL: returnTo ?? '/account',
           metadata: returnTo === null ? {} : { returnTo },
         },
         headers,

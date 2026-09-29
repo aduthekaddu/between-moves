@@ -22,10 +22,10 @@ export function StampDesk() {
     <div className="lp-desk">
       <article className="lp-gamecard" aria-live="polite">
         <p className="lp-gamecard__meta lp-mono">Night 3 · Board 2 · 1–0</p>
-        <h3 className="lp-gamecard__title">Rohan v Lakshmi</h3>
+        <h3 className="lp-gamecard__title">Kenji v Priya</h3>
         <p className="lp-gamecard__line lp-mono">15. Bxh7+ Kxh7 16. Ng5+ Kg8 17. Qh5</p>
         <p className="lp-gamecard__note">
-          “I saw Bxh7 on the bus home and couldn’t unsee it.” <span>— Rohan</span>
+          “I saw Bxh7 on the tram home and couldn’t unsee it.” <span>— Kenji</span>
         </p>
         {current === undefined || stamped === null ? (
           <p className="lp-gamecard__hint">

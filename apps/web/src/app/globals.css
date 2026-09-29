@@ -1,53 +1,74 @@
 /*
- * Between Moves — House pages.
- * "Paper and lamplight": day pages are warm cotton paper, Night pages are indigo under a lamp.
- * Three dyes carry meaning — indigo (the House), vermilion (your turn, alarms), marigold
- * (the lamp: selection, live, the leader).
+ * Between Moves — "Lamplight": a silhouette theatre for a chess house.
+ *
+ * Day pages are the lit cloth screen: warm, grained, brightest where the lamp hangs. Night
+ * pages (the rail, live games, invitations) are the dark stage around a lit screen. Puppets
+ * are black card with the odd tissue window, so the interface is ink on cloth, and colour
+ * is rare and means something:
+ *   amber     — the lamp: live, selected, the leader
+ *   vermilion — your turn, alarms, the one irreversible thing
+ *   indigo    — the House
+ *   leaf      — done, saved, solved
+ * Motifs: perforations (dotted rules, ticket stubs), rivets (small ringed pips), rods, and
+ * the black valance across the top of every page.
  */
 
 :root {
-  --paper: #efe8da;
-  --paper-card: #f8f4ea;
-  --paper-sunk: #e4dbc8;
-  --ink: #17161b;
-  --ink-2: #463f37;
-  --ink-3: #635c52;
-  --rule: rgba(23, 22, 27, 0.13);
-  --rule-2: rgba(23, 22, 27, 0.3);
+  --screen: #f2e3c3;
+  --screen-hot: #fbf1dc;
+  --screen-edge: #dcbd86;
+  --card: #fbf4e4;
+  --card-2: #f5e9cf;
+  --card-sunk: #ecdcbc;
+  --ink: #1c130d;
+  --ink-2: #45352a;
+  --ink-3: #6b5747;
+  --rule: rgba(28, 19, 13, 0.14);
+  --rule-2: rgba(28, 19, 13, 0.32);
 
-  --indigo: #1b2242;
-  --indigo-2: #2a3565;
-  --indigo-3: #6f79a4;
-  --night: #080a14;
-  --night-2: #0e1224;
-  --night-card: #141a31;
-  --night-text: #efe8da;
-  --night-text-2: #b9b1a2;
-  --night-rule: rgba(239, 232, 218, 0.14);
+  --stage: #120c08;
+  --stage-2: #1b130d;
+  --stage-card: #251a12;
+  --stage-text: #f7eedb;
+  --stage-text-2: #cdbd9f;
+  --stage-rule: rgba(247, 238, 219, 0.16);
 
-  --vermilion: #e0492f;
-  --vermilion-ink: #ad2e19;
-  --marigold: #f4a53c;
-  --marigold-ink: #8a4f05;
-  --leaf: #2d6a4c;
+  --amber: #e8a21a;
+  --amber-ink: #8a5608;
+  --amber-glow: #f3c35a;
+  --vermilion: #c4301a;
+  --vermilion-ink: #a8260f;
+  --indigo: #26306a;
+  --indigo-2: #36428a;
+  --leaf: #3e7b3a;
+  --leaf-ink: #2c5c29;
 
-  --square-light: #efe6d2;
-  --square-dark: #7780a8;
-  --square-light-hot: #f5d596;
-  --square-dark-hot: #cf9448;
+  /* the board is the screen itself: lit cloth, and cloth in the shadow of the frame */
+  --square-light: #f3e6c8;
+  --square-dark: #a4856f;
+  --square-light-hot: #f7d27a;
+  --square-dark-hot: #d9a24a;
+
+  /* legacy names kept for components that still read them */
+  --paper: var(--screen);
+  --paper-card: var(--card);
+  --indigo-3: #7c86b6;
+  --night-text: var(--stage-text);
+  --marigold: var(--amber);
+  --marigold-ink: var(--amber-ink);
 
   --font-sans: var(--font-anek), system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: var(--font-plex), ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
-  --radius: 3px;
-  --card-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.75) inset, 0 1px 2px rgba(60, 40, 10, 0.12),
-    0 16px 30px -20px rgba(40, 26, 8, 0.5);
-  --lift-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.75) inset, 0 2px 4px rgba(60, 40, 10, 0.12),
-    0 26px 40px -24px rgba(40, 26, 8, 0.6);
+  --radius: 2px;
+  --valance: 64px;
+  --cut-shadow: 0 1px 0 rgba(28, 19, 13, 0.08), 0 22px 44px -28px rgba(28, 19, 13, 0.62);
+  --lift-shadow: 0 1px 0 rgba(28, 19, 13, 0.08), 0 30px 60px -30px rgba(28, 19, 13, 0.7);
+  --card-shadow: var(--cut-shadow);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --page: min(100% - 2 * clamp(18px, 4vw, 56px), 1240px);
+  --twos: steps(4, end);
+  --page: min(100% - 2 * clamp(18px, 4.5vw, 64px), 1240px);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .11 0 0 0 0 .075 0 0 0 0 .05 0 0 0 .075 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 *,
@@ -59,25 +80,29 @@
 html {
   color-scheme: light;
   -webkit-text-size-adjust: 100%;
+  /* anchors and focus land below the sticky valance, not under it */
+  scroll-padding-top: calc(var(--valance) + 24px);
 }
 
+/* the lit cloth behind every day page: brightest where the lamp hangs, over the top */
 body {
+  position: relative;
   margin: 0;
   min-height: 100vh;
   background:
-    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
-    var(--paper);
+    var(--grain),
+    radial-gradient(ellipse 90% 760px at 50% 0, var(--screen-hot) 0%, rgba(251, 241, 220, 0) 72%),
+    linear-gradient(to bottom, var(--screen) 0, #ecd9b3 1400px, #e7d1a6 100%);
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
-  font-stretch: 100%;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: var(--marigold);
+  background: var(--amber-glow);
   color: var(--ink);
 }
 
@@ -105,8 +130,8 @@ p {
 }
 
 :focus-visible {
-  outline: 2px solid var(--indigo-2);
-  outline-offset: 2px;
+  outline: 3px solid var(--vermilion);
+  outline-offset: 3px;
 }
 
 .visually-hidden {
@@ -131,38 +156,37 @@ textarea {
   color: inherit;
 }
 
+/* every button in the House: a black card tab that presses down on twos */
 :where(
     .house-shell,
     .game-shell,
     .night-rail,
     .season-shell,
     .puzzle-shell,
+    .closing-book-shell,
     .invitation-shell,
     .house-unavailable
   )
   button {
-  --press: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 1px solid var(--rule-2);
+  min-height: 46px;
+  padding: 0 20px;
+  border: 2px solid var(--ink);
   border-radius: var(--radius);
-  background: var(--paper-card);
+  background: var(--card);
   color: var(--ink);
-  font-weight: 600;
+  font-weight: 680;
   font-size: 0.97rem;
   line-height: 1.1;
   cursor: pointer;
-  box-shadow: 0 calc(3px - var(--press) * 3px) 0 -1px rgba(23, 22, 27, 0.22);
-  transform: translateY(calc(var(--press) * 2px));
+  box-shadow: 0 3px 0 var(--ink);
+  /* colour changes cut in one frame, like a light cue; only the press is animated */
   transition:
-    transform 90ms var(--ease),
-    box-shadow 90ms var(--ease),
-    background 120ms var(--ease),
-    border-color 120ms var(--ease);
+    transform 0.12s var(--twos),
+    box-shadow 0.12s var(--twos);
 }
 
 :where(
@@ -171,11 +195,12 @@ textarea {
     .night-rail,
     .season-shell,
     .puzzle-shell,
+    .closing-book-shell,
     .invitation-shell,
     .house-unavailable
   )
   button:hover:not(:disabled) {
-  border-color: var(--ink);
+  background: var(--amber-glow);
 }
 
 :where(
@@ -184,11 +209,13 @@ textarea {
     .night-rail,
     .season-shell,
     .puzzle-shell,
+    .closing-book-shell,
     .invitation-shell,
     .house-unavailable
   )
   button:active:not(:disabled) {
-  --press: 1;
+  box-shadow: 0 0 0 var(--ink);
+  transform: translateY(3px);
 }
 
 :where(
@@ -197,13 +224,18 @@ textarea {
     .night-rail,
     .season-shell,
     .puzzle-shell,
+    .closing-book-shell,
     .invitation-shell,
     .house-unavailable
   )
   button:disabled {
+  border-style: dashed;
+  border-color: var(--ink-3) !important;
+  color: var(--ink-3) !important;
+  background: var(--card-sunk) !important;
   cursor: not-allowed;
-  opacity: 0.5;
-  box-shadow: none;
+  box-shadow: none !important;
+  transform: translateY(3px);
 }
 
 :where(
@@ -212,13 +244,13 @@ textarea {
     .night-rail,
     .season-shell,
     .puzzle-shell,
+    .closing-book-shell,
     .invitation-shell,
     .house-unavailable
   )
   button[aria-pressed='true'] {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--amber);
+  color: var(--ink);
 }
 
 :where(
@@ -227,20 +259,20 @@ textarea {
     .night-rail,
     .season-shell,
     .puzzle-shell,
+    .closing-book-shell,
     .invitation-shell,
     .house-unavailable
   )
   :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
   width: 100%;
-  min-height: 46px;
-  padding: 10px 12px;
-  border: 1px solid var(--rule-2);
+  min-height: 50px;
+  padding: 10px 13px;
+  border: 2px solid var(--ink);
+  border-bottom-width: 4px;
   border-radius: var(--radius);
-  background: var(--paper-card);
+  background: #fffaf0;
   color: var(--ink);
-  transition:
-    border-color 120ms var(--ease),
-    box-shadow 120ms var(--ease);
+  transition: box-shadow 0.12s var(--twos);
 }
 
 :where(
@@ -249,20 +281,41 @@ textarea {
     .night-rail,
     .season-shell,
     .puzzle-shell,
+    .closing-book-shell,
+    .invitation-shell,
+    .house-unavailable
+  )
+  select {
+  padding-right: 42px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%231c130d' stroke-width='2.2'/%3E%3C/svg%3E")
+      right 14px center / 14px 9px no-repeat,
+    #fffaf0;
+  appearance: none;
+  cursor: pointer;
+}
+
+:where(
+    .house-shell,
+    .game-shell,
+    .night-rail,
+    .season-shell,
+    .puzzle-shell,
+    .closing-book-shell,
     .invitation-shell,
     .house-unavailable
   )
   textarea {
   min-height: 120px;
   resize: vertical;
-  line-height: 1.5;
+  line-height: 1.55;
   background:
     repeating-linear-gradient(
       to bottom,
-      transparent 0 calc(1.5em - 1px),
-      rgba(42, 53, 101, 0.12) calc(1.5em - 1px) 1.5em
+      transparent 0 calc(1.55em - 1px),
+      rgba(28, 19, 13, 0.1) calc(1.55em - 1px) 1.55em
     ),
-    var(--paper-card);
+    #fffaf0;
   background-position: 0 10px;
   background-attachment: local;
 }
@@ -273,197 +326,289 @@ textarea {
     .night-rail,
     .season-shell,
     .puzzle-shell,
+    .closing-book-shell,
     .invitation-shell,
     .house-unavailable
   )
   :is(input, select, textarea):focus-visible {
-  border-color: var(--indigo-2);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(42, 53, 101, 0.22);
+  box-shadow: 0 0 0 4px var(--amber-glow);
 }
 
 input[aria-invalid='true'],
 textarea[aria-invalid='true'] {
-  border-color: var(--vermilion-ink);
+  border-color: var(--vermilion-ink) !important;
 }
 
 input[type='checkbox'] {
   width: 20px;
   height: 20px;
-  accent-color: var(--indigo-2);
+  accent-color: var(--ink);
 }
 
 label {
-  font-weight: 500;
+  font-weight: 560;
 }
 
 [role='alert'] {
   color: var(--vermilion-ink);
 }
 
-/* shared eyebrow: a mono label led by a small vermilion square */
+/* the shared eyebrow: a mono label led by a rivet */
 .house-home__eyebrow,
 .season-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   margin: 0 0 14px;
+  color: var(--ink-2);
   font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 500;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.17em;
   text-transform: uppercase;
-  color: var(--ink-3);
 }
 
 .house-home__eyebrow::before,
 .season-eyebrow::before {
   content: '';
-  width: 8px;
-  height: 8px;
-  background: var(--vermilion);
-  transform: rotate(45deg);
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border: 2.5px solid currentColor;
+  border-radius: 50%;
+  background: var(--amber);
 }
 
-/* ————— Masthead ————— */
+/* cut letters: every page title is set like the landing's surtitles */
+.bm-cut {
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 0.86;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+/* a puppet on the screen: decorative, multiplied into the light like a real shadow */
+.bm-puppet {
+  display: block;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: contain;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.bm-puppet[data-puppet='table'] {
+  background-image: url('/theatre/house/table-s.webp');
+  aspect-ratio: 1475 / 1008;
+}
+.bm-puppet[data-puppet='rooftop'] {
+  background-image: url('/theatre/house/rooftop-s.webp');
+  aspect-ratio: 1500 / 692;
+}
+.bm-puppet[data-puppet='night'] {
+  background-image: url('/theatre/house/night-s.webp');
+  aspect-ratio: 1300 / 853;
+}
+.bm-puppet[data-puppet='king'] {
+  background-image: url('/theatre/cast/king-s.webp');
+  aspect-ratio: 790 / 1150;
+}
+.bm-puppet[data-puppet='queen'] {
+  background-image: url('/theatre/cast/queen-s.webp');
+  aspect-ratio: 765 / 1150;
+}
+.bm-puppet[data-puppet='rook'] {
+  background-image: url('/theatre/cast/rook-s.webp');
+  aspect-ratio: 764 / 1150;
+}
+.bm-puppet[data-puppet='bishop'] {
+  background-image: url('/theatre/cast/bishop-s.webp');
+  aspect-ratio: 575 / 1150;
+}
+.bm-puppet[data-puppet='knight'] {
+  background-image: url('/theatre/cast/knight-s.webp');
+  aspect-ratio: 751 / 930;
+}
+.bm-puppet[data-puppet='lamplighter'] {
+  background-image: url('/theatre/cast/lamplighter-s.webp');
+  aspect-ratio: 709 / 1100;
+}
+.bm-puppet[data-puppet='door'] {
+  background-image: url('/theatre/scenery/door-s.webp');
+  aspect-ratio: 685 / 1150;
+}
+.bm-puppet[data-puppet='book'] {
+  background-image: url('/theatre/scenery/book-s.webp');
+  aspect-ratio: 1200 / 745;
+}
+.bm-puppet[data-puppet='lights'] {
+  background-image: url('/theatre/scenery/lights-s.webp');
+  aspect-ratio: 1504 / 381;
+}
+.bm-puppet[data-puppet='clouds'] {
+  background-image: url('/theatre/scenery/clouds-s.webp');
+  aspect-ratio: 1491 / 782;
+}
+.bm-puppet[data-puppet='skyline'] {
+  background-image: url('/theatre/scenery/skyline-s.webp');
+  aspect-ratio: 1544 / 433;
+}
+.bm-puppet[data-puppet='pawn'] {
+  background-image: url('/theatre/cast/pawn-3-s.webp');
+  aspect-ratio: 376 / 621;
+}
+
+/* the lit screen behind a page's title: brightest under the lamp, falling off to the edges */
+.bm-screen {
+  position: relative;
+  overflow: hidden;
+  background:
+    var(--grain),
+    radial-gradient(ellipse 60% 90% at 62% 18%, var(--screen-hot) 0%, rgba(251, 241, 220, 0) 72%),
+    radial-gradient(ellipse 120% 120% at 55% 40%, #f4e4c1 30%, #deb97c 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(28, 19, 13, 0.12),
+    inset 0 -60px 90px -60px rgba(90, 50, 16, 0.4);
+}
+
+/* ————— The valance: one black drape across the top of every House page ————— */
 
 .app-masthead {
-  position: relative;
-  z-index: 3;
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  width: var(--page);
-  min-height: 76px;
-  margin: 0 auto;
-  border-bottom: 1px solid var(--rule);
+  gap: clamp(14px, 3vw, 36px);
+  min-height: var(--valance);
+  padding: 0 max(18px, calc((100% - 1240px) / 2));
+  color: var(--stage-text);
+  background: var(--stage);
+}
+
+.app-masthead::after {
+  content: '';
+  position: absolute;
+  inset: 100% 0 auto;
+  height: 13px;
+  background: radial-gradient(circle 13px at 50% 0, var(--stage) 96%, transparent 100%) 0 0 / 26px
+    13px repeat-x;
+  pointer-events: none;
 }
 
 .app-masthead__brand {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  min-height: 44px;
+  min-width: 0;
   text-decoration: none;
 }
 
 .app-masthead__mark {
+  flex: none;
   width: 30px;
   height: 30px;
-  --mark-paper: #fbf7ee;
-  filter: drop-shadow(0 1px 1px rgba(40, 26, 8, 0.3));
 }
 
 .app-masthead__names {
   display: grid;
+  min-width: 0;
   line-height: 1.1;
 }
 
 .app-masthead__product {
-  font-weight: 700;
   font-size: 1.02rem;
+  font-weight: 760;
+  letter-spacing: -0.01em;
 }
 
 .app-masthead__house {
+  overflow: hidden;
+  color: var(--amber);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
-  color: var(--ink-3);
+  white-space: nowrap;
 }
 
 .app-masthead__nav {
   display: flex;
-  gap: clamp(4px, 1.5vw, 22px);
+  align-items: stretch;
+  gap: clamp(4px, 1.4vw, 16px);
+  margin-left: auto;
+  align-self: stretch;
 }
 
 .app-masthead__nav a {
   position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 4px;
+  padding: 0 10px;
   font-family: var(--font-mono);
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.15em;
   text-decoration: none;
-  color: var(--ink-3);
-  transition: color 120ms var(--ease);
+  text-transform: uppercase;
+  opacity: 0.78;
 }
 
 .app-masthead__nav a:hover {
-  color: var(--ink);
+  opacity: 1;
 }
 
+/* the current room: its lamp is lit, hanging over the tab */
 .app-masthead__nav a[aria-current='page'] {
-  color: var(--ink);
+  color: var(--amber);
+  opacity: 1;
 }
 
 .app-masthead__nav a[aria-current='page']::after {
   content: '';
   position: absolute;
-  left: 4px;
-  right: 4px;
-  bottom: 8px;
-  height: 2px;
-  background: var(--vermilion);
+  right: 10px;
+  bottom: 12px;
+  left: 10px;
+  height: 3px;
+  background: radial-gradient(circle, var(--amber) 1.4px, transparent 1.6px) 0 50% / 7px 3px
+    repeat-x;
 }
 
 /* [BM-050] the account link sits beside the rooms, never among them */
-.app-masthead__nav {
-  margin-left: auto;
-}
-
 .app-masthead__account {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 4px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1.5px solid var(--stage-rule);
+  border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 0.74rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-decoration: none;
   text-transform: uppercase;
-  color: var(--ink-3);
-  text-underline-offset: 4px;
 }
 
 .app-masthead__account:hover {
-  color: var(--ink);
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
-.app-masthead[data-tone='night'] {
-  border-bottom-color: var(--night-rule);
-  color: var(--night-text);
+.app-masthead :focus-visible {
+  outline-color: var(--amber);
 }
 
-.app-masthead[data-tone='night'] .app-masthead__house,
-.app-masthead[data-tone='night'] .app-masthead__nav a,
-.app-masthead[data-tone='night'] .app-masthead__account {
-  color: var(--night-text-2);
-}
-
-.app-masthead[data-tone='night'] .app-masthead__nav a:hover,
-.app-masthead[data-tone='night'] .app-masthead__nav a[aria-current='page'],
-.app-masthead[data-tone='night'] .app-masthead__account:hover {
-  color: var(--night-text);
-}
-
-.app-masthead[data-tone='night'] .app-masthead__mark {
-  filter: none;
-}
-
-/* ————— Paper pieces (rendered from the House Set) ————— */
+/* ————— Pieces: cut from ivory paper and black card ————— */
 
 [data-piece] {
   display: block;
+  background-position: center bottom;
   background-repeat: no-repeat;
-  background-position: 50% 100%;
-  background-size: 100% auto;
-  filter: drop-shadow(0 1.5px 1px rgba(10, 12, 24, 0.4));
+  background-size: contain;
 }
 
 [data-piece='white-king'] {
@@ -503,3052 +648,135 @@ label {
   background-image: url('/pieces/black-pawn.webp');
 }
 
-/* ————— House home ————— */
-
-.house-shell {
-  min-height: 100vh;
-  padding-bottom: 96px;
-}
-
-.house-home {
-  width: var(--page);
-  margin: 0 auto;
-}
-
-.house-identity {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: clamp(20px, 4vw, 48px);
-  padding: clamp(40px, 7vw, 96px) 0 clamp(32px, 5vw, 64px);
-}
-
-.house-emblem {
-  width: clamp(92px, 12vw, 148px);
-  height: auto;
-  transform: rotate(-4deg);
-  animation: fold-in 520ms steps(6, end) both;
-}
-
-@keyframes fold-in {
-  from {
-    transform: rotate(-24deg) scale(0.6);
-  }
-  to {
-    transform: rotate(-4deg);
-  }
-}
-
-.house-home__title {
-  font-size: clamp(2.8rem, 8.5vw, 7.4rem);
-  font-weight: 780;
-  font-stretch: 75%;
-  line-height: 0.86;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.house-home__description {
-  max-width: 52ch;
-  margin-top: 18px;
-  font-size: clamp(1.05rem, 1.5vw, 1.25rem);
-  color: var(--ink-2);
-}
-
-.house-home__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: clamp(24px, 4vw, 56px);
-  align-items: start;
-}
-
-.house-status {
-  position: sticky;
-  top: 24px;
-  display: grid;
-  gap: 14px;
-  padding: 26px;
-  background: var(--indigo) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  color: var(--night-text);
-  box-shadow: var(--lift-shadow);
-}
-
-.house-status .house-home__eyebrow {
-  margin: 0;
-  color: var(--night-text-2);
-}
-
-.house-status__title {
-  font-size: 2rem;
-  font-weight: 760;
-  font-stretch: 78%;
-  line-height: 0.95;
-  text-transform: uppercase;
-}
-
-.house-status__copy {
-  color: var(--night-text-2);
-}
-
-.house-details {
-  display: grid;
-  margin: 6px 0;
-  border-top: 1px solid var(--night-rule);
-}
-
-.house-details div {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--night-rule);
-}
-
-.house-details dt {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--night-text-2);
-}
-
-.house-details dd {
-  margin: 0;
-  font-weight: 600;
-  text-align: right;
-}
-
-.house-status__action {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 50px;
-  padding: 0 18px;
-  border-radius: var(--radius);
-  background: var(--marigold);
-  color: var(--ink);
-  font-weight: 700;
-  text-decoration: none;
-  box-shadow: 0 4px 0 -1px #9f5f0b;
-  transition: transform 90ms var(--ease);
-}
-
-.house-status__action::after {
-  content: '→';
-  font-family: var(--font-mono);
-}
-
-.house-status__action:hover {
-  transform: translateY(1px);
-}
-
-.house-status__action--quiet {
-  background: transparent;
-  color: var(--night-text);
-  box-shadow: inset 0 0 0 1px var(--night-rule);
-}
-
-.house-status :focus-visible,
-.app-masthead[data-tone='night'] :focus-visible {
-  outline-color: var(--marigold);
-}
-
-/* ————— Move shelf ————— */
-
-.move-shelf {
-  display: grid;
-  gap: 28px;
-}
-
-.move-shelf__heading h2,
-.night-schedule h2,
-.charter-points h2,
-.puzzle-main section > h2,
-.night-rail__main h2,
-.game-notes h2,
-.reaction-control h2,
-.house-chat h2 {
-  font-size: clamp(1.6rem, 2.6vw, 2.3rem);
-  font-weight: 760;
-  font-stretch: 78%;
-  line-height: 0.95;
-  text-transform: uppercase;
-}
-
-.move-shelf__heading .house-home__eyebrow {
-  margin-bottom: 10px;
-}
-
-.move-shelf__groups {
-  display: grid;
-  gap: 38px;
-}
-
-.move-shelf__groups > section {
-  display: grid;
-  gap: 16px;
-}
-
-.move-shelf__groups h3 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1.5px solid var(--ink);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-[data-shelf-group='your-move'] h3 {
-  color: var(--vermilion-ink);
-  border-bottom-color: var(--vermilion-ink);
-}
-
-.move-shelf__groups ul {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 18px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.move-card {
-  position: relative;
-  display: grid;
-  gap: 10px;
-  min-height: 150px;
-  padding: 18px 18px 16px;
-  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  color: var(--ink);
-  text-decoration: none;
-  box-shadow: var(--card-shadow);
-  transform: rotate(var(--tilt, -0.6deg));
-  transition:
-    transform 160ms var(--ease),
-    box-shadow 160ms var(--ease);
-}
-
-.move-shelf__groups li:nth-child(2n) .move-card {
-  --tilt: 0.7deg;
-}
-
-.move-shelf__groups li:nth-child(3n) .move-card {
-  --tilt: -0.2deg;
-}
-
-a.move-card:hover {
-  transform: rotate(0deg) translateY(-4px);
-  box-shadow: var(--lift-shadow);
-}
-
-a.move-card:focus-visible {
-  outline-offset: 4px;
-}
-
-.move-card strong {
-  align-self: end;
-  font-size: 1.45rem;
-  font-weight: 760;
-  font-stretch: 82%;
-  line-height: 1;
-}
-
-.move-card__status {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 10px 3px;
-  border: 2px solid currentColor;
-  border-radius: 4px;
-  font-size: 0.86rem;
-  font-weight: 760;
-  font-stretch: 80%;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--indigo-2);
-  transform: rotate(-2.5deg);
-}
-
-[data-shelf-group='your-move'] .move-card__status {
-  color: var(--vermilion-ink);
-}
-
-[data-shelf-group='recent'] .move-card__status {
-  color: var(--ink-2);
-}
-
-.move-card__status--overdue {
-  border-color: var(--vermilion-ink);
-  background: var(--vermilion-ink);
-  color: #fff8ee !important;
-}
-
-.move-card--overdue {
-  box-shadow:
-    inset 4px 0 0 var(--vermilion),
-    var(--card-shadow);
-}
-
-.move-card__time {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--ink-3);
-}
-
-.move-shelf__empty,
-.move-shelf__group-empty {
-  padding: 18px 20px;
-  border: 1.5px dashed var(--rule-2);
-  border-radius: var(--radius);
-  color: var(--ink-3);
-}
-
-.move-shelf__empty {
-  padding: 36px 28px;
-  font-size: 1.1rem;
-}
-
-/* ————— Game ————— */
-
-.game-shell {
-  min-height: 100vh;
-  padding-bottom: 96px;
-}
-
-.game-shell--live {
-  background:
-    radial-gradient(60% 50% at 38% 42%, rgba(255, 196, 120, 0.1), transparent 70%), var(--night);
-  color: var(--night-text);
-}
-
-.game-main {
-  display: grid;
-  gap: clamp(32px, 5vw, 64px);
-  width: var(--page);
-  margin: 0 auto;
-  padding-top: clamp(28px, 4vw, 52px);
-}
-
-.game-title {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 8px 24px;
-}
-
-.game-title .house-home__eyebrow {
-  grid-column: 1 / -1;
-  margin: 0;
-}
-
-.game-title h1 {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 0.28em;
-  font-size: clamp(2.6rem, 7vw, 6.2rem);
-  font-weight: 780;
-  font-stretch: 75%;
-  line-height: 0.88;
-  text-transform: uppercase;
-}
-
-.game-title__versus {
-  font-family: var(--font-mono);
-  font-size: 0.34em;
-  font-weight: 500;
-  text-transform: lowercase;
-  color: var(--vermilion);
-}
-
-.game-title__player[data-side='black'] {
-  color: var(--indigo-2);
-}
-
-.game-shell--live .game-title__player[data-side='black'] {
-  color: var(--marigold);
-}
-
-.game-title__seats {
-  grid-column: 1;
-  color: var(--ink-3);
-}
-
-.game-shell--live .game-title__seats,
-.game-shell--live .house-home__eyebrow {
-  color: var(--night-text-2);
-}
-
-.game-title__mode {
-  grid-column: 2;
-  grid-row: 2 / span 2;
-  align-self: center;
-  padding: 6px 12px 5px;
-  border: 2px solid currentColor;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  font-weight: 760;
-  font-stretch: 80%;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--indigo-2);
-  transform: rotate(3deg);
-}
-
-.game-title__mode[data-mode='live'] {
-  color: var(--marigold);
-}
-
-.move-entry {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 360px);
-  column-gap: clamp(20px, 4vw, 56px);
-  row-gap: 14px;
-  align-items: start;
-}
-
-.move-entry > * {
-  grid-column: 2;
-}
-
-.move-entry > .chess-board {
-  grid-column: 1;
-  grid-row: 1 / span 12;
-}
-
-.move-entry__heading {
-  display: grid;
-  gap: 10px;
-}
-
-.move-entry__heading h2 {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.move-entry__heading p {
-  font-size: clamp(1.8rem, 3vw, 2.6rem);
-  font-weight: 780;
-  font-stretch: 75%;
-  line-height: 0.95;
-  text-transform: uppercase;
-}
-
-.game-shell--live .move-entry__heading h2 {
-  color: var(--night-text-2);
-}
-
-/* the board: a printed paper frame around paper and indigo squares */
-.chess-board {
-  display: grid;
-  grid-template-rows: repeat(8, 1fr);
-  aspect-ratio: 1;
-  width: 100%;
-  max-width: 760px;
-  padding: clamp(10px, 2.2%, 18px);
-  background:
-    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
-    #eadfc8;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 2px 3px rgba(40, 26, 8, 0.2),
-    0 40px 60px -34px rgba(20, 14, 6, 0.7);
-  transition: filter 160ms var(--ease);
-}
-
-.chess-board__row {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  min-height: 0;
-}
-
-.chess-board__square {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: var(--square-light);
-  box-shadow: none;
-  transform: none;
-  cursor: pointer;
-  transition: box-shadow 90ms var(--ease);
-}
-
-.chess-board__square[data-color='dark'] {
-  background: var(--square-dark);
-}
-
-.chess-board__square:hover:not([aria-disabled='true']) {
-  border: 0;
-  box-shadow: inset 0 0 0 3px rgba(23, 22, 27, 0.35);
-}
-
-.chess-board__square[aria-disabled='true'] {
-  cursor: default;
-  opacity: 1;
-}
-
-.chess-board__square[data-last-move],
-.chess-board__square[aria-selected='true'] {
-  background-color: var(--square-light-hot);
-}
-
-.chess-board__square[data-color='dark'][data-last-move],
-.chess-board__square[data-color='dark'][aria-selected='true'] {
-  background-color: var(--square-dark-hot);
-}
-
-.chess-board__square[aria-selected='true'] {
-  box-shadow: inset 0 0 0 4px var(--ink);
-}
-
-.chess-board__square[data-check] {
-  background-image: radial-gradient(circle, rgba(224, 73, 47, 0.9) 0 28%, rgba(224, 73, 47, 0) 70%);
-}
-
-.chess-board__square:focus-visible {
-  z-index: 2;
-  outline: 3px solid var(--indigo);
-  outline-offset: -3px;
-}
-
-.chess-board__piece {
-  position: absolute;
-  inset: -16% 2% 3%;
-  pointer-events: none;
-  transition: transform 120ms var(--ease);
-}
-
-.chess-board__square[aria-selected='true'] .chess-board__piece {
-  transform: translateY(-6%);
-}
-
-.chess-board__rank,
-.chess-board__file {
-  position: absolute;
-  font-family: var(--font-mono);
-  font-size: clamp(0.55rem, 1.1vw, 0.72rem);
-  font-weight: 600;
-  line-height: 1;
-  color: var(--square-dark);
-  pointer-events: none;
-}
-
-.chess-board__square[data-color='dark'] .chess-board__rank,
-.chess-board__square[data-color='dark'] .chess-board__file {
-  color: var(--square-light);
-}
-
-.chess-board__rank {
-  top: 5%;
-  left: 6%;
-}
-
-.chess-board__file {
-  right: 6%;
-  bottom: 5%;
-}
-
-.chess-board--pending {
-  filter: saturate(0.7) brightness(0.96);
-  cursor: progress;
-}
-
-/* live clocks: two faces, the running one lit */
-.live-clocks {
-  display: grid;
-  gap: 10px;
-}
-
-.live-clock {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--night-rule);
-  border-radius: var(--radius);
-  background: var(--night-card);
-  color: var(--night-text);
-}
-
-.live-clock__player {
-  display: grid;
-  gap: 2px;
-  font-weight: 600;
-}
-
-.live-clock__turn {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--night-text-2);
-}
-
-.live-clock [role='timer'] {
-  font-family: var(--font-mono);
-  font-size: 2.2rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-
-.live-clock[data-running='true'] {
-  border-color: var(--marigold);
-  box-shadow:
-    0 0 0 1px var(--marigold),
-    0 10px 40px -10px rgba(244, 165, 60, 0.45);
-}
-
-.live-clock[data-running='true'] .live-clock__turn,
-.live-clock[data-running='true'] [role='timer'] {
-  color: var(--marigold);
-}
-
-.move-entry__banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 14px;
-  padding: 14px 16px;
-  border-left: 4px solid var(--vermilion);
-  background: #fbe9e3;
-  color: var(--ink);
-}
-
-.move-entry__banner span {
-  flex: 1 1 200px;
-  font-weight: 500;
-}
-
-.game-live-notice {
-  padding: 12px 14px;
-  border: 1px dashed var(--night-rule);
-  color: var(--night-text-2);
-}
-
-.move-entry__controls {
-  display: grid;
-  gap: 12px;
-  padding: 18px;
-  background: var(--paper-card);
-  box-shadow: var(--card-shadow);
-  color: var(--ink);
-}
-
-.move-entry__controls > p {
-  font-weight: 500;
-}
-
-.move-entry__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.move-entry__submit,
-.charter-form__submit,
-.season-close__confirm,
-.invitation-form button,
-.invitation-card__retry,
-.game-notes__form button[type='submit'],
-.house-chat__form button[type='submit'],
-.puzzle-card form button[type='submit'] {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--paper);
-  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px var(--vermilion);
-}
-
-.move-entry__submit {
-  flex: 1 1 auto;
-  min-height: 52px;
-  font-size: 1.05rem;
-}
-
-.move-entry__submit:hover:not(:disabled),
-.charter-form__submit:hover:not(:disabled) {
-  background: #000;
-}
-
-.move-entry__promotion {
-  display: grid;
-  gap: 6px;
-  font-size: 0.9rem;
-}
-
-.game-position-status {
-  display: grid;
-  gap: 4px;
-  padding: 14px 0;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-}
-
-.game-position-status strong {
-  font-size: 1.15rem;
-}
-
-.game-position-status span {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--ink-3);
-}
-
-.game-shell--live .game-position-status {
-  border-color: var(--night-rule);
-}
-
-.game-shell--live .game-position-status span {
-  color: var(--night-text-2);
-}
-
-/* the move list as a scoresheet */
-.move-list {
-  border: 1px solid var(--rule-2);
-  background: var(--paper-card);
-  color: var(--ink);
-}
-
-.move-list summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 46px;
-  padding: 0 14px;
-  border-bottom: 1.5px solid var(--ink);
-  background: var(--paper-card);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  list-style: none;
-}
-
-.move-list summary::-webkit-details-marker {
-  display: none;
-}
-
-.move-list summary::after {
-  content: '+';
-  font-size: 1.1rem;
-}
-
-.move-list[open] summary::after {
-  content: '−';
-}
-
-.move-list > p {
-  padding: 8px 14px;
-  color: var(--ink-3);
-}
-
-.move-list ol {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  max-height: 360px;
-  margin: 0;
-  padding: 0;
-  overflow: auto;
-  list-style: none;
-  counter-reset: fullmove;
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  /* ruled like a tournament scoresheet: one line under every row */
-  background: repeating-linear-gradient(to bottom, transparent 0 35px, var(--rule) 35px 36px);
-  background-attachment: local;
-}
-
-.move-list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 36px;
-  padding: 0 12px;
-}
-
-.move-list li:nth-child(odd) {
-  counter-increment: fullmove;
-  border-right: 1px solid var(--rule);
-}
-
-.move-list li:nth-child(odd)::before {
-  content: counter(fullmove) '.';
-  min-width: 2.2ch;
-  color: var(--ink-3);
-}
-
-.move-list li:last-child {
-  font-weight: 600;
-  color: var(--vermilion-ink);
-}
-
-/* reactions: rubber stamps */
-.reaction-control,
-.game-notes {
-  display: grid;
-  gap: 18px;
-  max-width: 900px;
-}
-
-.reaction-control__options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.reaction-control__options button {
-  min-height: 52px;
-  padding: 0 18px;
-  border: 2px solid var(--indigo-2);
-  background: transparent;
-  color: var(--indigo-2);
-  font-size: 1rem;
-  font-weight: 760;
-  font-stretch: 82%;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  box-shadow: none;
-}
-
-.reaction-control__options button:nth-child(odd) {
-  transform: rotate(-1.5deg) translateY(calc(var(--press) * 2px));
-}
-
-.reaction-control__options button:nth-child(even) {
-  transform: rotate(1.2deg) translateY(calc(var(--press) * 2px));
-}
-
-.reaction-control__options button[aria-pressed='true'] {
-  border-color: var(--vermilion-ink);
-  background: var(--vermilion-ink);
-  color: #fff8ee;
-  animation: thunk 240ms steps(4, end);
-}
-
-@keyframes thunk {
-  0% {
-    scale: 1.25;
-  }
-  60% {
-    scale: 0.95;
-  }
-  100% {
-    scale: 1;
-  }
-}
-
-.reaction-control__status,
-.game-notes__status,
-.house-chat__status {
-  font-size: 0.92rem;
-  color: var(--ink-3);
-}
-
-.game-shell--live .reaction-control__status,
-.game-shell--live .game-notes__status {
-  color: var(--night-text-2);
-}
-
-/* post-game notes: paper slips */
-.game-notes > div:first-child p:last-child {
-  color: var(--ink-3);
-}
-
-.game-notes__form,
-.house-chat__form {
-  display: grid;
-  gap: 10px;
-  padding: 18px;
-  background: var(--paper-card);
-  box-shadow: var(--card-shadow);
-  color: var(--ink);
-}
-
-.game-notes__form-meta,
-.house-chat__form-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  color: var(--ink-3);
-}
-
-.game-notes__form button,
-.house-chat__form button {
-  justify-self: start;
-}
-
-.game-notes__list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.game-notes__note {
-  display: grid;
-  gap: 8px;
-  padding: 18px 18px 20px;
-  background: #fffaf0;
-  box-shadow: var(--card-shadow);
-  color: var(--ink);
-  transform: rotate(-0.8deg);
-}
-
-.game-notes__note:nth-child(even) {
-  transform: rotate(0.9deg);
-}
-
-.game-notes__note h3 {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--vermilion-ink);
-}
-
-.game-notes__note p {
-  font-size: 1.05rem;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.game-notes__note small {
-  font-family: var(--font-mono);
-  color: var(--ink-3);
-}
-
-.game-notes__error,
-.reaction-control__error,
-.house-chat__error,
-.charter-form__error {
-  font-weight: 500;
-  color: var(--vermilion-ink);
-}
-
-.game-shell--live .reaction-control h2,
-.game-shell--live .game-notes h2 {
-  color: var(--night-text);
-}
-
-.game-shell--live .reaction-control__options button {
-  border-color: var(--night-text-2);
-  color: var(--night-text);
-}
-
-.game-shell--live :focus-visible {
-  outline-color: var(--marigold);
-}
-
-/* ————— Night rail (lamp mode) ————— */
-
-.night-rail {
-  min-height: 100vh;
-  padding-bottom: 96px;
-  background:
-    radial-gradient(55% 45% at 30% 20%, rgba(255, 196, 120, 0.11), transparent 70%),
-    radial-gradient(40% 40% at 85% 60%, rgba(42, 53, 101, 0.45), transparent 70%), var(--night);
-  color: var(--night-text);
-}
-
-.night-rail :focus-visible {
-  outline-color: var(--marigold);
-}
-
-.night-rail__main {
-  width: var(--page);
-  margin: 0 auto;
-  padding-top: clamp(28px, 5vw, 64px);
-}
-
-.night-rail__head {
-  display: grid;
-  gap: 12px;
-  margin-bottom: clamp(32px, 5vw, 56px);
-}
-
-.night-rail__head .house-home__eyebrow {
-  margin: 0;
-  color: var(--night-text-2);
-}
-
-.night-rail__head h1 {
-  font-size: clamp(3.2rem, 10vw, 8.5rem);
-  font-weight: 780;
-  font-stretch: 75%;
-  line-height: 0.82;
-  text-transform: uppercase;
-}
-
-.night-rail__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  justify-self: start;
-  padding: 6px 12px 5px;
-  border: 2px solid var(--night-text-2);
-  border-radius: 4px;
-  font-weight: 760;
-  font-stretch: 82%;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--night-text-2);
-  transform: rotate(-1.5deg);
-}
-
-.night-rail__status[data-state='live'] {
-  border-color: var(--marigold);
-  color: var(--marigold);
-}
-
-.night-rail__status[data-state='live']::before {
-  content: '';
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--vermilion);
-  animation: blink 1.2s steps(2, jump-none) infinite;
-}
-
-@keyframes blink {
-  50% {
-    opacity: 0.3;
-  }
-}
-
-.night-rail__live {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--night-text-2);
-}
-
-.night-rail__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
-  gap: clamp(28px, 5vw, 64px);
-  align-items: start;
-}
-
-.night-rail__tables,
-.night-rail__side {
-  display: grid;
-  gap: 44px;
-}
-
-.night-rail__main section {
-  display: grid;
-  gap: 16px;
-}
-
-.night-rail__main h2 {
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--night-rule);
-  font-size: clamp(1.3rem, 2vw, 1.7rem);
-}
-
-.night-rail__empty {
-  color: var(--night-text-2);
-}
-
-.night-rail__boards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 22px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.night-rail__boards a {
-  display: grid;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--night-rule);
-  background: var(--night-card);
-  text-decoration: none;
-  transition:
-    transform 160ms var(--ease),
-    border-color 160ms var(--ease);
-}
-
-.night-rail__boards a:hover {
-  border-color: var(--marigold);
-  transform: translateY(-3px);
-}
-
-.night-rail__players {
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.night-rail__turn {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--night-text-2);
-}
-
-.rail-thumb {
-  display: grid;
-  grid-template-rows: repeat(8, 1fr);
-  aspect-ratio: 1;
-  padding: 6px;
-  background: #e6dbc4;
-}
-
-.rail-thumb__row {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-}
-
-.rail-thumb__square {
-  position: relative;
-  background: var(--square-light);
-}
-
-.rail-thumb__square[data-color='dark'] {
-  background: var(--square-dark);
-}
-
-.rail-thumb__piece {
-  position: absolute;
-  inset: -22% -6% 2%;
-}
-
-.night-rail__results {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.night-rail__results a {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  padding: 10px 14px;
-  border-left: 3px solid var(--marigold);
-  background: var(--night-card);
-  text-decoration: none;
-}
-
-.night-rail__presence {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.night-rail__presence li {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px 6px 6px;
-  border: 1px solid var(--night-rule);
-  border-radius: 999px;
-  background: var(--night-card);
-  font-weight: 600;
-}
-
-.night-rail__silhouette {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(160deg, var(--marigold), var(--vermilion));
-  mask: var(--silhouette) 50% 100% / 92% auto no-repeat;
-  box-shadow: none;
-}
-
-.night-rail__presence li:nth-child(2n) .night-rail__silhouette {
-  background: linear-gradient(160deg, #f1e8d6, #b9b0a0);
-}
-
-.night-rail__silhouette[data-silhouette='braid'] {
-  --silhouette: url('/landing/silhouettes/braid.png');
-}
-.night-rail__silhouette[data-silhouette='headphones'] {
-  --silhouette: url('/landing/silhouettes/headphones.png');
-}
-.night-rail__silhouette[data-silhouette='chai'] {
-  --silhouette: url('/landing/silhouettes/chai.png');
-}
-.night-rail__silhouette[data-silhouette='dupatta'] {
-  --silhouette: url('/landing/silhouettes/dupatta.png');
-}
-.night-rail__silhouette[data-silhouette='cap'] {
-  --silhouette: url('/landing/silhouettes/cap.png');
-}
-
-/* House chat: paper chits on the dark table */
-.house-chat {
-  display: grid;
-  gap: 16px;
-}
-
-.house-chat > div:first-child p:last-child {
-  color: var(--night-text-2);
-}
-
-.night-rail .house-chat .house-home__eyebrow {
-  color: var(--night-text-2);
-}
-
-.house-chat__list {
-  display: grid;
-  gap: 10px;
-  max-height: 520px;
-  padding: 4px 2px 28px;
-  overflow: auto;
-  mask-image: linear-gradient(180deg, #000 calc(100% - 36px), transparent);
-}
-
-.house-chat__list > p {
-  color: var(--night-text-2);
-}
-
-.house-chat__message {
-  position: relative;
-  display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  background: #f6efe0;
-  color: var(--ink);
-  box-shadow: 0 10px 20px -14px rgba(0, 0, 0, 0.9);
-  animation: slip-in 280ms steps(4, end) both;
-}
-
-.house-chat__message:nth-child(odd) {
-  transform: rotate(-0.5deg);
-}
-
-@keyframes slip-in {
-  from {
-    translate: 0 8px;
-  }
-  to {
-    translate: 0 0;
-  }
-}
-
-.house-chat__message h3 {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--vermilion-ink);
-}
-
-.house-chat__message p {
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
-.house-chat__remove {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  min-height: 32px;
-  padding: 0 8px;
-  border-color: transparent;
-  background: transparent;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  box-shadow: none;
-}
-
-.house-chat__remove:hover:not(:disabled) {
-  border-color: var(--vermilion-ink);
-  color: var(--vermilion-ink);
-}
-
-.night-rail .house-chat__form {
-  background: var(--night-card);
-  box-shadow: none;
-  border: 1px solid var(--night-rule);
-  color: var(--night-text);
-}
-
-.night-rail .house-chat__form textarea {
-  border-color: var(--night-rule);
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0 calc(1.5em - 1px),
-      rgba(239, 232, 218, 0.08) calc(1.5em - 1px) 1.5em
-    ),
-    #0b0f1f;
-  color: var(--night-text);
-}
-
-.night-rail .house-chat__form-meta,
-.night-rail .house-chat__status,
-.night-rail .house-chat > p {
-  color: var(--night-text-2);
-}
-
-.night-rail .house-chat__form button[type='submit'] {
-  border-color: var(--marigold);
-  background: var(--marigold);
-  color: var(--ink);
-  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px #9f5f0b;
-}
-
-.night-rail [role='alert'] {
-  color: #ff9d86;
-}
-
-/* ————— Season ————— */
-
-.season-shell {
-  min-height: 100vh;
-  padding-bottom: 96px;
-}
-
-.season-main {
-  --season-gap: clamp(48px, 7vw, 96px);
-  display: grid;
-  gap: var(--season-gap);
-  width: var(--page);
-  margin: 0 auto;
-  padding-top: clamp(32px, 5vw, 64px);
-}
-
-.season-active {
-  display: grid;
-  grid-auto-flow: row dense;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
-  gap: 18px clamp(28px, 5vw, 64px);
-  align-items: start;
-}
-
-.season-active > .season-eyebrow,
-.season-active > h1,
-.season-active > p,
-.season-active > .season-active__details {
-  grid-column: 1 / -1;
-}
-
-.season-active > .night-schedule {
-  grid-column: 1;
-  grid-row: span 2;
-  margin-top: 36px;
-}
-
-.season-active > .charter-points,
-.season-active > .season-close {
-  grid-column: 2;
-  margin-top: 36px;
-}
-
-.season-active > .season-close {
-  margin-top: 0;
-}
-
-.season-active h1,
-.season-passive h1,
-.charter-form__heading h1,
-.puzzle-heading h1 {
-  font-size: clamp(3rem, 9vw, 7.4rem);
-  font-weight: 780;
-  font-stretch: 75%;
-  line-height: 0.84;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.season-active .season-eyebrow {
-  margin-bottom: 0;
-}
-
-.season-active__version {
-  justify-self: start;
-  padding: 5px 12px 4px;
-  border: 2px solid var(--indigo-2);
-  border-radius: 4px;
-  font-weight: 760;
-  font-stretch: 80%;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--indigo-2);
-  transform: rotate(-2deg);
-}
-
-.season-active__details {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 18px 0 0;
-  border-top: 2px solid var(--ink);
-  border-bottom: 1px solid var(--rule-2);
-}
-
-.season-active__details div {
-  display: grid;
-  gap: 4px;
-  padding: 16px 18px 16px 0;
-}
-
-.season-active__details div + div {
-  padding-left: 18px;
-  border-left: 1px solid var(--rule);
-}
-
-.season-active__details dt {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.season-active__details dd {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-/* the fixed points recipe, printed like a ledger */
-.charter-points {
-  display: grid;
-  gap: 12px;
-  padding: 22px;
-  background: var(--paper-card);
-  box-shadow: var(--card-shadow);
-}
-
-.charter-points h2 {
-  font-size: 1.5rem;
-}
-
-.charter-points p {
-  color: var(--ink-3);
-  font-size: 0.92rem;
-}
-
-.charter-points ul {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1.5px solid var(--ink);
-}
-
-.charter-points li {
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--rule-2);
-  font-size: 0.97rem;
-}
-
-/* Nights as tickets */
-.night-schedule {
-  display: grid;
-  gap: 18px;
-}
-
-.night-schedule .season-eyebrow {
-  margin: 0;
-}
-
-.night-schedule__list {
-  display: grid;
-  gap: 18px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.night-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 110px minmax(0, 1fr);
-  gap: 6px 22px;
-  align-items: start;
-  padding: 20px 20px 20px 0;
-  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  box-shadow: var(--card-shadow);
-}
-
-.night-card::before {
-  content: '';
-  position: absolute;
-  top: 10px;
-  bottom: 10px;
-  left: 110px;
-  border-left: 2px dashed var(--rule-2);
-}
-
-.night-card > * {
-  grid-column: 2;
-}
-
-.night-card h3 {
-  grid-column: 1;
-  grid-row: 1 / span 3;
-  justify-self: center;
-  align-self: center;
-  font-size: 1.05rem;
-  font-weight: 780;
-  font-stretch: 78%;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  color: var(--vermilion-ink);
-}
-
-.night-card > p:first-of-type {
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.night-card__cancelled {
-  text-decoration: line-through;
-  text-decoration-color: var(--vermilion);
-  text-decoration-thickness: 2px;
-  color: var(--ink-3);
-}
-
-.night-card__zone {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--ink-3);
-}
-
-.night-card__rail {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  font-weight: 700;
-  text-decoration: none;
-  color: var(--indigo-2);
-}
-
-.night-card__rail::after {
-  content: '→';
-  font-family: var(--font-mono);
-  transition: transform 120ms var(--ease);
-}
-
-.night-card__rail:hover::after {
-  transform: translateX(3px);
-}
-
-.night-rsvp {
-  display: inline-flex;
-  justify-self: start;
-  gap: 0;
-}
-
-.night-rsvp button {
-  border-radius: 0;
-  box-shadow: none;
-  transform: none;
-}
-
-.night-rsvp button:first-child {
-  border-radius: var(--radius) 0 0 var(--radius);
-}
-
-.night-rsvp button:last-child {
-  margin-left: -1px;
-  border-radius: 0 var(--radius) var(--radius) 0;
-}
-
-.night-host,
-.night-edit {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 10px;
-  margin-top: 6px;
-  padding-top: 14px;
-  border-top: 1px dashed var(--rule-2);
-}
-
-.night-host label,
-.night-edit label {
-  display: grid;
-  flex: 1 1 200px;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: var(--ink-2);
-}
-
-.night-card > button {
-  justify-self: start;
-}
-
-.night-cancel {
-  border-color: transparent;
-  background: transparent;
-  color: var(--vermilion-ink);
-  box-shadow: none;
-}
-
-.night-cancel:hover:not(:disabled) {
-  border-color: var(--vermilion-ink);
-}
-
-.night-cancel-confirm {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.night-cancel-confirm .night-cancel {
-  border-color: var(--vermilion-ink);
-  background: var(--vermilion-ink);
-  color: #fff8ee;
-}
-
-.season-close {
-  display: grid;
-  gap: 12px;
-  padding: 22px;
-  border: 2px solid var(--vermilion-ink);
-  background: #fbf1ea;
-}
-
-.season-close h2 {
-  font-size: 1.6rem;
-  font-weight: 760;
-  font-stretch: 78%;
-  text-transform: uppercase;
-}
-
-.season-close__lede {
-  color: var(--ink-2);
-}
-
-.season-close__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.season-close__confirm {
-  border-color: var(--vermilion-ink);
-  background: var(--vermilion-ink);
-  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px #6d1b0e;
-}
-
-.season-close__start {
-  justify-self: start;
-  border-color: var(--vermilion-ink);
-  color: var(--vermilion-ink);
-}
-
-/* final standings: the painted scoreboard */
-.season-final {
-  display: grid;
-  gap: 14px;
-  max-width: 820px;
-  padding: clamp(20px, 3vw, 34px);
-  background:
-    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
-    linear-gradient(180deg, #232c55, #1a2244);
-  color: var(--night-text);
-  box-shadow: var(--lift-shadow);
-}
-
-.season-final .season-eyebrow {
-  margin: 0;
-  color: var(--marigold);
-}
-
-.season-final h2 {
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 780;
-  font-stretch: 76%;
-  line-height: 0.9;
-  text-transform: uppercase;
-}
-
-.season-final__dates {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--night-text-2);
-}
-
-.season-final__table {
-  display: grid;
-  gap: 10px;
-  margin: 8px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.season-final__table li {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-}
-
-.season-final__rank,
-.season-final__points {
-  display: grid;
-  place-items: center;
-  height: 50px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #f6efe0 0 48%, #e7dcc4 52% 100%);
-  box-shadow: 0 2px 0 #b6a888;
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-weight: 600;
-}
-
-.season-final__rank {
-  font-size: 1.5rem;
-}
-
-.season-final__points {
-  min-width: 118px;
-  padding: 0 14px;
-  font-size: 1.05rem;
-}
-
-.season-final__name {
-  font-size: clamp(1.2rem, 2vw, 1.6rem);
-  font-weight: 700;
-  font-stretch: 80%;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.season-final__row--leader .season-final__rank {
-  background: linear-gradient(180deg, #f4a53c 0 48%, #e79a31 52% 100%);
-  box-shadow: 0 2px 0 #a7671c;
-}
-
-.season-final__row--leader .season-final__name {
-  color: var(--marigold);
-}
-
-/* [BM-048] the recap's way into the Closing Book: the lamp's colour on the scoreboard */
-.season-final__book,
-.closing-book-next__action {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  min-height: 48px;
-  margin-top: 10px;
-  padding: 0 18px;
-  border-radius: var(--radius);
-  background: var(--marigold);
-  color: var(--ink);
-  font-weight: 700;
-  text-decoration: none;
-  box-shadow: 0 4px 0 -1px #9f5f0b;
-  transition: transform 90ms var(--ease);
-}
-
-.season-final__book::after,
-.closing-book-next__action::after {
-  content: '→';
-  font-family: var(--font-mono);
-}
-
-.season-final__book:hover,
-.closing-book-next__action:hover {
-  transform: translateY(1px);
-}
-
-.season-final :focus-visible {
-  outline-color: var(--marigold);
-}
-
-/* the recap follows the page's h1 in the document but sits above it, a Season gap clear */
-.season-main > .season-final,
-.season-active > .season-final,
-.charter-form > .season-final {
-  order: -1;
-}
-
-.season-active > .season-final {
-  grid-column: 1 / -1;
-  margin-bottom: calc(var(--season-gap) - 18px);
-}
-
-.charter-form > .season-final {
-  margin-bottom: calc(var(--season-gap) - 28px);
-}
-
-/* [BM-049] a renewed Season keeps the last Season's book on the shelf, one quiet line */
-.season-previous {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--rule);
-}
-
-/* under the ruled details it reads as one more row, so it keeps their rule rather than doubling it */
-.season-active__details + .season-previous {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.season-previous__label {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.season-previous a {
-  font-weight: 700;
-  color: var(--indigo-2);
-  text-underline-offset: 4px;
-}
-
-.season-previous a::after {
-  content: ' →';
-  font-family: var(--font-mono);
-}
-
-.season-passive {
-  display: grid;
-  gap: 16px;
-  padding: clamp(28px, 5vw, 56px);
-  border: 1.5px dashed var(--rule-2);
-}
-
-.season-passive p:last-child {
-  max-width: 44ch;
-  font-size: 1.15rem;
-  color: var(--ink-2);
-}
-
-/* ————— Charter form: a printed form ————— */
-
-.charter-form {
-  display: grid;
-  gap: 28px;
-  max-width: 980px;
-}
-
-.charter-form__heading {
-  display: grid;
-  gap: 16px;
-}
-
-.charter-form__heading p:last-child {
-  max-width: 48ch;
-  font-size: 1.15rem;
-  color: var(--ink-2);
-}
-
-.charter-form__fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px 28px;
-  padding: clamp(22px, 4vw, 40px);
-  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  box-shadow: var(--card-shadow);
-}
-
-.charter-field {
-  display: grid;
-  gap: 8px;
-  align-content: start;
-}
-
-.charter-field--wide {
-  grid-column: 1 / -1;
-}
-
-.charter-field > label,
-.charter-night legend {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.charter-field__hint {
-  font-size: 0.85rem;
-  color: var(--ink-3);
-}
-
-.charter-field__compound {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.charter-field__compound input {
-  max-width: 120px;
-}
-
-.charter-night {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 18px 20px 20px;
-  border: 1.5px dashed var(--rule-2);
-}
-
-.charter-night legend {
-  padding: 0 8px;
-}
-
-.charter-night > p {
-  color: var(--ink-3);
-}
-
-.charter-night__fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.charter-form__banner {
-  padding: 14px 16px;
-  border-left: 4px solid var(--vermilion);
-  background: #fbe9e3;
-}
-
-.charter-form__submit {
-  justify-self: start;
-  min-height: 56px;
-  padding: 0 28px;
-  font-size: 1.1rem;
-}
-
-/* ————— House Puzzles ————— */
-
-.puzzle-shell {
-  min-height: 100vh;
-  padding-bottom: 96px;
-}
-
-.puzzle-main {
-  display: grid;
-  gap: clamp(40px, 6vw, 72px);
-  width: var(--page);
-  margin: 0 auto;
-  padding-top: clamp(32px, 5vw, 64px);
-}
-
-.puzzle-heading {
-  display: grid;
-  gap: 16px;
-}
-
-.puzzle-heading p:last-child {
-  max-width: 50ch;
-  font-size: 1.15rem;
-  color: var(--ink-2);
-}
-
-.puzzle-message:empty {
-  display: none;
-}
-
-.puzzle-message {
-  padding: 12px 16px;
-  border-left: 4px solid var(--marigold);
-  background: #fbf0dc;
-}
-
-.puzzle-main section {
-  display: grid;
-  gap: 20px;
-}
-
-.puzzle-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
-  gap: 28px;
-}
-
-.puzzle-card {
-  display: grid;
-  gap: 20px;
-  padding: 22px;
-  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  box-shadow: var(--card-shadow);
-}
-
-.puzzle-card h3 {
-  font-size: 1.5rem;
-  font-weight: 760;
-  font-stretch: 82%;
-  line-height: 1.05;
-}
-
-.puzzle-card p {
-  color: var(--ink-2);
-}
-
-.puzzle-card form {
-  display: grid;
-  gap: 10px;
-}
-
-.puzzle-card--published {
-  transform: rotate(-0.6deg);
-}
-
-.puzzle-turn {
-  margin: 12px 0 8px;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.puzzle-board {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  aspect-ratio: 1;
-  max-width: 380px;
-  padding: 8px;
-  background: #e6dbc4;
-}
-
-.puzzle-board__square {
-  position: relative;
-  background: var(--square-light);
-}
-
-.puzzle-board__square--dark {
-  background: var(--square-dark);
-}
-
-.puzzle-board__piece {
-  position: absolute;
-  inset: -18% 0 3%;
-}
-
-.puzzle-fen {
-  display: block;
-  margin-top: 10px;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--ink-3);
-  overflow-wrap: anywhere;
-}
-
-.puzzle-check {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 0.95rem;
-}
-
-.puzzle-hint {
-  font-size: 0.85rem;
-  color: var(--ink-3);
-}
-
-/* ————— Closing Book: a stitched paper booklet on the lamp-lit desk ————— */
-
-.closing-book-shell {
-  min-height: 100vh;
-  padding-bottom: 96px;
-}
-
-.closing-book-main {
-  width: var(--page);
-  margin: 0 auto;
-  padding-top: clamp(28px, 4vw, 56px);
-}
-
-.closing-book {
-  display: grid;
-  gap: clamp(52px, 7vw, 92px);
-}
-
-/* the desk: indigo card under one lamp, the booklet lying on it */
-.closing-book-desk {
-  display: grid;
-  padding: clamp(30px, 6vw, 76px) clamp(14px, 5vw, 64px);
-  background:
-    radial-gradient(90% 70% at 16% 0%, rgba(244, 165, 60, 0.2), transparent 60%),
-    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
-    linear-gradient(180deg, #232c55, #1a2244);
-  box-shadow: var(--lift-shadow);
-}
-
-.closing-book-cover {
-  position: relative;
-  display: grid;
-  gap: 14px;
-  justify-self: center;
-  width: min(100%, 720px);
-  padding: clamp(28px, 5vw, 52px) clamp(20px, 5vw, 52px) clamp(24px, 4vw, 40px)
-    clamp(46px, 7vw, 84px);
-  background:
-    linear-gradient(90deg, rgba(60, 40, 10, 0.12), transparent clamp(34px, 5vw, 52px)),
-    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
-    var(--paper-card);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.75) inset,
-    0 34px 60px -30px rgba(0, 0, 0, 0.9);
-  rotate: -1deg;
-  animation: deal 380ms steps(5, end) both;
-}
-
-/* saddle stitches down the spine */
-.closing-book-cover::before {
-  content: '';
-  position: absolute;
-  inset: 26px auto 26px clamp(20px, 3vw, 32px);
-  border-left: 2px dashed rgba(23, 22, 27, 0.34);
-}
-
-.closing-book-cover .season-eyebrow {
-  margin: 0;
-}
-
-.closing-book-cover h1 {
-  font-size: clamp(2.8rem, 9vw, 6.4rem);
-  font-weight: 780;
-  font-stretch: 75%;
-  line-height: 0.84;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.closing-book-cover__dates {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  color: var(--ink-3);
-}
-
-.closing-book-cover__leader {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--vermilion-ink);
-}
-
-.closing-book-totals {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 12px 0 0;
-  border-top: 2px solid var(--ink);
-}
-
-.closing-book-totals div {
-  display: grid;
-  gap: 4px;
-  padding: 14px 12px 0 0;
-}
-
-.closing-book-totals div + div {
-  padding-left: 14px;
-  border-left: 1px solid var(--rule);
-}
-
-.closing-book-totals dt {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.closing-book-totals dd {
-  margin: 0;
-  font-size: clamp(1.7rem, 4vw, 2.5rem);
-  font-weight: 760;
-  font-stretch: 80%;
-  line-height: 1;
-}
-
-/* the pages: each opens under a ruled heading */
-.closing-book-section {
-  display: grid;
-  gap: 24px;
-}
-
-.closing-book-section__heading {
-  display: grid;
-  gap: 8px;
-  padding-top: 16px;
-  border-top: 2px solid var(--ink);
-}
-
-.closing-book-section__heading h2 {
-  font-size: clamp(1.9rem, 4.4vw, 3rem);
-  font-weight: 780;
-  font-stretch: 76%;
-  line-height: 0.92;
-  text-transform: uppercase;
-}
-
-.closing-book-section__heading p {
-  max-width: 58ch;
-  color: var(--ink-2);
-}
-
-.closing-book-empty {
-  padding: 18px 20px;
-  border: 1.5px dashed var(--rule-2);
-  color: var(--ink-2);
-}
-
-.closing-book-awards,
-.closing-book-swings,
-.closing-book-roll,
-.closing-book-games,
-.closing-book-puzzles {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* awards: certificates pinned slightly askew, each with a seal; the leader's is the lamp */
-.closing-book-awards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 196px), 1fr));
-  gap: 22px;
-}
-
-.closing-book-award {
-  position: relative;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding: 22px 22px 24px;
-  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  box-shadow: var(--card-shadow);
-  rotate: -0.5deg;
-  animation: deal 380ms steps(5, end) both;
-}
-
-.closing-book-award:nth-child(even) {
-  rotate: 0.6deg;
-  animation-delay: 70ms;
-}
-
-.closing-book-award::after {
-  content: '';
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--indigo-2);
-  box-shadow:
-    0 0 0 3px var(--paper-card),
-    0 0 0 4.5px var(--indigo-2);
-}
-
-.closing-book-award--leader::after {
-  background: var(--marigold);
-  box-shadow:
-    0 0 0 3px var(--paper-card),
-    0 0 0 4.5px var(--marigold-ink);
-}
-
-.closing-book-award__title {
-  padding-right: 40px;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.closing-book-award h3 {
-  font-size: 1.75rem;
-  font-weight: 760;
-  font-stretch: 78%;
-  line-height: 1;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.closing-book-award--leader h3 {
-  color: var(--marigold-ink);
-}
-
-.closing-book-award p:last-child {
-  color: var(--ink-2);
-}
-
-/* who turned up: the roll, printed like a ledger */
-.closing-book-roll {
-  display: grid;
-  padding: 6px 22px;
-  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  box-shadow: var(--card-shadow);
-}
-
-.closing-book-roll li {
-  display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 0;
-}
-
-.closing-book-roll li + li {
-  border-top: 1px dashed var(--rule-2);
-}
-
-.closing-book-roll__rank {
-  display: grid;
-  place-items: center;
-  height: 40px;
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  font-family: var(--font-mono);
-  font-weight: 600;
-}
-
-.closing-book-roll__leader .closing-book-roll__rank {
-  border-color: var(--marigold-ink);
-  background: var(--marigold);
-}
-
-.closing-book-roll__who {
-  display: grid;
-  gap: 2px;
-}
-
-.closing-book-roll__name {
-  font-size: 1.2rem;
-  font-weight: 700;
-  font-stretch: 82%;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.closing-book-roll__record {
-  font-size: 0.92rem;
-  color: var(--ink-2);
-  text-wrap: pretty;
-}
-
-.closing-book-roll__points {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* memorable swings: the moment the game turned, marked in vermilion */
-.closing-book-swings {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
-  gap: 24px;
-}
-
-.closing-book-swing {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding: 20px 22px 22px;
-  border-top: 4px solid var(--vermilion);
-  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  box-shadow: var(--card-shadow);
-  animation: deal 380ms steps(5, end) both;
-}
-
-.closing-book-swing:nth-child(2) {
-  animation-delay: 70ms;
-}
-
-.closing-book-swing:nth-child(3) {
-  animation-delay: 140ms;
-}
-
-.closing-book-swing__size {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.closing-book-swing__pawns {
-  font-size: clamp(2.4rem, 5vw, 3.2rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  color: var(--vermilion-ink);
-}
-
-.closing-book-swing h3 {
-  font-size: 1.3rem;
-  font-weight: 700;
-  line-height: 1.15;
-}
-
-.closing-book-move {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.closing-book-swing p:last-child {
-  color: var(--ink-2);
-}
-
-/* every game finished: a scoresheet */
-.closing-book-games {
-  display: grid;
-  border-top: 1px solid var(--rule-2);
-}
-
-.closing-book-games li {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--rule);
-}
-
-.closing-book-games time {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  color: var(--ink-3);
-}
-
-.closing-book-games__summary {
-  display: grid;
-  gap: 2px;
-  font-weight: 600;
-}
-
-.closing-book-games__detail {
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  font-weight: 400;
-  color: var(--ink-3);
-}
-
-.closing-book-games__score {
-  min-width: 58px;
-  padding: 6px 10px;
-  border: 1.5px solid var(--indigo-2);
-  border-radius: 2px;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  text-align: center;
-  color: var(--indigo-2);
-}
-
-.closing-book-puzzles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
-  gap: 28px;
-}
-
-.closing-book-colophon {
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  padding-top: 28px;
-  border-top: 1px solid var(--rule-2);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  line-height: 1.6;
-  text-align: center;
-  color: var(--ink-3);
-}
-
-.closing-book-colophon::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  background: var(--vermilion);
-  transform: rotate(45deg);
-}
-
-.closing-book-colophon p {
-  max-width: 60ch;
-}
-
-.closing-book-waiting {
-  display: grid;
-  gap: 16px;
-  padding: clamp(28px, 5vw, 56px);
-  border: 1.5px dashed var(--rule-2);
-}
-
-.closing-book-waiting h1 {
-  font-size: clamp(3rem, 9vw, 7.4rem);
-  font-weight: 780;
-  font-stretch: 75%;
-  line-height: 0.84;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.closing-book-waiting p:last-child {
-  max-width: 46ch;
-  font-size: 1.15rem;
-  color: var(--ink-2);
-}
-
-/* [BM-049] the slip tucked in the back of the book: what the House does next */
-.closing-book-next {
-  display: grid;
-  justify-items: start;
-  gap: 14px;
-  width: min(100%, 720px);
-  margin: clamp(52px, 7vw, 92px) auto 0;
-  padding: clamp(24px, 4vw, 40px);
-  border: 1.5px dashed var(--rule-2);
-}
-
-.closing-book-next .season-eyebrow {
-  margin: 0;
-}
-
-.closing-book-next h2 {
-  font-size: clamp(2rem, 5vw, 3.2rem);
-  font-weight: 780;
-  font-stretch: 76%;
-  line-height: 0.9;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.closing-book-next h2 + p {
-  max-width: 52ch;
-  font-size: 1.1rem;
-  color: var(--ink-2);
-}
-
-/* ————— Invitation (lamp mode) ————— */
-
-.invitation-shell {
-  position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 100vh;
-  padding: 48px 18px;
-  overflow: hidden;
-  background: var(--night);
-  color: var(--ink);
-}
-
-.invitation-shell__scene {
-  position: absolute;
-  inset: 0;
-  background: url('/landing/invitation.webp') 50% 50% / cover no-repeat;
-  opacity: 0.42;
-  filter: saturate(0.9);
-  mask-image: radial-gradient(90% 80% at 50% 50%, #000 30%, transparent 100%);
-}
-
-.invitation-card {
-  position: relative;
-  display: grid;
-  gap: 22px;
-  width: min(480px, 100%);
-  padding: clamp(28px, 5vw, 44px);
-  background: #f8f2e5 url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  box-shadow:
-    0 2px 3px rgba(0, 0, 0, 0.3),
-    0 50px 90px -30px rgba(0, 0, 0, 0.9);
-  transform: rotate(-0.8deg);
-  animation: invite-in 560ms steps(7, end) both;
-}
-
-@keyframes invite-in {
-  from {
-    transform: translateY(36px) rotate(-4deg);
-  }
-  to {
-    transform: rotate(-0.8deg);
-  }
-}
-
-.invitation-card__masthead {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1.5px solid var(--ink);
-  font-weight: 700;
-}
-
-.invitation-card__mark {
-  width: 30px;
-  height: 30px;
-  --mark-paper: #fff;
-}
-
-.invitation-card__seal {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  margin-left: auto;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffc76e, var(--marigold) 45%, #c67a14);
-  box-shadow:
-    0 2px 0 #9f5f0b,
-    inset 0 0 0 3px rgba(255, 255, 255, 0.25);
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 600;
-  color: #5a3304;
-  transform: rotate(12deg);
-}
-
-.invitation-card__message {
-  display: grid;
-  gap: 12px;
-}
-
-.invitation-card__eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--vermilion-ink);
-}
-
-.invitation-card h1 {
-  font-size: clamp(2.4rem, 7vw, 3.4rem);
-  font-weight: 780;
-  font-stretch: 76%;
-  line-height: 0.9;
-  text-transform: uppercase;
-}
-
-.invitation-card__message > p:last-child {
-  color: var(--ink-2);
-}
-
-.invitation-form {
-  display: grid;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.invitation-form button {
-  min-height: 52px;
-}
-
-.invitation-form__error {
-  font-weight: 500;
-}
-
-.invitation-card__retry {
-  justify-self: start;
-}
-
-.invitation-card__footer {
-  padding-top: 14px;
-  border-top: 1px dashed var(--rule-2);
-  font-family: var(--font-mono);
-  font-size: 0.74rem;
-  color: var(--ink-3);
-}
-
-/* ————— Account (day paper; deletion is the one vermilion alarm) ————— */
-
-.account-page {
-  display: grid;
-  gap: clamp(20px, 3vw, 32px);
-  width: min(var(--page), 760px);
-  margin: 0 auto;
-  padding-top: clamp(32px, 6vw, 72px);
-}
-
-.account-intro h1 {
-  font-size: clamp(2.4rem, 7vw, 4.6rem);
-  font-weight: 780;
-  font-stretch: 76%;
-  line-height: 0.9;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-
-.account-section,
-.account-delete {
-  display: grid;
-  gap: 12px;
-  padding: clamp(20px, 3vw, 28px);
-  background: var(--paper-card);
-  box-shadow: var(--card-shadow);
-}
-
-.account-section h2,
-.account-delete h2 {
-  font-size: 1.5rem;
-  font-weight: 760;
-  font-stretch: 78%;
-  text-transform: uppercase;
-}
-
-.account-section__copy {
-  color: var(--ink-2);
-}
-
-.account-houses {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--rule);
-}
-
-.account-houses li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 48px;
-  border-bottom: 1px solid var(--rule);
-}
-
-.account-houses a {
-  font-weight: 650;
-  color: var(--indigo-2);
-}
-
-.account-houses__role {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.account-download {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 18px;
-  border-radius: var(--radius);
-  background: var(--indigo);
-  color: var(--night-text);
-  font-weight: 650;
-  text-decoration: none;
-}
-
-.account-download:hover {
-  background: var(--indigo-2);
-}
-
-.account-delete {
-  border: 2px solid var(--vermilion-ink);
-  background: #fbf1ea;
-}
-
-.account-delete__confirm {
-  display: grid;
-  gap: 10px;
-}
-
-.account-delete__confirm label {
-  font-weight: 600;
-}
-
-.account-delete__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.account-delete__start {
-  justify-self: start;
-  border-color: var(--vermilion-ink);
-  color: var(--vermilion-ink);
-}
-
-.account-shell .account-delete__final {
-  border-color: var(--vermilion-ink);
-  background: var(--vermilion-ink);
-  color: var(--paper-card);
-  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px #6d1b0e;
-}
-
-.account-delete__blocked,
-.account-delete__error {
-  font-weight: 600;
-  color: var(--vermilion-ink);
-}
-
-/* ————— Unavailable / invalid ————— */
+/* ————— Unavailable / invalid: the lamplighter finds nothing here ————— */
 
 .house-unavailable {
   display: grid;
   place-items: center;
   min-height: 100vh;
-  padding: 32px 18px;
-}
-
-.house-unavailable--night {
-  background: var(--night);
+  padding: 48px 20px;
+  color: var(--stage-text);
+  background: var(--stage);
 }
 
 .house-unavailable__sheet {
+  position: relative;
   display: grid;
   gap: 14px;
-  width: min(520px, 100%);
-  padding: clamp(28px, 5vw, 44px);
-  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
-  box-shadow: var(--lift-shadow);
-  transform: rotate(-0.8deg);
+  width: min(100%, 620px);
+  padding: 56px clamp(24px, 6vw, 56px) clamp(220px, 34vh, 300px);
+  overflow: hidden;
+  color: var(--ink);
+  text-align: left;
+  background:
+    var(--grain),
+    radial-gradient(ellipse 60% 70% at 70% 30%, var(--screen-hot) 0%, rgba(251, 241, 220, 0) 72%),
+    radial-gradient(ellipse 120% 120% at 55% 40%, #f4e4c1 30%, #d2a867 100%);
+  box-shadow: 0 50px 100px -40px rgba(232, 162, 26, 0.35);
+}
+
+.house-unavailable__sheet::after {
+  content: '';
+  position: absolute;
+  right: clamp(14px, 5vw, 40px);
+  bottom: 0;
+  width: clamp(120px, 26vw, 170px);
+  aspect-ratio: 709 / 1100;
+  background: url('/theatre/cast/lamplighter-s.webp') center bottom / contain no-repeat;
+  mix-blend-mode: multiply;
+  transform: scaleX(-1);
 }
 
 .house-unavailable__mark {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
 }
 
-.house-unavailable__sheet .house-home__eyebrow {
-  margin: 8px 0 0;
-}
-
-.house-unavailable__sheet h1 {
-  font-size: clamp(2rem, 6vw, 3rem);
-  font-weight: 780;
-  font-stretch: 76%;
-  line-height: 0.92;
+.house-unavailable h1 {
+  max-width: 13ch;
+  font-size: clamp(2.4rem, 7vw, 3.8rem);
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 0.9;
   text-transform: uppercase;
 }
 
-.house-unavailable__sheet p {
+.house-unavailable__sheet > p:not(.house-home__eyebrow) {
+  max-width: 32ch;
   color: var(--ink-2);
+  font-size: 1.08rem;
 }
 
+.house-unavailable__sheet a,
 .house-unavailable__home {
   justify-self: start;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 48px;
+  margin-top: 8px;
+  padding: 0 20px;
+  color: var(--stage-text);
+  background: var(--ink);
   font-weight: 700;
-  color: var(--indigo-2);
+  text-decoration: none;
 }
 
-/* ————— Arrival: cards are dealt onto the table, on twos ————— */
-
-.move-card,
-.night-card,
-.puzzle-card,
-.game-notes__note,
-.night-rail__boards li,
-.season-final__table li,
-.charter-form__fields,
-.house-status {
-  animation: deal 380ms steps(5, end) both;
+.house-unavailable__sheet a:hover {
+  background: var(--vermilion-ink);
 }
 
-.move-shelf__groups li:nth-child(2) .move-card,
-.night-schedule__list li:nth-child(2),
-.puzzle-list > :nth-child(2),
-.night-rail__boards li:nth-child(2),
-.season-final__table li:nth-child(2) {
-  animation-delay: 70ms;
-}
+/* ————— Arrival: cards are raised onto the screen on twos ————— */
 
-.move-shelf__groups li:nth-child(3) .move-card,
-.night-schedule__list li:nth-child(3),
-.puzzle-list > :nth-child(3),
-.night-rail__boards li:nth-child(3),
-.season-final__table li:nth-child(3) {
-  animation-delay: 140ms;
-}
-
-.night-schedule__list li:nth-child(4),
-.season-final__table li:nth-child(n + 4) {
-  animation-delay: 210ms;
-}
-
-/* transform only: text keeps full contrast on every frame */
-@keyframes deal {
+@keyframes bm-raise {
   from {
-    translate: 0 18px;
+    opacity: 0;
+    transform: translateY(18px) rotate(-0.6deg);
   }
   to {
-    translate: 0 0;
+    opacity: 1;
+    transform: none;
   }
 }
 
-/* ————— Narrow screens ————— */
-
-@media (max-width: 960px) {
-  .house-home__grid,
-  .night-rail__grid,
-  .season-active {
-    grid-template-columns: 1fr;
-  }
-
-  .house-status {
-    position: static;
-  }
-
-  .season-active > .night-schedule,
-  .season-active > .charter-points,
-  .season-active > .season-close {
-    grid-column: 1;
-    grid-row: auto;
-  }
-}
-
-/* below the live-play boundary the board stacks; at 768px and up the clocks stay beside it */
-@media (max-width: 767px) {
-  .move-entry {
-    grid-template-columns: 1fr;
-  }
-
-  .move-entry > *,
-  .move-entry > .chess-board {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .move-entry > .chess-board {
-    order: 3;
-  }
-
-  .move-entry > .move-entry__heading {
-    order: 1;
-  }
-
-  .move-entry > .live-clocks {
-    order: 2;
-  }
-
-  .move-entry > :not(.chess-board, .move-entry__heading, .live-clocks) {
-    order: 4;
-  }
-}
-
-@media (max-width: 640px) {
-  .app-masthead {
-    flex-wrap: wrap;
-    gap: 6px 16px;
-    padding: 10px 0;
-  }
-
-  .app-masthead__nav {
-    order: 3;
-    width: 100%;
-    margin-left: 0;
-    justify-content: space-between;
-  }
-
-  .app-masthead__account {
-    margin-left: auto;
-  }
-
-  .house-identity {
-    grid-template-columns: 1fr;
-  }
-
-  .season-active__details,
-  .charter-form__fields,
-  .charter-night__fields {
-    grid-template-columns: 1fr;
-  }
-
-  .closing-book-totals {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .closing-book-totals div:nth-child(3) {
-    padding-left: 0;
-    border-left: 0;
-  }
-
-  .closing-book-roll li {
-    grid-template-columns: 34px minmax(0, 1fr) auto;
-    gap: 12px;
-  }
-
-  .closing-book-roll__rank {
-    height: 34px;
-  }
-
-  .closing-book-games li {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 4px 12px;
-  }
-
-  .closing-book-games time {
-    grid-column: 1 / -1;
-  }
-
-  .season-active__details div + div {
-    padding-left: 0;
-    border-left: 0;
-    border-top: 1px solid var(--rule);
-  }
-
-  .game-title {
-    grid-template-columns: 1fr;
-  }
-
-  .game-title__mode {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: start;
-  }
-
-  .night-card {
-    grid-template-columns: 64px minmax(0, 1fr);
-  }
-
-  .night-card::before {
-    left: 64px;
-  }
+.bm-raise {
+  animation: bm-raise 0.42s steps(5, end) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 1ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 1ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ————— Narrow screens: the valance folds its rooms into a second row ————— */
+
+@media (max-width: 720px) {
+  .app-masthead {
+    flex-wrap: wrap;
+    row-gap: 0;
+    padding-top: 10px;
+  }
+
+  .app-masthead__nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    min-height: 44px;
+    border-top: 1px solid var(--stage-rule);
+  }
+
+  .app-masthead__nav a {
+    flex: 1;
+    justify-content: center;
+    padding: 0 4px;
+    letter-spacing: 0.1em;
+  }
+
+  .app-masthead__account {
+    margin-left: auto;
   }
 }

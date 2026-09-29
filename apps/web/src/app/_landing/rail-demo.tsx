@@ -86,19 +86,19 @@ export function RailDemo() {
           <MiniBoard
             pieces={fenToPieces(ply.fen)}
             highlight={ply.last}
-            label={`Anjali versus Rohan, live. Last move ${ply.san}.`}
+            label={`Sam versus Amara, live. Last move ${ply.san}.`}
           />
           <figcaption>
-            <span>Anjali v Rohan</span>
+            <span>Sam v Amara</span>
             <span className="lp-mono" key={ply.san}>
               {ply.san}
             </span>
           </figcaption>
         </figure>
         <figure className="lp-rail__board lp-rail__board--quiet">
-          <MiniBoard pieces={QUIET_BOARD} label="Kabir versus Farhan, White to move." />
+          <MiniBoard pieces={QUIET_BOARD} label="Theo versus Jonas, White to move." />
           <figcaption>
-            <span>Kabir v Farhan</span>
+            <span>Theo v Jonas</span>
             <span className="lp-mono">11. …</span>
           </figcaption>
         </figure>

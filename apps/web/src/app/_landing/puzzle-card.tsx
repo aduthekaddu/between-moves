@@ -52,7 +52,7 @@ export function PuzzleCard() {
 
   const message =
     state === 'solved'
-      ? 'Rd8#. The back rank was never safe. Rohan has been informed.'
+      ? PUZZLE.solved
       : state === 'wrong'
         ? 'Not that one. Look along the back rank.'
         : state === 'selected'

@@ -163,8 +163,9 @@ test.describe('account export and deletion', () => {
       headers: { cookie: await signedCookie(seeded.first.nonOwner.sessionToken) },
     });
     expect(viewer.status()).toBe(401);
+    // a signed-out visitor to /account is sent to sign in
     const account = await page.goto('/account');
-    expect(new URL(account?.url() ?? '').pathname).toBe('/');
+    expect(new URL(account?.url() ?? '').pathname).toBe('/sign-in');
 
     await adaPage.reload();
     await expect(adaPage.getByText('Ada plays White. Former member plays Black.')).toBeVisible();
