@@ -56,6 +56,48 @@ export interface QualifyNightAttendanceInput {
   readonly scoringEventId: string;
   readonly qualifiedAt: Date;
   readonly reason: NightAttendanceQualificationReason;
+  /**
+   * [BM-033] [DR-NIGHT-05] A completed live Game counts even for a player who never pulled up
+   * a chair: with this ID, qualification creates their attendance row first.
+   */
+  readonly attendanceId?: string;
+}
+
+/** [BM-036] Server-side close of every open interval when a Night ends. */
+export interface NightAttendanceSettlementInput {
+  readonly houseId: string;
+  readonly nightId: string;
+  readonly endedAt: Date;
+  /** One join/leave event ID per closed interval and one scoring event ID per qualification. */
+  readonly ids: IdGenerator;
+}
+
+export interface NightAttendanceSettlementResult {
+  readonly closedIntervals: number;
+  readonly qualified: number;
+}
+
+/** [BM-033] [DR-NIGHT-05] A completed live Game on a Night, read from durable Game state. */
+export interface CompletedLiveNightGame {
+  readonly houseId: string;
+  readonly gameId: string;
+  readonly nightId: string;
+  readonly completedAt: Date;
+  readonly membershipIds: readonly [string, string];
+}
+
+export interface CompletedLiveGameReader {
+  readCompletedLiveGame(input: {
+    readonly houseId: string;
+    readonly gameId: string;
+  }): Promise<CompletedLiveNightGame | null>;
+}
+
+export interface LiveGameAttendanceConsumerDependencies {
+  readonly games: CompletedLiveGameReader;
+  readonly attendance: Pick<NightAttendanceRepository, 'qualify'>;
+  readonly ids: IdGenerator;
+  readonly events: NightAttendanceEventRecorder;
 }
 
 /** [BM-033] [BM-036] [DR-NIGHT-02/05] Unique per (night, member); server-timed join/leave accrue into scoring. */

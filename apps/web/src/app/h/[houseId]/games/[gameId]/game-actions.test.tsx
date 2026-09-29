@@ -106,7 +106,9 @@ describe('Game draw and resignation controls', () => {
   it('[BM-028] tells the offerer their offer stands until the opponent moves', async () => {
     await mount({ ...position, pendingDrawOffer: { offeringMembershipId: ada, ply: 1 } });
 
-    expect(container.textContent).toContain('You offered a draw. It stands until Bea moves.');
+    expect(container.textContent).toContain(
+      'You offered a draw. It stands until Bea answers or moves.',
+    );
     expect(container.textContent).not.toContain('Offer a draw');
     expect(container.textContent).not.toContain('Accept the draw');
   });
@@ -121,6 +123,53 @@ describe('Game draw and resignation controls', () => {
     expect(container.textContent).toContain('Ada offers a draw.');
     await act(async () => button('Accept the draw').click());
     expect(sentBody()).toMatchObject({ action: 'accept' });
+    expect(onSettled).toHaveBeenCalledOnce();
+  });
+
+  it('[BM-028] [DR-DRAW-02] lets the opponent decline a pending offer', async () => {
+    await mount({
+      ...position,
+      viewerColor: 'black',
+      pendingDrawOffer: { offeringMembershipId: ada, ply: 1 },
+    });
+
+    await act(async () => button('Decline').click());
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/houses/house/games/game/draw',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(sentBody()).toMatchObject({ action: 'decline' });
+    expect(onSettled).toHaveBeenCalledOnce();
+  });
+
+  it('[BM-028] tells the offerer their offer was declined and waits for their next Move', async () => {
+    await mount({ ...position, drawOfferDeclined: true });
+
+    expect(container.textContent).toContain(
+      'Bea declined your draw offer. You can offer again after your next Move.',
+    );
+    expect(container.textContent).not.toContain('Offer a draw');
+
+    await mount({ ...position, viewerColor: 'black', drawOfferDeclined: true });
+    expect(container.textContent).toContain('You declined the draw. Play on.');
+  });
+
+  it('[BM-028] explains a House rule conflict instead of a generic refresh', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 'game_conflict',
+          detail: 'Your draw offer was declined. You can offer again after your next Move.',
+        }),
+        { status: 409 },
+      ),
+    );
+    await mount(position);
+    await act(async () => button('Offer a draw').click());
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      'Your draw offer was declined. You can offer again after your next Move.',
+    );
     expect(onSettled).toHaveBeenCalledOnce();
   });
 

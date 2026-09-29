@@ -19,12 +19,16 @@ function id(suffix: number): string {
   return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
 }
 
-function input(command: number, targetGameId = gameId): GameCompletionInput {
+function input(
+  command: number,
+  targetGameId = gameId,
+): GameCompletionInput & { readonly offerEventId: string } {
   return {
     gameId: targetGameId,
     clientCommandId: id(800 + command),
     completedEventId: id(900 + command * 2),
     analysisEventId: id(901 + command * 2),
+    offerEventId: id(1_100 + command),
     completedAt: new Date(completedAt.getTime() + command * 1_000),
   };
 }
@@ -184,12 +188,22 @@ integration('PostgreSQL Game completion repository', () => {
       pendingDrawOffer: null,
       completedNow: true,
     });
+    // the offer notice takes the Game's next sequence, so completion follows it
     await expect(events(database)).resolves.toMatchObject({
       rows: [
-        { topic: 'game.completed', sequence: '1', payload: { resultReason: 'agreement' } },
+        {
+          topic: 'game.draw-offer-changed',
+          sequence: '1',
+          payload: {
+            change: 'offered',
+            offeringMembershipId: world.first.nonOwner.membershipId,
+            ply: 0,
+          },
+        },
+        { topic: 'game.completed', sequence: '2', payload: { resultReason: 'agreement' } },
         {
           topic: 'game.analysis-requested',
-          sequence: '2',
+          sequence: '3',
           payload: { resultReason: 'agreement' },
         },
       ],
@@ -281,5 +295,75 @@ integration('PostgreSQL Game completion repository', () => {
     await expect(
       repository.draw(context(world, 'black'), { ...input(9), action: 'accept' }),
     ).rejects.toMatchObject({ code: 'authorization_denied' });
+  });
+
+  it('[BM-028] [DR-DRAW-02] declines an offer, announces it, and allows one offer per Move', async () => {
+    await repository.draw(context(world, 'black'), { ...input(30), action: 'offer' });
+    const decline = input(31);
+
+    await expect(
+      repository.draw(context(world, 'white'), { ...decline, action: 'decline' }),
+    ).resolves.toMatchObject({ state: 'active', pendingDrawOffer: null, replayed: false });
+    await expect(
+      repository.draw(context(world, 'white'), { ...decline, action: 'decline' }),
+    ).resolves.toMatchObject({ state: 'active', pendingDrawOffer: null, replayed: true });
+    await expect(
+      database.query(
+        `select draw_offer_membership_id, draw_offer_ply, outbox_sequence::text, version
+           from games where id=$1`,
+        [gameId],
+      ),
+    ).resolves.toMatchObject({
+      rows: [
+        { draw_offer_membership_id: null, draw_offer_ply: null, outbox_sequence: '2', version: 0 },
+      ],
+    });
+    await expect(events(database)).resolves.toMatchObject({
+      rows: [
+        { topic: 'game.draw-offer-changed', sequence: '1', payload: { change: 'offered' } },
+        {
+          topic: 'game.draw-offer-changed',
+          sequence: '2',
+          payload: {
+            change: 'declined',
+            offeringMembershipId: world.first.nonOwner.membershipId,
+            ply: 0,
+          },
+        },
+      ],
+    });
+
+    await expect(
+      repository.draw(context(world, 'black'), { ...input(32), action: 'offer' }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+
+    // after White and then Black move, it is White's turn again and Black may offer anew
+    await database.query(
+      `update games set current_ply=2, side_to_move='white', version=2 where id=$1`,
+      [gameId],
+    );
+    await expect(
+      repository.draw(context(world, 'black'), { ...input(33), action: 'offer' }),
+    ).resolves.toMatchObject({
+      pendingDrawOffer: { offeringMembershipId: world.first.nonOwner.membershipId, ply: 2 },
+    });
+  });
+
+  it('[BM-028] [DR-DRAW-02] lets only the opponent decline a pending offer', async () => {
+    await expect(
+      repository.draw(context(world, 'white'), { ...input(40), action: 'decline' }),
+    ).rejects.toMatchObject({ code: 'move_conflict' });
+    await repository.draw(context(world, 'black'), { ...input(41), action: 'offer' });
+    await expect(
+      repository.draw(context(world, 'black'), { ...input(42), action: 'decline' }),
+    ).rejects.toMatchObject({ code: 'authorization_denied' });
+    await expect(
+      repository.draw(context(world, 'spectator'), { ...input(43), action: 'decline' }),
+    ).rejects.toMatchObject({ code: 'authorization_denied' });
+    await expect(
+      database.query(
+        `select count(*)::int as count from game_lifecycle_commands where action='draw_decline'`,
+      ),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
   });
 });

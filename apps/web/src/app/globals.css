@@ -3682,15 +3682,22 @@ a.move-card:focus-visible {
   color: var(--ink-2);
 }
 
-.seat-card__action {
+.seat-card__actions {
   position: relative;
   z-index: 1;
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 8px 10px;
   margin-top: 4px;
 }
 
-.house-shell .seat-card__action button {
+.seat-card__action {
+  display: grid;
+  gap: 8px;
+}
+
+.house-shell .seat-card__action button.seat-card__accept {
   justify-self: start;
   border-color: var(--ink);
   background: var(--ink);

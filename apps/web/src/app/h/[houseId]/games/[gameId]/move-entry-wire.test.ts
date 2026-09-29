@@ -142,6 +142,13 @@ describe('[BM-028] draw offer on the repair snapshot', () => {
     ).toBeNull();
   });
 
+  it('carries a declined offer flag and rejects a malformed one', () => {
+    expect(moveEntryPosition({ ...snapshot, drawOfferDeclined: true })?.drawOfferDeclined).toBe(
+      true,
+    );
+    expect(moveEntryPosition({ ...snapshot, drawOfferDeclined: 'yes' })).toBeNull();
+  });
+
   it('has no viewer seat for a spectator', () => {
     const parsed = moveEntryPosition({ ...snapshot, viewerColor: null });
     expect(parsed === null ? 'invalid' : viewerMembershipId(parsed)).toBeNull();

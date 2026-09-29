@@ -42,6 +42,8 @@ export interface GamePosition {
   readonly moves: readonly GamePositionMove[];
   /** [BM-028] [DR-DRAW-02] An unanswered draw offer; the next Move withdraws it. */
   readonly pendingDrawOffer: PendingDrawOffer | null;
+  /** [BM-028] An offer at the current ply was declined; the next offer waits for another Move. */
+  readonly drawOfferDeclined: boolean;
 }
 
 export interface GamePositionReadRepository {

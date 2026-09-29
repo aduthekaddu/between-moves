@@ -1,5 +1,6 @@
 import type { ClockPolicy, OfferedGameColor, OpenSeatListing } from '@between-moves/domain';
 import { AcceptSeatButton } from './accept-seat-button';
+import { CancelSeatButton } from './cancel-seat-button';
 
 function clockLabel(policy: ClockPolicy): string {
   if (policy.kind === 'correspondence') return `Correspondence · ${policy.perMoveHours} h a Move`;
@@ -78,14 +79,31 @@ export function OpenSeatsView({
                     {remaining(seat.expiresAt, viewedAt)}
                   </time>
                 </span>
-                {words.action === null || !seat.viewerMayAccept ? null : (
-                  <AcceptSeatButton
-                    houseId={houseId}
-                    gameId={seat.gameId}
-                    mode={seat.mode}
-                    label={words.action}
-                  />
-                )}
+                <div className="seat-card__actions">
+                  {words.action === null || !seat.viewerMayAccept ? null : (
+                    <AcceptSeatButton
+                      houseId={houseId}
+                      gameId={seat.gameId}
+                      mode={seat.mode}
+                      label={words.action}
+                    />
+                  )}
+                  {seat.viewerIsCreator ? (
+                    <CancelSeatButton
+                      houseId={houseId}
+                      gameId={seat.gameId}
+                      label={seat.intended === null ? 'Cancel seat' : 'Withdraw challenge'}
+                      pendingLabel="Cancelling…"
+                    />
+                  ) : seat.intended !== null && seat.viewerMayAccept ? (
+                    <CancelSeatButton
+                      houseId={houseId}
+                      gameId={seat.gameId}
+                      label="Decline"
+                      pendingLabel="Declining…"
+                    />
+                  ) : null}
+                </div>
               </article>
             </li>
           );

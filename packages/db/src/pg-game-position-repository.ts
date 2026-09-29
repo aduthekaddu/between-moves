@@ -32,6 +32,7 @@ interface GamePositionRow extends QueryResultRow {
   readonly moves: unknown;
   readonly draw_offer_membership_id: unknown;
   readonly draw_offer_ply: unknown;
+  readonly draw_offer_declined: unknown;
 }
 
 interface GameMoveRow {
@@ -121,6 +122,11 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
               g.side_to_move, g.version, g.move_due_at, g.result,
               g.white_clock_ms, g.black_clock_ms, g.turn_started_at,
               g.draw_offer_membership_id::text as draw_offer_membership_id, g.draw_offer_ply,
+              exists(
+                select 1 from game_lifecycle_commands c
+                 where c.game_id = g.id and c.house_id = g.house_id
+                   and c.action = 'draw_decline' and c.command_ply = g.current_ply
+              ) as draw_offer_declined,
               white_member.id::text as white_membership_id,
               coalesce(white_member.display_name_snapshot, white_user.display_name) as white_name,
               black_member.id::text as black_membership_id,
@@ -196,6 +202,7 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
       inCheck: lastSan?.endsWith('+') === true || lastSan?.endsWith('#') === true,
       moves,
       pendingDrawOffer: drawOffer(row),
+      drawOfferDeclined: gameState === 'active' && row.draw_offer_declined === true,
     };
   }
 }

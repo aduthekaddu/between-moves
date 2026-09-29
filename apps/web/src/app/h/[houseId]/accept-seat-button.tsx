@@ -48,7 +48,12 @@ export function AcceptSeatButton({
 
   return (
     <div className="seat-card__action">
-      <button type="button" disabled={pending} onClick={() => void accept()}>
+      <button
+        type="button"
+        className="seat-card__accept"
+        disabled={pending}
+        onClick={() => void accept()}
+      >
         {pending ? 'Taking the seat…' : label}
       </button>
       {error === '' ? null : <p role="alert">{error}</p>}

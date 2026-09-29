@@ -35,6 +35,7 @@ const position: GamePosition = {
   inCheck: false,
   moves: [],
   pendingDrawOffer: null,
+  drawOfferDeclined: false,
 };
 
 function setup(): GameRealtimeDependencies {

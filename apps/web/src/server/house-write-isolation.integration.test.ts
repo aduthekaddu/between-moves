@@ -1,5 +1,6 @@
 import {
   acceptGameSeat,
+  cancelGameSeat,
   changeMembershipRole,
   changeNightPresence,
   createAuthorizeHouseAction,
@@ -35,6 +36,7 @@ import {
   migrateUp,
   PgHouseAuthorizationMembershipRepository,
   PgGameSeatAcceptanceRepository,
+  PgGameSeatCancellationRepository,
   PgGameSeatRepository,
   PgGameCompletionRepository,
   PgGameReactionRepository,
@@ -57,6 +59,7 @@ import type {
   AuthorizeHouseAction,
   Clock,
   GameSeatAcceptanceRepository,
+  GameSeatCancellationRepository,
   GameSeatCreationRepository,
   GameCompletionRepository,
   GameReactionRepository,
@@ -127,6 +130,7 @@ interface IsolationHarness {
   readonly rsvps: NightRsvpRepository;
   readonly lifecycleChanges: NightLifecycleRecorder;
   readonly acceptances: GameSeatAcceptanceRepository;
+  readonly cancellations: GameSeatCancellationRepository;
   readonly seats: GameSeatCreationRepository;
   readonly changes: NightScheduleChangeRecorder;
   readonly seasons: SeasonRepository & SeasonClosingRepository;
@@ -589,6 +593,21 @@ const cases: readonly IsolationCase[] = [
       ),
   },
   {
+    id: 'game.seat-cancel',
+    name: 'Game seat cancellation',
+    outcome: 'denied',
+    expectedError: { code: 'not_found' },
+    run: (harness) =>
+      cancelGameSeat(
+        {
+          houseId: harness.world.second.houseId,
+          gameId: waitingGameId,
+          viewer: viewer(harness.world.second.member),
+        },
+        harness,
+      ),
+  },
+  {
     id: 'game.move-submit',
     name: 'Move submission',
     outcome: 'denied',
@@ -961,6 +980,7 @@ integration('BM-017 current House write-path isolation', () => {
       rsvps: new PgNightRsvpRepository(database),
       lifecycleChanges: { record: () => undefined },
       acceptances: new PgGameSeatAcceptanceRepository(database),
+      cancellations: new PgGameSeatCancellationRepository(database),
       seats: new PgGameSeatRepository(database),
       changes: { record: () => undefined },
       seasons,

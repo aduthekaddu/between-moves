@@ -27,6 +27,7 @@ export {
 } from './seasons';
 export {
   acceptGameSeat,
+  cancelGameSeat,
   createGameSeat,
   handleDraw,
   readGamePosition,
@@ -38,6 +39,7 @@ export {
 export {
   assignNightHost,
   changeNightPresence,
+  createLiveGameAttendanceConsumer,
   changeNightSchedule,
   endNight,
   joinNight,

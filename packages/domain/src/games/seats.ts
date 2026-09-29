@@ -82,6 +82,43 @@ export interface GameSeatCreationDependencies {
 
 export const OPEN_SEAT_LIFETIME_MS = 7 * 24 * 60 * 60 * 1_000;
 
+/**
+ * [BM-022] [BM-023] The Member who opened a seat can take it down, and the Member a direct
+ * challenge names can turn it down. Either way the waiting Game and its seat are cancelled.
+ */
+export interface CancelGameSeatRequest {
+  readonly houseId: string;
+  readonly gameId: string;
+  readonly viewer: AuthenticatedViewer;
+}
+
+export interface GameSeatCancellationInput {
+  readonly gameId: string;
+  readonly cancelledAt: Date;
+}
+
+export interface GameSeatCancellationResult {
+  readonly gameId: string;
+  readonly houseId: string;
+  readonly cancelledBy: 'creator' | 'challenged';
+  readonly state: 'cancelled';
+  /** False when the same seat was already cancelled, so a retried click is harmless. */
+  readonly cancelledNow: boolean;
+}
+
+export interface GameSeatCancellationRepository {
+  cancel(
+    context: AuthorizationContext,
+    input: GameSeatCancellationInput,
+  ): Promise<GameSeatCancellationResult>;
+}
+
+export interface GameSeatCancellationDependencies {
+  readonly authorizeHouseAction: AuthorizeHouseAction;
+  readonly clock: Clock;
+  readonly cancellations: GameSeatCancellationRepository;
+}
+
 /** [BM-022] Resolve the creator's occupied side from the color offered to the next Member. */
 export function creatorColorForOffer(
   offeredColor: OfferedGameColor,

@@ -74,6 +74,10 @@ function database(options: LifecycleDatabaseOptions = {}) {
       };
     }
     if (sql.includes('insert into outbox_events')) return { rows: [], rowCount: 1 };
+    // [BM-036] Night-end settlement: no attendance is open in these cases
+    if (sql.includes('from night_attendance a') && sql.includes('current_joined_at is not null')) {
+      return { rows: [], rowCount: 0 };
+    }
     throw new Error(`Unhandled lifecycle query: ${sql}`);
   });
   const poolQuery = vi.fn(async (sql: string) => {
@@ -130,10 +134,19 @@ describe('BM-035 PostgreSQL Night lifecycle repository', () => {
   });
 
   it('ends a live Night and rejects invalid lifecycle transitions', async () => {
-    const ended = await new PgNightLifecycleRepository(
-      database({ authorizedRow: row({ state: 'live' }) }).pool,
-    ).end(context, { nightId, eventId, at });
+    const endedState = database({ authorizedRow: row({ state: 'live' }) });
+    const ended = await new PgNightLifecycleRepository(endedState.pool).end(context, {
+      nightId,
+      eventId,
+      at,
+      settlementIds: { generate: () => eventId },
+    });
     expect(ended).toMatchObject({ changedNow: true, night: { state: 'ended', endedAt: at } });
+    expect(
+      endedState.clientQuery.mock.calls.some(
+        ([sql]) => sql.includes('from night_attendance a') && sql.includes('for update of a'),
+      ),
+    ).toBe(true);
 
     const cancelled = database({ authorizedRow: row({ state: 'cancelled' }) });
     await expect(

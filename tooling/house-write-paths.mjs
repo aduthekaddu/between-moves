@@ -132,6 +132,12 @@ export const houseWritePaths = Object.freeze([
     scope: 'house-id',
   },
   {
+    id: 'game.seat-cancel',
+    useCase: 'cancelGameSeat',
+    route: 'apps/web/src/app/api/houses/[houseId]/games/[gameId]/cancel/route.ts',
+    scope: 'house-id',
+  },
+  {
     id: 'game.move-submit',
     useCase: 'submitMove',
     route: 'apps/web/src/app/api/houses/[houseId]/games/[gameId]/moves/route.ts',
@@ -199,6 +205,7 @@ export const nonHouseWriteExports = Object.freeze([
   'readScheduledNights',
   'readNightHostCandidates',
   'readNightAttendance',
+  'createLiveGameAttendanceConsumer',
   'mintRealtimeToken',
   'readNightRail',
   'readHouseChat',

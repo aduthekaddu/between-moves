@@ -6,6 +6,7 @@ import {
 } from '@between-moves/adapters';
 import {
   acceptGameSeat,
+  cancelGameSeat,
   createAuthorizeHouseAction,
   createGameSeat,
   handleDraw,
@@ -14,6 +15,7 @@ import {
 } from '@between-moves/application';
 import {
   PgGameSeatAcceptanceRepository,
+  PgGameSeatCancellationRepository,
   PgGameSeatRepository,
   PgGameCompletionRepository,
   PgHouseAuthorizationMembershipRepository,
@@ -21,6 +23,7 @@ import {
 } from '@between-moves/db';
 import type {
   GameSeatAcceptanceDependencies,
+  GameSeatCancellationDependencies,
   GameSeatCreationDependencies,
   GameCompletionDependencies,
   SubmitMoveDependencies,
@@ -30,6 +33,7 @@ import { getConfig } from '../config';
 import { getDatabase } from './database';
 import type { GameSeatCommandHandlerDependencies } from './game-seat-command-handler';
 import type { GameSeatAcceptanceHandlerDependencies } from './game-seat-acceptance-handler';
+import type { GameSeatCancellationHandlerDependencies } from './game-seat-cancellation-handler';
 import type { GameCompletionHandlerDependencies } from './game-completion-handler';
 import { createHouseAuthorizationDenialRecorder } from './house-authorization-observability';
 import { getLogger } from './logger';
@@ -76,6 +80,23 @@ function acceptanceDependencies(request: Request): GameSeatAcceptanceDependencie
     }),
     clock,
     acceptances: new PgGameSeatAcceptanceRepository(database),
+  };
+}
+
+function cancellationDependencies(request: Request): GameSeatCancellationDependencies {
+  const database = getDatabase().pool;
+  return {
+    authorizeHouseAction: createAuthorizeHouseAction({
+      memberships: new PgHouseAuthorizationMembershipRepository(database),
+      nightHosts: { isAssignedNightHost: async () => false },
+      denials: createHouseAuthorizationDenialRecorder({
+        logger: getLogger(),
+        metrics: authorizationMetrics,
+        requestId: readRequestId(request),
+      }),
+    }),
+    clock,
+    cancellations: new PgGameSeatCancellationRepository(database),
   };
 }
 
@@ -139,6 +160,20 @@ export function gameSeatAcceptanceHandlerDependencies(
     expectedOrigin: getConfig().appOrigin.origin,
     requireViewer,
     acceptGameSeat: (command) => acceptGameSeat(command, seatDependencies),
+    logger: getLogger(),
+    clock,
+  };
+}
+
+/** [BM-022] [BM-023] Web composition for withdrawing a seat or declining a challenge. */
+export function gameSeatCancellationHandlerDependencies(
+  request: Request,
+): GameSeatCancellationHandlerDependencies {
+  const seatDependencies = cancellationDependencies(request);
+  return {
+    expectedOrigin: getConfig().appOrigin.origin,
+    requireViewer,
+    cancelGameSeat: (command) => cancelGameSeat(command, seatDependencies),
     logger: getLogger(),
     clock,
   };

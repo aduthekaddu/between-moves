@@ -3,6 +3,7 @@ import {
   applyRailRealtimeEvent,
   applyRailRealtimeEventOrRepair,
   GAME_COMPLETED_TOPIC,
+  GAME_DRAW_OFFER_CHANGED_TOPIC,
   GAME_MOVE_ACCEPTED_TOPIC,
   nightSequenceForState,
   type NightRailSnapshot,
@@ -105,6 +106,43 @@ describe('Night rail snapshot application', () => {
           fenAfter: '8/8/8/8/8/5N2/8/8 b - - 1 2',
           sideToMove: 'black',
         },
+      }),
+    ).toEqual({ kind: 'gap' });
+  });
+
+  it('[BM-028] advances a board past a draw offer so the next Move is not a gap', () => {
+    const offered = applyRailRealtimeEvent(snapshot(), {
+      topic: GAME_DRAW_OFFER_CHANGED_TOPIC,
+      aggregateId: gameId,
+      sequence: 2n,
+      payload: { change: 'offered', ply: 1 },
+    });
+    expect(offered.kind).toBe('applied');
+    if (offered.kind !== 'applied') return;
+    expect(offered.snapshot.activeBoards[0]).toMatchObject({
+      sequence: 2n,
+      currentPly: 1,
+      lastSan: 'e4',
+    });
+
+    const reply = applyRailRealtimeEvent(offered.snapshot, {
+      topic: GAME_MOVE_ACCEPTED_TOPIC,
+      aggregateId: gameId,
+      sequence: 3n,
+      payload: {
+        fenAfter: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
+        san: 'e5',
+        ply: 2,
+        sideToMove: 'white',
+      },
+    });
+    expect(reply.kind).toBe('applied');
+    expect(
+      applyRailRealtimeEvent(snapshot(), {
+        topic: GAME_DRAW_OFFER_CHANGED_TOPIC,
+        aggregateId: gameId,
+        sequence: 4n,
+        payload: { change: 'declined', ply: 1 },
       }),
     ).toEqual({ kind: 'gap' });
   });

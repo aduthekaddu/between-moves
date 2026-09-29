@@ -22,6 +22,7 @@ const position: GamePosition = {
   inCheck: false,
   moves: [],
   pendingDrawOffer: null,
+  drawOfferDeclined: false,
 };
 
 describe('GET /api/houses/{houseId}/games/{gameId}', () => {
@@ -49,6 +50,33 @@ describe('GET /api/houses/{houseId}/games/{gameId}', () => {
     expect(response.status).toBe(304);
     expect(response.headers.get('etag')).toBe('"7"');
     expect(await response.text()).toBe('');
+  });
+
+  it('[BM-028] changes the ETag when a draw is offered or declined at the same version', async () => {
+    const offered = {
+      ...position,
+      pendingDrawOffer: { offeringMembershipId: position.black.membershipId, ply: 0 },
+    };
+    const response = await createGamePositionResponse(
+      new Request(url, { headers: { 'If-None-Match': '"7"' } }),
+      houseId,
+      gameId,
+      vi.fn(async () => offered),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('etag')).toBe('"7-d0"');
+    await expect(response.json()).resolves.toMatchObject({
+      pendingDrawOffer: { offeringMembershipId: position.black.membershipId, ply: 0 },
+    });
+
+    const declined = await createGamePositionResponse(
+      new Request(url, { headers: { 'If-None-Match': '"7-d0"' } }),
+      houseId,
+      gameId,
+      vi.fn(async () => ({ ...position, drawOfferDeclined: true })),
+    );
+    expect(declined.status).toBe(200);
+    expect(declined.headers.get('etag')).toBe('"7-x"');
   });
 
   it('[BM-041] returns the durable live clock snapshot', async () => {

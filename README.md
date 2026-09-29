@@ -214,10 +214,25 @@ can remove Members, and anyone but the Owner can leave.
 `/h/{houseId}/games/new` opens a seat or challenges one Member by name. Correspondence Games use the
 active Charter's pace; live Games need a live Night. Waiting seats are listed on the House home
 until someone takes them or they expire after seven days, and a direct challenge is listed only for
-the two Members it involves. Seated players resign or offer a draw from the Game page while their
-opponent is to move. `GET /api/houses/{houseId}/games/{gameId}` carries `pendingDrawOffer`, and the
-next Move withdraws it. During a live Night, "Pull up a chair" on the rail records durable
-attendance through `/join` and `/leave`; it qualifies when the Member steps away after 15 minutes.
+the two Members it involves. The Member who opened a seat can cancel it, and the challenged Member
+can decline, through `POST /api/houses/{houseId}/games/{gameId}/cancel`; either way the waiting Game
+and its seat become `cancelled`.
+
+Seated players resign from the Game page, offer a draw while their opponent is to move, and accept
+or decline an offer made to them. A declined offer can be renewed only after the offerer's next Move,
+and a Move withdraws a pending one. `GET /api/houses/{houseId}/games/{gameId}` carries
+`pendingDrawOffer` and `drawOfferDeclined`. An offer or decline also enqueues
+`game.draw-offer-changed` on the Game's event sequence, which reaches live boards through realtime;
+correspondence boards have no realtime channel and re-read the Game when their tab regains focus and
+once a minute while it stays open.
+
+During a live Night, "Pull up a chair" on the rail records durable attendance through `/join` and
+`/leave`. Fifteen minutes at the table qualifies the Member for that Night's point, counted when they
+step away or when the Night ends: ending a Night closes every open interval in the same transaction.
+Finishing a live Game on a Night qualifies both players too. The outbox worker reads the completed
+Game from the database, not the event payload, and records `completed_live_game` attendance,
+creating the row for a player who never pulled up a chair. Qualification is idempotent and the
+Season ledger deduplicates by Night, so each Member scores a Night at most once.
 
 Signed-out visitors reach `/sign-in`, `/sign-up` and `/recover`. A recovery link signs the person
 in, revokes every other session, and lands on `/account`.

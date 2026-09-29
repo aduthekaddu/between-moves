@@ -42,6 +42,7 @@ export { PgHouseAuthorizationMembershipRepository } from './pg-house-authorizati
 export { PgHouseHomeRepository } from './pg-house-home-repository';
 export { PgHouseRosterRepository } from './pg-house-roster-repository';
 export { PgOpenSeatReadRepository } from './pg-open-seat-read-repository';
+export { PgGameSeatCancellationRepository } from './pg-game-seat-cancellation-repository';
 export { PgInvitationRepository } from './pg-invitation-repository';
 export { PgInvitationEmailDeliveryGate } from './pg-invitation-email-delivery-gate';
 export { PgInvitationRedemptionRepository } from './pg-invitation-redemption-repository';

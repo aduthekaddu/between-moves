@@ -10,10 +10,24 @@ export const RAIL_RECENT_RESULT_LIMIT = 8;
 
 export const GAME_MOVE_ACCEPTED_TOPIC = 'game.move-accepted';
 export const GAME_COMPLETED_TOPIC = 'game.completed';
+/** [BM-028] [DR-DRAW-02] A draw offer was made or declined; the board itself is unchanged. */
+export const GAME_DRAW_OFFER_CHANGED_TOPIC = 'game.draw-offer-changed';
 
-export const REALTIME_PUBLISH_TOPICS = [
+/** Every Game aggregate event delivered to a Game's realtime channel, in one place. */
+export const GAME_REALTIME_TOPICS = [
   GAME_MOVE_ACCEPTED_TOPIC,
   GAME_COMPLETED_TOPIC,
+  GAME_DRAW_OFFER_CHANGED_TOPIC,
+] as const;
+
+export type GameRealtimeTopic = (typeof GAME_REALTIME_TOPICS)[number];
+
+export function isGameRealtimeTopic(topic: string): topic is GameRealtimeTopic {
+  return (GAME_REALTIME_TOPICS as readonly string[]).includes(topic);
+}
+
+export const REALTIME_PUBLISH_TOPICS = [
+  ...GAME_REALTIME_TOPICS,
   'night.started',
   'night.ended',
 ] as const;
@@ -234,6 +248,31 @@ function applyNight(
   };
 }
 
+/**
+ * [BM-028] A draw offer shares the Game's event sequence but changes nothing on the rail, so
+ * the board only advances its sequence; otherwise the next Move would look like a gap.
+ */
+function applyDrawOfferChanged(
+  snapshot: NightRailSnapshot,
+  event: RailRealtimeEvent,
+): ApplyRailRealtimeEventResult {
+  const existing = boardById(snapshot, event.aggregateId);
+  if (existing === undefined) return { kind: 'gap' };
+  const relation = sequenceRelation(existing.sequence, event.sequence);
+  if (relation === 'stale') return { kind: 'ignored' };
+  if (relation === 'gap') return { kind: 'gap' };
+  if (!('currentFen' in existing)) return { kind: 'ignored' };
+  return {
+    kind: 'applied',
+    snapshot: {
+      ...snapshot,
+      activeBoards: snapshot.activeBoards.map((board) =>
+        board.gameId === event.aggregateId ? { ...board, sequence: event.sequence } : board,
+      ),
+    },
+  };
+}
+
 /** [BM-038] Apply a sequenced realtime event, or signal a gap that needs a durable re-read. */
 export function applyRailRealtimeEvent(
   snapshot: NightRailSnapshot,
@@ -242,6 +281,7 @@ export function applyRailRealtimeEvent(
   if (!isRealtimePublishTopic(event.topic)) return { kind: 'ignored' };
   if (event.topic === GAME_MOVE_ACCEPTED_TOPIC) return applyMove(snapshot, event);
   if (event.topic === GAME_COMPLETED_TOPIC) return applyCompleted(snapshot, event);
+  if (event.topic === GAME_DRAW_OFFER_CHANGED_TOPIC) return applyDrawOfferChanged(snapshot, event);
   if (event.topic === 'night.started') return applyNight(snapshot, event, 'live');
   return applyNight(snapshot, event, 'ended');
 }

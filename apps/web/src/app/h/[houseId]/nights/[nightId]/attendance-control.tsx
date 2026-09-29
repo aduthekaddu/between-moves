@@ -27,9 +27,9 @@ function minutes(seconds: number): string {
 }
 
 /**
- * [BM-036] Pull up a chair: durable, server-timed attendance for the Night's scoring. Presence
- * on the rail is separate and ephemeral. Qualification is decided when the Member steps away
- * after the threshold; nothing settles an open interval when the Night ends.
+ * [BM-033] [BM-036] Pull up a chair: durable, server-timed attendance for the Night's scoring.
+ * Presence on the rail is separate and ephemeral. Time at the table counts when the Member
+ * steps away or when the Night ends, and finishing a live Game counts on its own.
  */
 export function AttendanceControl({
   houseId,
@@ -119,13 +119,13 @@ export function AttendanceControl({
           <p>
             <strong>You are at the table.</strong>{' '}
             {total >= thresholdSeconds
-              ? `That is ${threshold} minutes. Step away when you leave and tonight counts.`
-              : `${minutes(total)} so far. After ${threshold}, step away and tonight counts toward your Season.`}
+              ? `That is ${threshold} minutes: tonight counts when you step away or the Night ends.`
+              : `${minutes(total)} so far. At ${threshold}, tonight counts toward your Season.`}
           </p>
         ) : (
           <p>
-            <strong>Pull up a chair.</strong> Check in while you are here. After {threshold} minutes
-            at the table, step away and tonight counts toward your Season.
+            <strong>Pull up a chair.</strong> Check in while you are here. Stay {threshold} minutes
+            at the table, or finish a live Game, and tonight counts toward your Season.
           </p>
         )}
         {live && !counted ? (

@@ -64,8 +64,11 @@ describe('Open seats on the House home', () => {
     expect(html).toContain('Colours by lot');
     expect(html).toContain('Correspondence · 48 h a Move');
     expect(html).toContain('>Accept<');
+    expect(html).toContain('>Decline<');
     expect(html).toContain('>Take the seat<');
-    expect(html.match(/<button/g)).toHaveLength(2);
+    expect(html).toContain('>Cancel seat<');
+    // own seat: cancel; open seat: take; challenge: accept and decline
+    expect(html.match(/<button/g)).toHaveLength(4);
     expect(html).toContain('Closes in');
   });
 
@@ -84,6 +87,7 @@ describe('Open seats on the House home', () => {
     expect(taker).toContain('You play White');
     expect(creator).toContain('You play Black');
     expect(creator).toContain('Waiting on Bea');
-    expect(creator).not.toContain('<button');
+    expect(creator).toContain('>Withdraw challenge<');
+    expect(creator).not.toContain('>Accept<');
   });
 });

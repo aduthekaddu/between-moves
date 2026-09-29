@@ -80,7 +80,7 @@ export async function startNight(
   );
 }
 
-/** [BM-035] [DR-NIGHT-03] End an authorized House Night with server time. */
+/** [BM-035] [BM-036] [DR-NIGHT-03] End an authorized Night and settle its open attendance. */
 export async function endNight(
   request: NightLifecycleRequest,
   dependencies: NightLifecycleDependencies,
@@ -91,6 +91,7 @@ export async function endNight(
       nightId: request.nightId,
       eventId: dependencies.ids.generate(),
       at: dependencies.clock.now(),
+      settlementIds: dependencies.ids,
     }),
   );
 }

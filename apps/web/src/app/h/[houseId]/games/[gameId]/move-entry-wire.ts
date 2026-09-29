@@ -25,6 +25,8 @@ export interface MoveEntryPosition {
     readonly offeringMembershipId: string;
     readonly ply: number;
   } | null;
+  /** [BM-028] An offer at the current ply was declined. */
+  readonly drawOfferDeclined?: boolean;
 }
 
 export interface AcceptedMoveBody {
@@ -166,6 +168,9 @@ export function moveEntryPosition(value: unknown): MoveEntryPosition | null {
       typeof offer.ply !== 'number' ||
       !Number.isInteger(offer.ply))
   ) {
+    return null;
+  }
+  if (body.drawOfferDeclined !== undefined && typeof body.drawOfferDeclined !== 'boolean') {
     return null;
   }
   return { ...(body as unknown as MoveEntryPosition), moves: moves as GamePositionMove[] };

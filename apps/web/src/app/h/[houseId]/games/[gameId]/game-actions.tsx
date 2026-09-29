@@ -5,19 +5,29 @@ import { postHouseCommand, problemDetail } from '../../../../_components/house-c
 import { generateClientCommandId } from './client-command-id';
 import { viewerMembershipId, type MoveEntryPosition } from './move-entry-wire';
 
-type Command = 'resign' | 'offer' | 'accept';
+type Command = 'resign' | 'offer' | 'accept' | 'decline';
+
+function problemCode(body: unknown): string | null {
+  if (body === null || typeof body !== 'object' || !('code' in body)) return null;
+  return typeof body.code === 'string' ? body.code : null;
+}
 
 function failure(status: number, body: unknown): string {
   if (status === 0) return 'Could not connect. Check your connection and try again.';
   if (status === 401) return 'Your session expired. Sign in again to continue.';
-  if (status === 409)
+  // a House rule (one offer per Move, say) explains itself; a moved board is just refreshed
+  if (status === 409 && problemCode(body) === 'game_conflict' && problemDetail(body) !== null) {
+    return problemDetail(body) ?? '';
+  }
+  if (status === 409) {
     return 'The Game changed before that reached the table. Here is the latest board.';
+  }
   return problemDetail(body) ?? 'That did not go through. Try again.';
 }
 
 /**
- * [BM-028] [DR-DRAW-02] Resign, offer a draw, or accept the opponent's offer. A draw can be
- * offered only while the opponent is to move, and the next Move withdraws it.
+ * [BM-028] [DR-DRAW-02] Resign, offer a draw, or answer the opponent's offer. A draw can be
+ * offered once per Move while the opponent is to move, and the next Move withdraws it.
  */
 export function GameActions({
   houseId,
@@ -45,6 +55,7 @@ export function GameActions({
   const offeredByMe = offer !== null && me !== null && offer.offeringMembershipId === me;
   const offeredToMe = offer !== null && !offeredByMe;
   const myTurn = position.sideToMove === position.viewerColor;
+  const declined = offer === null && position.drawOfferDeclined === true;
   const busy = disabled || pending !== null;
 
   async function send(command: Command) {
@@ -77,20 +88,32 @@ export function GameActions({
       {offeredToMe ? (
         <div className="game-actions__offer" role="status">
           <p>
-            <strong>{opponent} offers a draw.</strong> Accept it, or make your Move to play on.
+            <strong>{opponent} offers a draw.</strong> Accept it, decline it, or make your Move to
+            play on.
           </p>
-          <button
-            type="button"
-            className="game-actions__accept"
-            disabled={busy}
-            onClick={() => void send('accept')}
-          >
-            {pending === 'accept' ? 'Agreeing…' : 'Accept the draw'}
-          </button>
+          <div className="game-actions__buttons">
+            <button
+              type="button"
+              className="game-actions__accept"
+              disabled={busy}
+              onClick={() => void send('accept')}
+            >
+              {pending === 'accept' ? 'Agreeing…' : 'Accept the draw'}
+            </button>
+            <button type="button" disabled={busy} onClick={() => void send('decline')}>
+              {pending === 'decline' ? 'Declining…' : 'Decline'}
+            </button>
+          </div>
         </div>
       ) : offeredByMe ? (
         <p className="game-actions__note" role="status">
-          You offered a draw. It stands until {opponent} moves.
+          You offered a draw. It stands until {opponent} answers or moves.
+        </p>
+      ) : declined ? (
+        <p className="game-actions__note" role="status">
+          {myTurn
+            ? 'You declined the draw. Play on.'
+            : `${opponent} declined your draw offer. You can offer again after your next Move.`}
         </p>
       ) : null}
 
@@ -113,7 +136,7 @@ export function GameActions({
         </div>
       ) : (
         <div className="game-actions__buttons">
-          {offer === null ? (
+          {offer === null && !declined ? (
             <button
               type="button"
               disabled={busy || myTurn}
@@ -128,7 +151,7 @@ export function GameActions({
           </button>
         </div>
       )}
-      {offer === null && myTurn && !confirmingResign ? (
+      {offer === null && !declined && myTurn && !confirmingResign ? (
         <p id="game-actions-draw-hint" className="game-actions__hint">
           You can offer a draw after your Move, while {opponent} thinks.
         </p>

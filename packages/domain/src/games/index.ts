@@ -14,6 +14,7 @@ export { advanceLiveClock, validateLiveClockPolicy, MINIMUM_LIVE_INITIAL_MS } fr
 export type { LiveClockState, LiveClockTransition } from './live-clock';
 export type {
   CompletedGameResult,
+  DrawAction,
   DrawGameInput,
   DrawGameRequest,
   GameCompletionDependencies,
@@ -41,7 +42,12 @@ export type {
   ReadOpenSeatsQuery,
 } from './open-seats';
 export type {
+  CancelGameSeatRequest,
   CreateGameSeatRequest,
+  GameSeatCancellationDependencies,
+  GameSeatCancellationInput,
+  GameSeatCancellationRepository,
+  GameSeatCancellationResult,
   GameColor,
   GameSeatColorChooser,
   GameSeatCreationDependencies,

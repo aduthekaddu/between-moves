@@ -68,6 +68,20 @@ describe('Realtime publish consumer', () => {
     expect(metrics.observeRealtimePublishDelay).toHaveBeenCalledWith(1_250);
   });
 
+  it('[BM-028] publishes draw offer changes to the Game channel', async () => {
+    const { consumer, publisher } = harness();
+    const delivered = event({
+      topic: 'game.draw-offer-changed',
+      sequence: 3n,
+      payload: { change: 'declined', offeringMembershipId: 'membership-id', ply: 2 },
+    });
+
+    await expect(consumer.consume(delivered)).resolves.toBe('processed');
+    expect(publisher.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ topic: 'game.draw-offer-changed', sequence: 3n }),
+    );
+  });
+
   it('[BM-038] treats a provider-idempotent replay as a duplicate', async () => {
     const { consumer, publisher } = harness(async () => 'duplicate');
 

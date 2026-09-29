@@ -5,6 +5,8 @@ import {
   NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
   nightAttendanceSourceKey,
   type AuthorizationContext,
+  type CompletedLiveGameReader,
+  type CompletedLiveNightGame,
   type JoinNightAttendanceInput,
   type LeaveNightAttendanceInput,
   type NightAttendance,
@@ -13,6 +15,8 @@ import {
   type NightAttendanceQualificationReason,
   type NightAttendanceReadRepository,
   type NightAttendanceRepository,
+  type NightAttendanceSettlementInput,
+  type NightAttendanceSettlementResult,
   type QualifyNightAttendanceInput,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
@@ -194,11 +198,137 @@ async function enqueueQualificationEvent(
   return sourceKey;
 }
 
+interface SettlementRow extends AttendanceRow {
+  readonly membership_active: unknown;
+}
+
+interface CompletedLiveGameRow extends QueryResultRow {
+  readonly game_id: unknown;
+  readonly house_id: unknown;
+  readonly night_id: unknown;
+  readonly white_membership_id: unknown;
+  readonly black_membership_id: unknown;
+  readonly completed_at: unknown;
+}
+
+/**
+ * [BM-036] [DR-NIGHT-02/05] Close every interval still open when a Night ends, on the ending
+ * transaction's client. Each close is a server-timed leave, so crossing 15 minutes this way
+ * qualifies an active Member exactly as stepping away would.
+ */
+export async function settleNightAttendance(
+  client: PoolClient,
+  input: NightAttendanceSettlementInput,
+): Promise<NightAttendanceSettlementResult> {
+  assertValidInstant(input.endedAt);
+  const open = await client.query<SettlementRow>(
+    `select ${attendanceColumns}, (m.status = 'active') as membership_active
+       from night_attendance a
+       join house_nights n on n.id = a.night_id and n.house_id = a.house_id
+       join memberships m on m.id = a.membership_id and m.house_id = a.house_id
+      where a.night_id = $1 and a.house_id = $2 and a.current_joined_at is not null
+      order by a.id
+      for update of a`,
+    [input.nightId, input.houseId],
+  );
+  let qualified = 0;
+  for (const row of open.rows) {
+    const attendance = parseAttendance(row);
+    const currentJoinedAt = attendance.currentJoinedAt;
+    if (currentJoinedAt === null) continue;
+    // server clocks can disagree by a moment; an interval never closes before it opened
+    const leftAt = input.endedAt < currentJoinedAt ? currentJoinedAt : input.endedAt;
+    const accumulatedSeconds = accumulatedAttendanceSeconds({
+      accumulatedSeconds: attendance.accumulatedSeconds,
+      currentJoinedAt,
+      at: leftAt,
+    });
+    const qualifiedNow =
+      row.membership_active === true &&
+      crossedAttendanceDurationThreshold({
+        alreadyQualified: attendance.qualifiedAt !== null,
+        previousSeconds: attendance.accumulatedSeconds,
+        accumulatedSeconds,
+      });
+    const updated = await client.query<AttendanceRow>(
+      `update night_attendance a
+          set current_joined_at = null,
+              last_left_at = $3,
+              accumulated_seconds = $4,
+              qualified_at = case when $5 then $3 else qualified_at end,
+              qualification_reason = case when $5 then 'duration' else qualification_reason end,
+              updated_at = $3
+        where a.id = $1 and a.house_id = $2
+      returning a.id::text, a.house_id::text, a.night_id::text,
+                $6::text as season_id, a.membership_id::text,
+                a.first_joined_at, a.current_joined_at, a.last_left_at,
+                a.accumulated_seconds, a.qualified_at, a.qualification_reason`,
+      [
+        attendance.attendanceId,
+        input.houseId,
+        leftAt,
+        accumulatedSeconds,
+        qualifiedNow,
+        attendance.seasonId,
+      ],
+    );
+    const result = parseAttendance(attendanceRow(updated.rows, 'settlement'));
+    await insertAttendanceEvent(client, {
+      eventId: input.ids.generate(),
+      houseId: result.houseId,
+      attendanceId: result.attendanceId,
+      nightId: result.nightId,
+      membershipId: result.membershipId,
+      kind: 'leave',
+      occurredAt: leftAt,
+    });
+    if (qualifiedNow) {
+      await enqueueQualificationEvent(
+        result,
+        { scoringEventId: input.ids.generate(), qualifiedAt: leftAt, reason: 'duration' },
+        client,
+      );
+      qualified += 1;
+    }
+  }
+  return { closedIntervals: open.rows.length, qualified };
+}
+
 /** [BM-033] [BM-036] [DR-NIGHT-02/05] Unique (night, member) join/leave events, duration accrual, and scoring source. */
 export class PgNightAttendanceRepository
-  implements NightAttendanceRepository, NightAttendanceReadRepository
+  implements NightAttendanceRepository, NightAttendanceReadRepository, CompletedLiveGameReader
 {
   constructor(private readonly database: Pool) {}
+
+  /** [BM-033] [DR-NIGHT-05] Derive a completed live Game's Night and players from durable state. */
+  async readCompletedLiveGame(input: {
+    readonly houseId: string;
+    readonly gameId: string;
+  }): Promise<CompletedLiveNightGame | null> {
+    const result = await this.database.query<CompletedLiveGameRow>(
+      `select g.id::text as game_id, g.house_id::text as house_id, g.night_id::text as night_id,
+              g.white_membership_id::text as white_membership_id,
+              g.black_membership_id::text as black_membership_id,
+              g.completed_at
+         from games g
+         join houses h on h.id = g.house_id and h.status = 'active'
+        where g.id = $1 and g.house_id = $2
+          and g.mode = 'live' and g.state = 'completed' and g.night_id is not null`,
+      [input.gameId, input.houseId],
+    );
+    const row = result.rows[0];
+    if (row === undefined) return null;
+    return {
+      houseId: stringValue(row.house_id, 'House id'),
+      gameId: stringValue(row.game_id, 'Game id'),
+      nightId: stringValue(row.night_id, 'Night id'),
+      completedAt: dateValue(row.completed_at, 'Game completion'),
+      membershipIds: [
+        stringValue(row.white_membership_id, 'white membership id'),
+        stringValue(row.black_membership_id, 'black membership id'),
+      ],
+    };
+  }
 
   /** [BM-036] The viewer's own row for one Night, read through active House membership. */
   async readViewerAttendance(
@@ -364,24 +494,73 @@ export class PgNightAttendanceRepository
   async qualify(input: QualifyNightAttendanceInput): Promise<NightAttendanceLeaveResult | null> {
     assertValidInstant(input.qualifiedAt);
     return transaction(this.database, async (client) => {
-      const locked = await client.query<AttendanceRow>(
-        `select ${attendanceColumns}
-           from night_attendance a
-           join house_nights n on n.id = a.night_id and n.house_id = a.house_id
-           join seasons s
-             on s.id = n.season_id and s.house_id = n.house_id and s.state = 'active'
-           join memberships m
-             on m.id = a.membership_id and m.house_id = a.house_id and m.status = 'active'
-          where a.night_id = $1 and a.house_id = $2 and a.membership_id = $3
-            and n.state in ('live', 'ended')
-          for update of a`,
-        [input.nightId, input.houseId, input.membershipId],
-      );
+      const lockEligible = () =>
+        client.query<AttendanceRow>(
+          `select ${attendanceColumns}
+             from night_attendance a
+             join house_nights n on n.id = a.night_id and n.house_id = a.house_id
+             join seasons s
+               on s.id = n.season_id and s.house_id = n.house_id and s.state = 'active'
+             join memberships m
+               on m.id = a.membership_id and m.house_id = a.house_id and m.status = 'active'
+            where a.night_id = $1 and a.house_id = $2 and a.membership_id = $3
+              and n.state in ('live', 'ended')
+            for update of a`,
+          [input.nightId, input.houseId, input.membershipId],
+        );
+      let locked = await lockEligible();
+      if (
+        locked.rows[0] === undefined &&
+        input.reason === 'completed_live_game' &&
+        input.attendanceId !== undefined
+      ) {
+        // [DR-NIGHT-05] a finished live Game is attendance even without a chair on the rail
+        await client.query(
+          `insert into night_attendance
+             (id, house_id, night_id, membership_id, first_joined_at, current_joined_at,
+              accumulated_seconds, created_at, updated_at)
+           select $1, n.house_id, n.id, m.id, $5, null, 0, $5, $5
+             from house_nights n
+             join houses h on h.id = n.house_id and h.status = 'active'
+             join seasons s
+               on s.id = n.season_id and s.house_id = n.house_id and s.state = 'active'
+             join memberships m
+               on m.id = $4 and m.house_id = n.house_id and m.status = 'active'
+            where n.id = $2 and n.house_id = $3 and n.state in ('live', 'ended')
+           on conflict (night_id, membership_id) do nothing`,
+          [input.attendanceId, input.nightId, input.houseId, input.membershipId, input.qualifiedAt],
+        );
+        locked = await lockEligible();
+      }
       const row = locked.rows[0];
       if (row === undefined) return null;
       const attendance = parseAttendance(row);
       if (attendance.qualifiedAt !== null) {
         return { ...attendance, leftNow: false, scoringEventEmitted: false, sourceKey: null };
+      }
+      if (input.reason === 'completed_live_game') {
+        // a Game can finish (a flag, say) just before its player first pulls up a chair
+        const qualifiedAt =
+          input.qualifiedAt < attendance.firstJoinedAt
+            ? attendance.firstJoinedAt
+            : input.qualifiedAt;
+        const updated = await client.query<AttendanceRow>(
+          `update night_attendance a
+              set qualified_at = $3, qualification_reason = 'completed_live_game', updated_at = $3
+            where a.id = $1 and a.house_id = $2
+          returning a.id::text, a.house_id::text, a.night_id::text,
+                    $4::text as season_id, a.membership_id::text,
+                    a.first_joined_at, a.current_joined_at, a.last_left_at,
+                    a.accumulated_seconds, a.qualified_at, a.qualification_reason`,
+          [attendance.attendanceId, attendance.houseId, qualifiedAt, attendance.seasonId],
+        );
+        const result = parseAttendance(attendanceRow(updated.rows, 'qualify'));
+        const sourceKey = await enqueueQualificationEvent(
+          result,
+          { scoringEventId: input.scoringEventId, qualifiedAt, reason: input.reason },
+          client,
+        );
+        return { ...result, leftNow: false, scoringEventEmitted: true, sourceKey };
       }
       const effectiveSeconds = accumulatedAttendanceSeconds({
         accumulatedSeconds: attendance.accumulatedSeconds,

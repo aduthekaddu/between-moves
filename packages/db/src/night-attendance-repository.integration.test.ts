@@ -260,6 +260,135 @@ integration('PostgreSQL Between Moves Night attendance', () => {
     ).resolves.toMatchObject({ scoringEventEmitted: false });
   });
 
+  it('[BM-033] [DR-NIGHT-05] counts a completed live Game for a player who never joined', async () => {
+    const repository = new PgNightAttendanceRepository(database);
+    const completedAt = new Date('2026-09-04T14:40:00.000Z');
+    const liveGameId = id(1_010);
+    await database.query(
+      `insert into games
+        (id, house_id, season_id, night_id, mode, state, white_membership_id,
+         black_membership_id, clock_policy, white_clock_ms, black_clock_ms, result,
+         result_reason, completed_at, created_at)
+       values ($1, $2, $3, $4, 'live', 'completed', $5, $6,
+               '{"kind":"live","initialMs":600000,"incrementMs":5000}', 1000, 2000,
+               'white_win', 'resign', $7, $8)`,
+      [
+        liveGameId,
+        world.first.houseId,
+        seasonId,
+        nightIds[0],
+        world.first.member.membershipId,
+        world.first.nonOwner.membershipId,
+        completedAt,
+        startedAt,
+      ],
+    );
+    await expect(
+      repository.readCompletedLiveGame({ houseId: world.first.houseId, gameId: liveGameId }),
+    ).resolves.toEqual({
+      houseId: world.first.houseId,
+      gameId: liveGameId,
+      nightId: nightIds[0],
+      completedAt,
+      membershipIds: [world.first.member.membershipId, world.first.nonOwner.membershipId],
+    });
+    await expect(
+      repository.readCompletedLiveGame({ houseId: world.second.houseId, gameId: liveGameId }),
+    ).resolves.toBeNull();
+
+    // Bea pulled up a chair only after the flag fell; Ada never did
+    await repository.join(
+      fakeAuthorizationContext({
+        houseId: world.first.houseId,
+        viewerId: world.first.nonOwner.userId,
+      }),
+      {
+        attendanceId: id(1_011),
+        eventId: id(1_012),
+        nightId: nightIds[0],
+        joinedAt: new Date('2026-09-04T14:41:00.000Z'),
+      },
+    );
+    const qualify = (membershipId: string, suffix: number) =>
+      repository.qualify({
+        houseId: world.first.houseId,
+        nightId: nightIds[0],
+        membershipId,
+        attendanceId: id(suffix),
+        scoringEventId: id(suffix + 1),
+        qualifiedAt: completedAt,
+        reason: 'completed_live_game',
+      });
+
+    await expect(qualify(world.first.member.membershipId, 1_020)).resolves.toMatchObject({
+      attendanceId: id(1_020),
+      firstJoinedAt: completedAt,
+      currentJoinedAt: null,
+      accumulatedSeconds: 0,
+      qualifiedAt: completedAt,
+      qualificationReason: 'completed_live_game',
+      scoringEventEmitted: true,
+    });
+    await expect(qualify(world.first.nonOwner.membershipId, 1_022)).resolves.toMatchObject({
+      attendanceId: id(1_011),
+      currentJoinedAt: new Date('2026-09-04T14:41:00.000Z'),
+      qualifiedAt: new Date('2026-09-04T14:41:00.000Z'),
+      scoringEventEmitted: true,
+    });
+    await expect(qualify(world.first.member.membershipId, 1_024)).resolves.toMatchObject({
+      scoringEventEmitted: false,
+    });
+
+    const scoring = await database.query(
+      `select payload->>'membershipId' as membership_id, payload->>'qualificationReason' as reason
+         from outbox_events where topic = 'night.attendance-qualified'
+        order by payload->>'membershipId'`,
+    );
+    expect(scoring.rows).toEqual(
+      [world.first.member.membershipId, world.first.nonOwner.membershipId]
+        .sort()
+        .map((membershipId) => ({ membership_id: membershipId, reason: 'completed_live_game' })),
+    );
+    const rows = await database.query(
+      'select count(*)::int as count from night_attendance where night_id = $1',
+      [nightIds[0]],
+    );
+    expect(rows.rows).toEqual([{ count: 2 }]);
+  });
+
+  it('[BM-033] [DR-NIGHT-05] creates no attendance on a scheduled Night or for a former Member', async () => {
+    const repository = new PgNightAttendanceRepository(database);
+    const qualifiedAt = new Date('2026-09-04T15:00:00.000Z');
+    await expect(
+      repository.qualify({
+        houseId: world.first.houseId,
+        nightId: nightIds[1],
+        membershipId: world.first.member.membershipId,
+        attendanceId: id(1_030),
+        scoringEventId: id(1_031),
+        qualifiedAt,
+        reason: 'completed_live_game',
+      }),
+    ).resolves.toBeNull();
+    await database.query(`update memberships set status = 'left', left_at = now() where id = $1`, [
+      world.first.nonOwner.membershipId,
+    ]);
+    await expect(
+      repository.qualify({
+        houseId: world.first.houseId,
+        nightId: nightIds[0],
+        membershipId: world.first.nonOwner.membershipId,
+        attendanceId: id(1_032),
+        scoringEventId: id(1_033),
+        qualifiedAt,
+        reason: 'completed_live_game',
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      database.query('select count(*)::int as count from night_attendance'),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+  });
+
   it('[BM-033] [DR-DELIV-01] rolls attendance back when its outbox append fails', async () => {
     const clock = new FakeClock(startedAt);
     const repository = new PgNightAttendanceRepository(database);

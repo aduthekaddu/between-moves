@@ -1,6 +1,7 @@
 import {
   AuthorizationDeniedError,
   DomainError,
+  GAME_DRAW_OFFER_CHANGED_TOPIC,
   MoveConflictError,
   RetryableTransactionError,
   type AuthorizationContext,
@@ -11,6 +12,7 @@ import {
   type GameLifecycleResult,
 } from '@between-moves/domain';
 import type { Pool, PoolClient } from 'pg';
+import { enqueueOutboxEvent } from './enqueue-outbox-event';
 import { enqueueGameCompletionEvents } from './game-completion-events';
 import { allocateGameCompletionSequence } from './game-completion-sequence';
 import {
@@ -24,6 +26,7 @@ import {
   side,
   snapshot,
   text,
+  type LifecycleAction,
   type LockedGameRow,
 } from './pg-game-completion-state';
 
@@ -108,6 +111,39 @@ async function resignInTransaction(
   return outcome;
 }
 
+/**
+ * [BM-028] [DR-DRAW-02] Tell both players' boards an offer was made or declined. The notice
+ * takes the Game's next aggregate sequence, like a Move, so realtime readers stay in order.
+ */
+async function announceDrawOfferChange(
+  client: PoolClient,
+  context: AuthorizationContext,
+  input: DrawGameInput,
+  game: LockedGameRow,
+  change: { readonly kind: 'offered' | 'declined'; readonly offeringMembershipId: string },
+  ply: number,
+): Promise<void> {
+  const sequence = bigInteger(game.outbox_sequence, 'outbox sequence') + 1n;
+  await client.query(`update games set outbox_sequence=$3 where id=$1 and house_id=$2`, [
+    input.gameId,
+    context.houseId,
+    sequence.toString(),
+  ]);
+  await enqueueOutboxEvent(
+    {
+      id: input.offerEventId,
+      topic: GAME_DRAW_OFFER_CHANGED_TOPIC,
+      aggregateId: input.gameId,
+      sequence,
+      houseId: context.houseId,
+      payload: { change: change.kind, offeringMembershipId: change.offeringMembershipId, ply },
+      availableAt: input.completedAt,
+      occurredAt: input.completedAt,
+    },
+    client,
+  );
+}
+
 async function offerDraw(
   client: PoolClient,
   context: AuthorizationContext,
@@ -126,10 +162,31 @@ async function offerDraw(
     throw new DomainError('conflict', 'A draw offer is already pending');
   }
   if (offerer === null) {
+    // one offer per Move: a declined offer can be renewed only after the offerer moves again
+    const declined = await client.query(
+      `select 1 from game_lifecycle_commands
+        where game_id=$1 and house_id=$2 and action='draw_decline' and command_ply=$3
+        limit 1`,
+      [input.gameId, context.houseId, ply],
+    );
+    if (declined.rows.length > 0) {
+      throw new DomainError(
+        'conflict',
+        'Your draw offer was declined. You can offer again after your next Move.',
+      );
+    }
     await client.query(
       `update games set draw_offer_membership_id=$3, draw_offer_ply=$4
         where id=$1 and house_id=$2`,
       [input.gameId, context.houseId, actor, ply],
+    );
+    await announceDrawOfferChange(
+      client,
+      context,
+      input,
+      game,
+      { kind: 'offered', offeringMembershipId: actor },
+      ply,
     );
   }
   const outcome = snapshot(
@@ -139,6 +196,52 @@ async function offerDraw(
     false,
   );
   await recordCommand(client, context, input, actor, 'draw_offer', ply, outcome);
+  return outcome;
+}
+
+function withdrawnOffer(game: LockedGameRow, ply: number): MoveConflictError {
+  return new MoveConflictError({
+    version: integer(game.version, 'version'),
+    currentPly: ply,
+    fen: text(game.current_fen, 'current FEN'),
+  });
+}
+
+/** [BM-028] [DR-DRAW-02] The opponent turns an offer down; play continues on their turn. */
+async function declineDraw(
+  client: PoolClient,
+  context: AuthorizationContext,
+  input: DrawGameInput,
+  game: LockedGameRow,
+  actor: string,
+  currentActor: string,
+  ply: number,
+): Promise<GameLifecycleResult> {
+  const offerer = nullableText(game.draw_offer_membership_id, 'draw offer membership id');
+  if (offerer === null || game.draw_offer_ply === null) throw withdrawnOffer(game, ply);
+  if (offerer === actor || actor !== currentActor) {
+    throw new AuthorizationDeniedError('Only the opponent may decline a draw offer');
+  }
+  await client.query(
+    `update games set draw_offer_membership_id=null, draw_offer_ply=null
+      where id=$1 and house_id=$2`,
+    [input.gameId, context.houseId],
+  );
+  await announceDrawOfferChange(
+    client,
+    context,
+    input,
+    game,
+    { kind: 'declined', offeringMembershipId: offerer },
+    ply,
+  );
+  const outcome = snapshot(
+    { ...game, draw_offer_membership_id: null, draw_offer_ply: null },
+    context,
+    input.gameId,
+    false,
+  );
+  await recordCommand(client, context, input, actor, 'draw_decline', ply, outcome);
   return outcome;
 }
 
@@ -152,13 +255,7 @@ async function acceptDraw(
   ply: number,
 ): Promise<GameLifecycleResult> {
   const offerer = nullableText(game.draw_offer_membership_id, 'draw offer membership id');
-  if (offerer === null || game.draw_offer_ply === null) {
-    throw new MoveConflictError({
-      version: integer(game.version, 'version'),
-      currentPly: ply,
-      fen: text(game.current_fen, 'current FEN'),
-    });
-  }
+  if (offerer === null || game.draw_offer_ply === null) throw withdrawnOffer(game, ply);
   if (offerer === actor || actor !== currentActor) {
     throw new AuthorizationDeniedError('Only the opponent may accept a draw offer');
   }
@@ -167,31 +264,37 @@ async function acceptDraw(
   return outcome;
 }
 
+const DRAW_ACTIONS = {
+  offer: 'draw_offer',
+  accept: 'draw_accept',
+  decline: 'draw_decline',
+} as const satisfies Record<DrawGameInput['action'], LifecycleAction>;
+
 async function drawInTransaction(
   client: PoolClient,
   context: AuthorizationContext,
   input: DrawGameInput,
 ): Promise<GameLifecycleResult> {
-  const action = input.action === 'offer' ? 'draw_offer' : 'draw_accept';
+  const action = DRAW_ACTIONS[input.action];
   const game = await loadGame(client, context, input.gameId);
   const seats = seated(game);
   const repeated = await replayCommand(client, context, input, action, game);
   if (repeated !== null) return repeated;
   if (game.state !== 'active') {
-    if (input.action === 'accept') {
-      throw new MoveConflictError({
-        version: integer(game.version, 'version'),
-        currentPly: integer(game.current_ply, 'current ply'),
-        fen: text(game.current_fen, 'current FEN'),
-      });
+    // an offer ends with its Game, so there is nothing left to accept or decline
+    if (input.action !== 'offer') {
+      throw withdrawnOffer(game, integer(game.current_ply, 'current ply'));
     }
     throw new DomainError('conflict', 'Game is not active');
   }
   const ply = integer(game.current_ply, 'current ply');
   const currentActor = side(game.side_to_move) === 'white' ? seats.white : seats.black;
-  return input.action === 'offer'
-    ? offerDraw(client, context, input, game, seats.actor, currentActor, ply)
-    : acceptDraw(client, context, input, game, seats.actor, currentActor, ply);
+  if (input.action === 'offer') {
+    return offerDraw(client, context, input, game, seats.actor, currentActor, ply);
+  }
+  return input.action === 'accept'
+    ? acceptDraw(client, context, input, game, seats.actor, currentActor, ply)
+    : declineDraw(client, context, input, game, seats.actor, currentActor, ply);
 }
 
 function transactionError(error: unknown): unknown {

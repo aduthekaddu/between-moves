@@ -55,6 +55,7 @@ describe('Night attendance on the rail', () => {
   it('[BM-036] joins the live Night and shows the Member at the table', async () => {
     await mount(null);
     expect(container.textContent).toContain('Pull up a chair.');
+    expect(container.textContent).toContain('or finish a live Game');
 
     await press('Pull up a chair');
 
@@ -63,7 +64,7 @@ describe('Night attendance on the rail', () => {
       expect.objectContaining({ method: 'POST' }),
     );
     expect(container.textContent).toContain('You are at the table.');
-    expect(container.textContent).toContain('After 15, step away and tonight counts');
+    expect(container.textContent).toContain('At 15, tonight counts toward your Season.');
     expect(refresh).toHaveBeenCalledOnce();
   });
 
@@ -74,7 +75,9 @@ describe('Night attendance on the rail', () => {
       accumulatedSeconds: 0,
       qualified: false,
     });
-    expect(container.textContent).toContain('That is 15 minutes.');
+    expect(container.textContent).toContain(
+      'That is 15 minutes: tonight counts when you step away or the Night ends.',
+    );
 
     await press('Step away');
 

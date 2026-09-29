@@ -10,7 +10,7 @@ import {
 } from '@between-moves/domain';
 import type { PoolClient, QueryResultRow } from 'pg';
 
-export type LifecycleAction = 'resign' | 'draw_offer' | 'draw_accept';
+export type LifecycleAction = 'resign' | 'draw_offer' | 'draw_accept' | 'draw_decline';
 
 export interface LockedGameRow extends QueryResultRow {
   readonly actor_membership_id: unknown;
