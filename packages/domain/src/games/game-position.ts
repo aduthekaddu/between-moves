@@ -1,6 +1,7 @@
 import type { Viewer } from '../identity';
 import type { AuthorizeHouseAction } from '../houses';
 import type { AuthorizationContext } from '../shared/authorization-context';
+import type { PendingDrawOffer } from './complete';
 import type { SideToMove } from './rules-adapter';
 
 export type GamePositionState = 'active' | 'completed';
@@ -39,6 +40,10 @@ export interface GamePosition {
   readonly result: GamePositionResult | null;
   readonly inCheck: boolean;
   readonly moves: readonly GamePositionMove[];
+  /** [BM-028] [DR-DRAW-02] An unanswered draw offer; the next Move withdraws it. */
+  readonly pendingDrawOffer: PendingDrawOffer | null;
+  /** [BM-028] An offer at the current ply was declined; the next offer waits for another Move. */
+  readonly drawOfferDeclined: boolean;
 }
 
 export interface GamePositionReadRepository {

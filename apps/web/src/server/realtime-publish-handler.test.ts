@@ -119,4 +119,37 @@ describe('Realtime publish HTTP seam', () => {
     expect(response.status).toBe(204);
     expect(listener).toHaveBeenCalledWith(gameEnvelope);
   });
+
+  it('[BM-028] fans a draw offer change out to the Game channel and its Night rail', async () => {
+    const gameId = '01941f29-7c00-7000-8000-000000000943';
+    const nightId = '01941f29-7c00-7000-8000-000000000944';
+    const drawEnvelope = {
+      ...envelope,
+      name: 'game.draw-offer-changed',
+      data: { houseId: envelope.data.houseId, aggregateId: gameId, change: 'declined' },
+    };
+    const fanout = new RealtimeNightFanout();
+    const gameListener = vi.fn();
+    const railListener = vi.fn();
+    fanout.subscribeGame(drawEnvelope.channel, gameListener);
+    fanout.subscribe(nightId, railListener);
+    const body = JSON.stringify(drawEnvelope);
+    const response = await handleRealtimePublish(
+      new Request('https://app.example.test/api/internal/realtime/publish', {
+        method: 'POST',
+        headers: { 'x-realtime-signature': signRealtimePublish(serverKey, body) },
+        body,
+      }),
+      {
+        serverKey,
+        database: {
+          query: vi.fn(async () => ({ rows: [{ night_id: nightId }] })),
+        } as unknown as Pool,
+        fanout,
+      },
+    );
+    expect(response.status).toBe(204);
+    expect(gameListener).toHaveBeenCalledWith(drawEnvelope);
+    expect(railListener).toHaveBeenCalledWith(drawEnvelope);
+  });
 });

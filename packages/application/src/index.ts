@@ -7,6 +7,8 @@ export {
   inspectInvitation,
   leaveHouse,
   readHouseHome,
+  readHouseRoster,
+  readPendingInvitations,
   removeHouseMember,
   redeemInvitation,
   revokeInvitation,
@@ -25,20 +27,24 @@ export {
 } from './seasons';
 export {
   acceptGameSeat,
+  cancelGameSeat,
   createGameSeat,
   handleDraw,
   readGamePosition,
   readMoveShelf,
+  readOpenSeats,
   resignGame,
   submitMove,
 } from './games';
 export {
   assignNightHost,
   changeNightPresence,
+  createLiveGameAttendanceConsumer,
   changeNightSchedule,
   endNight,
   joinNight,
   leaveNight,
+  readNightAttendance,
   deleteHouseChat,
   mintRealtimeToken,
   postHouseChat,

@@ -1125,7 +1125,7 @@ export const gameLifecycleCommands = pgTable(
     index('game_lifecycle_commands_house_game_idx').on(table.houseId, table.gameId),
     check(
       'game_lifecycle_commands_action_check',
-      sql`${table.action} in ('resign', 'draw_offer', 'draw_accept')`,
+      sql`${table.action} in ('resign', 'draw_offer', 'draw_accept', 'draw_decline')`,
     ),
     check('game_lifecycle_commands_ply_check', sql`${table.commandPly} >= 0`),
     check(

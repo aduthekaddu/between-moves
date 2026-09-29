@@ -22,6 +22,11 @@ export interface NightLifecycleInput {
   readonly at: Date;
 }
 
+/** [BM-036] Ending a Night also settles the attendance intervals still open at that instant. */
+export interface NightEndInput extends NightLifecycleInput {
+  readonly settlementIds: IdGenerator;
+}
+
 export interface NightLifecycleResult {
   readonly night: HouseNightView;
   readonly changedNow: boolean;
@@ -71,7 +76,7 @@ export function transitionNightLifecycle(
 
 export interface NightLifecycleRepository {
   start(context: AuthorizationContext, input: NightLifecycleInput): Promise<NightLifecycleResult>;
-  end(context: AuthorizationContext, input: NightLifecycleInput): Promise<NightLifecycleResult>;
+  end(context: AuthorizationContext, input: NightEndInput): Promise<NightLifecycleResult>;
   assignHost(
     context: AuthorizationContext,
     input: AssignNightHostInput,

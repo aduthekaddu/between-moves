@@ -82,6 +82,9 @@ export default function HomePage() {
                 <span className="lp-nav__short">Invitation</span>
               </a>
             </li>
+            <li>
+              <Link href="/sign-in">Sign in</Link>
+            </li>
           </ul>
         </nav>
       </header>
@@ -99,6 +102,9 @@ export default function HomePage() {
             <p className="lp-hero__tagline">{siteMetadata.tagline}</p>
             <p className="lp-hero__promise">{siteMetadata.description}</p>
             <div className="lp-actions">
+              <Link className="lp-button" href="/sign-up">
+                Create an account <span className="lp-button__arrow">→</span>
+              </Link>
               <a className="lp-button" href="#door">
                 Open your invitation <span className="lp-button__arrow">→</span>
               </a>
@@ -378,6 +384,9 @@ export default function HomePage() {
               <p className="lp-lede">
                 Ask your host for the link. It brings you straight to the table: sign in with your
                 email, no password, no feed, no strangers.
+              </p>
+              <p className="lp-lede">
+                Starting a House? <Link href="/sign-up">Create your account</Link> first.
               </p>
               <DoorForm />
             </div>

@@ -29,6 +29,7 @@ describe('POST /api/auth/magic-link', () => {
     expect(response.status).toBe(204);
     expect(requestMagicLink).toHaveBeenCalledWith(
       'friend@example.test',
+      undefined,
       expect.any(Headers),
       returnTo,
     );

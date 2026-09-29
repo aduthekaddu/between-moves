@@ -99,6 +99,55 @@ integration('PostgreSQL Game position query', () => {
       result: null,
       inCheck: false,
       moves: [{ ply: 1, uci: 'e2e4', san: 'e4' }],
+      pendingDrawOffer: null,
+      drawOfferDeclined: false,
+    });
+  });
+
+  it('[BM-028] shows that an offer at the current ply was declined', async () => {
+    await database.query(
+      `insert into game_lifecycle_commands
+        (game_id, house_id, actor_membership_id, client_command_id, action, command_ply,
+         outcome, created_at)
+       values ($1, $2, $3, $4, 'draw_decline', 1, '{}'::jsonb, now())`,
+      [gameId, world.first.houseId, world.first.nonOwner.membershipId, id(905)],
+    );
+    const read = () =>
+      repository.readGamePosition(
+        fakeAuthorizationContext({
+          houseId: world.first.houseId,
+          viewerId: world.first.member.userId,
+        }),
+        gameId,
+      );
+
+    await expect(read()).resolves.toMatchObject({ drawOfferDeclined: true });
+    // the next Move starts a new ply, so the decline no longer applies
+    await database.query(`update games set current_ply = 2, side_to_move = 'white' where id = $1`, [
+      gameId,
+    ]);
+    await expect(read()).resolves.toMatchObject({ drawOfferDeclined: false });
+  });
+
+  it('[BM-028] [DR-DRAW-02] reads the pending draw offer so the opponent can answer it', async () => {
+    // White offered after e4; it is Black's turn to accept or play on.
+    await database.query(
+      `update games set draw_offer_membership_id = $2, draw_offer_ply = 1 where id = $1`,
+      [gameId, world.first.member.membershipId],
+    );
+
+    await expect(
+      repository.readGamePosition(
+        fakeAuthorizationContext({
+          houseId: world.first.houseId,
+          viewerId: world.first.nonOwner.userId,
+        }),
+        gameId,
+      ),
+    ).resolves.toMatchObject({
+      viewerColor: 'black',
+      canMove: true,
+      pendingDrawOffer: { offeringMembershipId: world.first.member.membershipId, ply: 1 },
     });
   });
 

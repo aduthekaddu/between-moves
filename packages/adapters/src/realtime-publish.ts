@@ -1,6 +1,5 @@
 import {
-  GAME_COMPLETED_TOPIC,
-  GAME_MOVE_ACCEPTED_TOPIC,
+  isGameRealtimeTopic,
   NIGHT_CHAT_DELETED_TOPIC,
   NIGHT_CHAT_POSTED_TOPIC,
   NIGHT_ENDED_TOPIC,
@@ -66,7 +65,7 @@ export class HmacRealtimeChannelResolver implements RealtimeChannelResolver {
 
   channelFor(event: ClaimedOutboxEvent): string | null {
     if (event.houseId === null) return null;
-    if (event.topic === GAME_MOVE_ACCEPTED_TOPIC || event.topic === GAME_COMPLETED_TOPIC) {
+    if (isGameRealtimeTopic(event.topic)) {
       return opaqueRealtimeChannelId(this.serverKey, 'game', event.houseId, event.aggregateId);
     }
     if (event.topic === NIGHT_STARTED_TOPIC || event.topic === NIGHT_ENDED_TOPIC) {

@@ -4,8 +4,7 @@ import {
 } from '@between-moves/adapters';
 import { realtimePublishEnvelopeSchema } from '@between-moves/contracts';
 import {
-  GAME_COMPLETED_TOPIC,
-  GAME_MOVE_ACCEPTED_TOPIC,
+  isGameRealtimeTopic,
   NIGHT_CHAT_DELETED_TOPIC,
   NIGHT_CHAT_POSTED_TOPIC,
   NIGHT_ENDED_TOPIC,
@@ -34,9 +33,7 @@ async function nightIdForEnvelope(
   if (envelope.name === NIGHT_CHAT_POSTED_TOPIC || envelope.name === NIGHT_CHAT_DELETED_TOPIC) {
     return typeof envelope.data.nightId === 'string' ? envelope.data.nightId : null;
   }
-  if (envelope.name !== GAME_MOVE_ACCEPTED_TOPIC && envelope.name !== GAME_COMPLETED_TOPIC) {
-    return null;
-  }
+  if (!isGameRealtimeTopic(envelope.name)) return null;
   const gameId = envelope.data.aggregateId;
   const houseId = envelope.data.houseId;
   if (typeof gameId !== 'string' || typeof houseId !== 'string') return null;
@@ -85,11 +82,7 @@ export async function handleRealtimePublish(
     return new Response(null, { status: 422 });
   }
   const nightId = await nightIdForEnvelope(parsed.data, dependencies.database);
-  if (
-    nightId === null &&
-    parsed.data.name !== GAME_MOVE_ACCEPTED_TOPIC &&
-    parsed.data.name !== GAME_COMPLETED_TOPIC
-  ) {
+  if (nightId === null && !isGameRealtimeTopic(parsed.data.name)) {
     return new Response(null, { status: 204 });
   }
   const result = dependencies.fanout.publish(nightId, parsed.data);

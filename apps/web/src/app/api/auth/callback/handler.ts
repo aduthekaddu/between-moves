@@ -21,7 +21,7 @@ export function createMagicLinkCallbackHandler(
     const url = new URL(request.url);
     const token = url.searchParams.get('token');
     const proof = url.searchParams.get('proof');
-    const returnTo = invitationReturnPath(url.searchParams.get('returnTo')) ?? '/';
+    const returnTo = invitationReturnPath(url.searchParams.get('returnTo')) ?? '/account';
     if (!token || !dependencies.isExpectedPurpose(token, proof)) return invalidRedirect(request);
     try {
       const response = await dependencies.verifyMagicLink(token, request.headers, returnTo);

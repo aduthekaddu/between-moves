@@ -5,6 +5,7 @@ export { revokeInvitation } from './revoke-invitation';
 export { redeemInvitation } from './redeem-invitation';
 export { createAuthorizeHouseAction } from './authorize-house-action';
 export { readHouseHome } from './read-house-home';
+export { readHouseRoster, readPendingInvitations } from './read-house-roster';
 export {
   changeMembershipRole,
   leaveHouse,

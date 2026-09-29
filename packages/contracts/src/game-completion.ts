@@ -8,7 +8,7 @@ export const resignGameBodySchema = z.object({ clientCommandId: clientCommandIdS
 /** [BM-028] [DR-DRAW-02] Untrusted wire input for the draw-offer lifecycle. */
 export const drawGameBodySchema = z
   .object({
-    action: z.enum(['offer', 'accept']),
+    action: z.enum(['offer', 'accept', 'decline']),
     clientCommandId: clientCommandIdSchema,
   })
   .strict();

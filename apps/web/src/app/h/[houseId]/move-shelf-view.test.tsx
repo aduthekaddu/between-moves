@@ -54,7 +54,7 @@ describe('Move Shelf view', () => {
     expect(html).toContain('<time');
   });
 
-  it('[BM-026] [PR-COPY-03] renders the empty shelf prompt without dead controls', () => {
+  it('[BM-026] [PR-COPY-03] renders the empty shelf prompt with a live Start a game link', () => {
     const html = renderToStaticMarkup(
       <MoveShelfView
         houseId={houseId}
@@ -64,6 +64,8 @@ describe('Move Shelf view', () => {
     );
 
     expect(html).toContain('No games yet. Challenge a member or take an open seat.');
-    expect(html).not.toContain('/games/new');
+    // the only control points at the real seat form (apps/web/src/app/h/[houseId]/games/new)
+    expect(html).toContain(`href="/h/${houseId}/games/new"`);
+    expect(html.match(/<a /g)).toHaveLength(1);
   });
 });

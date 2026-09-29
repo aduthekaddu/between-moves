@@ -49,7 +49,8 @@ export function createRecoveryCallbackHandler(
       recoveredSessionToken = verified.sessionToken;
       const result = await dependencies.completeRecovery(verified.sessionToken);
       dependencies.onCompleted(result);
-      return redirect(request, '/', verified.cookies);
+      // like a sign-in link, a recovered session lands on the account page, not the landing
+      return redirect(request, '/account', verified.cookies);
     } catch {
       if (recoveredSessionToken) {
         await dependencies.discardRecoverySession(recoveredSessionToken).catch(() => undefined);

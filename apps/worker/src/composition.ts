@@ -12,6 +12,7 @@ import {
 } from '@between-moves/adapters';
 import {
   createClosingBookConsumer,
+  createLiveGameAttendanceConsumer,
   createMagicLinkEmailConsumer,
   createEmailDeliveryConsumer,
   createInvitationEmailConsumer,
@@ -31,6 +32,7 @@ import {
   PgAnalysisJobRepository,
   PgClosingBookRepository,
   PgInvitationEmailDeliveryGate,
+  PgNightAttendanceRepository,
   PgNudgeEmailReader,
   PgNudgeRepository,
   PgOutboxRepository,
@@ -38,6 +40,7 @@ import {
 } from '@between-moves/db';
 import {
   GAME_COMPLETED_SCORING_TOPIC,
+  GAME_COMPLETED_TOPIC,
   INVITATION_EMAIL_TOPIC,
   NIGHT_ATTENDANCE_QUALIFIED_TOPIC,
   NUDGE_DUE_TOPIC,
@@ -49,6 +52,7 @@ import {
   createDeliveryMetricStubs,
   createAnalysisMetricStubs,
   createClosingBookEventRecorder,
+  createNightAttendanceEventRecorder,
   createRealtimeMetricStubs,
   createSeasonScoringEventRecorder,
   createStructuredLogger,
@@ -74,11 +78,12 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
     const analysisJobs = new PgAnalysisJobRepository(database.pool);
     const secret = requiredEnvironment('BETTER_AUTH_SECRET');
     const apiKey = requiredEnvironment('RESEND_API_KEY');
+    const from = requiredEnvironment('RESEND_FROM_EMAIL');
     const magicLink = createMagicLinkEmailConsumer({
       codec: new AesGcmMagicLinkDeliveryCodec(secret),
       sender: new ResendMagicLinkEmailSender({
         apiKey,
-        from: 'Between Moves <sign-in@betweenmoves.app>',
+        from,
         metrics,
       }),
     });
@@ -87,7 +92,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       invitations: new PgInvitationEmailDeliveryGate(database.pool),
       sender: new ResendInvitationEmailSender({
         apiKey,
-        from: 'Between Moves <invitations@betweenmoves.app>',
+        from,
         metrics,
       }),
     });
@@ -96,7 +101,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       reader: new PgNudgeEmailReader(database.pool),
       sender: new ResendNudgeEmailSender({
         apiKey,
-        from: 'Between Moves <nudges@betweenmoves.app>',
+        from,
         metrics,
       }),
       metrics,
@@ -114,6 +119,14 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
       ids: { generate: () => generateUuidV7() },
       clock,
       events: createClosingBookEventRecorder({ logger }),
+    });
+    const nightAttendance = new PgNightAttendanceRepository(database.pool);
+    // [BM-033] a completed live Game counts as attendance for both players on its Night
+    const liveGameAttendance = createLiveGameAttendanceConsumer({
+      games: nightAttendance,
+      attendance: nightAttendance,
+      ids: { generate: () => generateUuidV7() },
+      events: createNightAttendanceEventRecorder({ logger, requestId: 'worker' }),
     });
     const emailTopics = new Set([MAGIC_LINK_EMAIL_TOPIC, INVITATION_EMAIL_TOPIC, NUDGE_DUE_TOPIC]);
     const scoringTopics = new Set([
@@ -149,15 +162,17 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
             now: clock.now(),
           });
         }
+        // every step is idempotent, so a retry after a partial failure repeats none of them
+        const attendanceResult =
+          event.topic === GAME_COMPLETED_TOPIC ? await liveGameAttendance.consume(event) : null;
         const scoringResult = scoringTopics.has(event.topic) ? await scoring.consume(event) : null;
         const realtimeResult =
           realtime !== null && REALTIME_PUBLISH_TOPIC_SET.has(event.topic)
             ? await realtime.consume(event)
             : null;
-        if (scoringResult === null && realtimeResult === null) return fallback.consume(event);
-        return scoringResult === 'processed' || realtimeResult === 'processed'
-          ? 'processed'
-          : 'duplicate';
+        const results = [attendanceResult, scoringResult, realtimeResult];
+        if (results.every((result) => result === null)) return fallback.consume(event);
+        return results.includes('processed') ? 'processed' : 'duplicate';
       },
     };
     const dispatcher = createOutboxDispatcher({

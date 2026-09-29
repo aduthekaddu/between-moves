@@ -1,7 +1,6 @@
 import {
   CHAT_REALTIME_TOPICS,
-  GAME_COMPLETED_TOPIC,
-  GAME_MOVE_ACCEPTED_TOPIC,
+  isGameRealtimeTopic,
   NIGHT_CHAT_DELETED_TOPIC,
   NIGHT_CHAT_POSTED_TOPIC,
   NIGHT_ENDED_TOPIC,
@@ -28,8 +27,7 @@ export interface RealtimePublishConsumerDependencies {
 
 function isPublishableTopic(topic: string): boolean {
   return (
-    topic === GAME_MOVE_ACCEPTED_TOPIC ||
-    topic === GAME_COMPLETED_TOPIC ||
+    isGameRealtimeTopic(topic) ||
     topic === NIGHT_STARTED_TOPIC ||
     topic === NIGHT_ENDED_TOPIC ||
     topic === NIGHT_CHAT_POSTED_TOPIC ||

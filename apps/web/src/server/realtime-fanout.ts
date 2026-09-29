@@ -1,4 +1,5 @@
 import type { RealtimePublishEnvelope } from '@between-moves/adapters';
+import { isGameRealtimeTopic } from '@between-moves/domain';
 
 export type RealtimeFanoutListener = (envelope: RealtimePublishEnvelope) => void;
 
@@ -15,7 +16,7 @@ export class RealtimeNightFanout {
     if (listeners !== undefined) {
       for (const listener of listeners) listener(envelope);
     }
-    if (envelope.name === 'game.move-accepted' || envelope.name === 'game.completed') {
+    if (isGameRealtimeTopic(envelope.name)) {
       for (const listener of this.gameListeners.get(envelope.channel) ?? []) listener(envelope);
     }
     return 'published';

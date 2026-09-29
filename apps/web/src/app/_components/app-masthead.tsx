@@ -1,10 +1,10 @@
 import { BrandMark } from './brand-mark';
 
-export type HouseSection = 'shelf' | 'season' | 'puzzles' | 'game' | 'night';
+export type HouseSection = 'shelf' | 'season' | 'puzzles' | 'members' | 'game' | 'night';
 
 /**
- * One masthead for every House page: the mark, where you are, and the three rooms of a
- * House. Night pages use the dark tone. [BM-050] The account link sits apart from the rooms.
+ * One masthead for every House page: the mark, where you are, and the rooms of a House.
+ * Night pages use the dark tone. [BM-050] The account link sits apart from the rooms.
  */
 export function AppMasthead({
   houseId,
@@ -22,6 +22,7 @@ export function AppMasthead({
     { id: 'shelf', label: 'Move shelf', href: base },
     { id: 'season', label: 'Season', href: `${base}/season` },
     { id: 'puzzles', label: 'Puzzles', href: `${base}/puzzles` },
+    { id: 'members', label: 'Members', href: `${base}/members` },
   ] as const;
   return (
     <header className="app-masthead" data-tone={tone}>

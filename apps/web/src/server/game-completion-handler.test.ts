@@ -120,6 +120,20 @@ describe('BM-028 Game completion HTTP boundaries', () => {
     expect(deps.logger.log).not.toHaveBeenCalled();
   });
 
+  it('[BM-028] [DR-DRAW-02] passes a decline through the draw boundary', async () => {
+    const deps = dependencies();
+    const response = await createDrawGameHandler(deps)(
+      request('draw', { action: 'decline', clientCommandId }),
+      houseId,
+      gameId,
+    );
+
+    expect(response.status).toBe(200);
+    expect(deps.handleDraw).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'decline', clientCommandId }),
+    );
+  });
+
   it('[BM-028] maps and observes non-seated denial and cleared draw offers safely', async () => {
     const denied = dependencies({
       resignGame: vi.fn(async () => {
@@ -184,7 +198,7 @@ describe('BM-028 Game completion HTTP boundaries', () => {
     expect(
       (
         await createDrawGameHandler(deps)(
-          request('draw', { action: 'decline', clientCommandId }),
+          request('draw', { action: 'withdraw', clientCommandId }),
           houseId,
           gameId,
         )

@@ -1,5 +1,6 @@
 export { changeNightSchedule, readScheduledNights } from './schedule';
-export { joinNight, leaveNight } from './attendance';
+export { joinNight, leaveNight, readNightAttendance } from './attendance';
+export { createLiveGameAttendanceConsumer } from './live-game-attendance';
 export { mintRealtimeToken } from './realtime-token';
 export { readNightRail } from './rail';
 export { deleteHouseChat, postHouseChat, readHouseChat } from './chat';

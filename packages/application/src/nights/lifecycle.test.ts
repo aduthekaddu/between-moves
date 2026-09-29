@@ -137,6 +137,7 @@ describe('Between Moves Night lifecycle commands', () => {
       nightId,
       eventId,
       at: endedAt,
+      settlementIds: deps.ids,
     });
     expect(deps.changes.record).toHaveBeenCalledWith(
       expect.objectContaining({ change: 'end', outcome: 'success' }),

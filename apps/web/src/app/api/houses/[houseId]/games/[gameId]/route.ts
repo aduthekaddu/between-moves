@@ -43,6 +43,15 @@ function matchesIfNoneMatch(header: string | null, etag: string): boolean {
   });
 }
 
+/**
+ * The board version, plus any draw offer state: an offer or decline changes the response
+ * without a new board version, so a version-only tag would answer 304 with a stale offer.
+ */
+function entityTag(position: GamePosition): string {
+  const offer = position.pendingDrawOffer === null ? '' : `-d${position.pendingDrawOffer.ply}`;
+  return `"${position.version}${offer}${position.drawOfferDeclined ? '-x' : ''}"`;
+}
+
 export async function createGamePositionResponse(
   request: Request,
   houseId: string,
@@ -57,7 +66,7 @@ export async function createGamePositionResponse(
     return problemResponse(request, 404, 'not_found', 'Not found', 'The Game is unavailable.');
   }
 
-  const etag = `"${position.version}"`;
+  const etag = entityTag(position);
   const headers = { 'Cache-Control': 'private, no-store', ETag: etag };
   // A live clock changes with server time even when the board version is unchanged.
   if (position.mode !== 'live' && matchesIfNoneMatch(request.headers.get('if-none-match'), etag)) {

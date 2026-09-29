@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { getConfig } from '../../../../../config';
+import { getViewerNightAttendance } from '../../../../../modules/nights/attendance';
 import { getHouseChat, serializeHouseChatSnapshot } from '../../../../../modules/nights/chat';
 import { getNightRail, serializeNightRailSnapshot } from '../../../../../modules/nights/rail';
 import { NightRailView } from './night-rail-view';
@@ -38,16 +39,28 @@ export default async function NightRailPage({ params }: NightRailPageProps) {
   const request = new Request(url, { headers: requestHeaders });
   const snapshot = await getNightRail(request, houseId, nightId);
   if (snapshot === null) return notFound();
-  const chat = await getHouseChat(request, houseId, nightId);
+  const [chat, attendance] = await Promise.all([
+    getHouseChat(request, houseId, nightId),
+    getViewerNightAttendance(request, houseId, nightId),
+  ]);
   const initial = serializeNightRailSnapshot(snapshot);
+  const railAttendance =
+    attendance === null
+      ? null
+      : {
+          joinedAt: attendance.currentJoinedAt?.toISOString() ?? null,
+          accumulatedSeconds: attendance.accumulatedSeconds,
+          qualified: attendance.qualifiedAt !== null,
+        };
   if (chat === null) {
-    return <NightRailView houseId={houseId} initial={initial} />;
+    return <NightRailView houseId={houseId} initial={initial} attendance={railAttendance} />;
   }
   return (
     <NightRailView
       houseId={houseId}
       initial={initial}
       initialChat={serializeHouseChatSnapshot(chat)}
+      attendance={railAttendance}
     />
   );
 }

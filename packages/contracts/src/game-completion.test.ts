@@ -13,10 +13,11 @@ describe('BM-028 Game completion contracts', () => {
     ).toBe(false);
   });
 
-  it('accepts only offer and accept draw actions', () => {
+  it('accepts only offer, accept and decline draw actions', () => {
     expect(drawGameBodySchema.safeParse({ action: 'offer', clientCommandId }).success).toBe(true);
     expect(drawGameBodySchema.safeParse({ action: 'accept', clientCommandId }).success).toBe(true);
-    expect(drawGameBodySchema.safeParse({ action: 'decline', clientCommandId }).success).toBe(
+    expect(drawGameBodySchema.safeParse({ action: 'decline', clientCommandId }).success).toBe(true);
+    expect(drawGameBodySchema.safeParse({ action: 'withdraw', clientCommandId }).success).toBe(
       false,
     );
   });

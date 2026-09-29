@@ -6,6 +6,7 @@ import type {
   GamePositionReadRepository,
   GamePositionResult,
   GamePositionState,
+  PendingDrawOffer,
   SideToMove,
 } from '@between-moves/domain';
 import type { Pool, QueryResultRow } from 'pg';
@@ -29,6 +30,9 @@ interface GamePositionRow extends QueryResultRow {
   readonly turn_started_at: unknown;
   readonly result: unknown;
   readonly moves: unknown;
+  readonly draw_offer_membership_id: unknown;
+  readonly draw_offer_ply: unknown;
+  readonly draw_offer_declined: unknown;
 }
 
 interface GameMoveRow {
@@ -87,6 +91,14 @@ function move(row: GameMoveRow): GamePositionMove {
   return { ply, uci: text(row.uci, 'Move UCI'), san: text(row.san, 'Move SAN') };
 }
 
+function drawOffer(row: GamePositionRow): PendingDrawOffer | null {
+  if (row.draw_offer_membership_id === null && row.draw_offer_ply === null) return null;
+  return {
+    offeringMembershipId: text(row.draw_offer_membership_id, 'draw offer membership id'),
+    ply: integer(row.draw_offer_ply, 'draw offer ply'),
+  };
+}
+
 function moveHistory(value: unknown): readonly GamePositionMove[] {
   if (!Array.isArray(value)) throw new Error('Invalid Game position Move history');
   return value.map((candidate) => {
@@ -109,6 +121,12 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
       `select g.id::text as game_id, g.mode, g.state, g.current_fen, g.current_ply,
               g.side_to_move, g.version, g.move_due_at, g.result,
               g.white_clock_ms, g.black_clock_ms, g.turn_started_at,
+              g.draw_offer_membership_id::text as draw_offer_membership_id, g.draw_offer_ply,
+              exists(
+                select 1 from game_lifecycle_commands c
+                 where c.game_id = g.id and c.house_id = g.house_id
+                   and c.action = 'draw_decline' and c.command_ply = g.current_ply
+              ) as draw_offer_declined,
               white_member.id::text as white_membership_id,
               coalesce(white_member.display_name_snapshot, white_user.display_name) as white_name,
               black_member.id::text as black_membership_id,
@@ -183,6 +201,8 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
       result: result(row.result),
       inCheck: lastSan?.endsWith('+') === true || lastSan?.endsWith('#') === true,
       moves,
+      pendingDrawOffer: drawOffer(row),
+      drawOfferDeclined: gameState === 'active' && row.draw_offer_declined === true,
     };
   }
 }

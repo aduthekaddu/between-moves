@@ -1037,16 +1037,21 @@ integration('BM-050 PostgreSQL account export and deletion', () => {
   });
 
   it('[BM-050] turns an identity already marked deleted into a tombstone when migrating', async () => {
-    await expect(migrateDown(database, { migrationsDirectory })).resolves.toEqual([
-      '0026_account_deletion',
-    ]);
+    // roll back to just before 0026, like the nudge migration test, so newer migrations can land
+    const reverted: string[] = [];
+    for (;;) {
+      const [name] = await migrateDown(database, { migrationsDirectory });
+      if (name === undefined) throw new Error('0026_account_deletion was not applied');
+      reverted.push(name);
+      if (name === '0026_account_deletion') break;
+    }
     await database.query(`update users set status = 'deleted', deleted_at = null where id = $1`, [
       bea().userId,
     ]);
 
-    await expect(migrateUp(database, { migrationsDirectory })).resolves.toEqual([
-      '0026_account_deletion',
-    ]);
+    await expect(migrateUp(database, { migrationsDirectory })).resolves.toEqual(
+      [...reverted].reverse(),
+    );
     const person = await database.query(
       `select display_name, email::text, email_verified, image_url, deleted_at is not null as dated
          from users where id = $1`,

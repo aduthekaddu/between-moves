@@ -39,4 +39,25 @@ describe('Realtime Night fan-out', () => {
     fanout.publish(null, { ...envelope, id: '01941f29-7c00-7000-8000-000000000503' });
     expect(listener).toHaveBeenCalledOnce();
   });
+
+  it('[BM-028] delivers draw offer changes to Game subscribers but not chat to them', () => {
+    const fanout = new RealtimeNightFanout();
+    const listener = vi.fn();
+    fanout.subscribeGame(envelope.channel, listener);
+    const offered = {
+      ...envelope,
+      id: '01941f29-7c00-7000-8000-000000000504',
+      name: 'game.draw-offer-changed',
+      data: { aggregateId: envelope.data.aggregateId, change: 'offered' },
+    };
+
+    fanout.publish(null, offered);
+    fanout.publish(null, {
+      ...envelope,
+      id: '01941f29-7c00-7000-8000-000000000505',
+      name: 'night.chat-posted',
+    });
+    expect(listener).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledWith(offered);
+  });
 });

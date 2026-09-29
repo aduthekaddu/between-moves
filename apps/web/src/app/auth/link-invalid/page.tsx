@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { BrandMark } from '../../_components/brand-mark';
 
 export default function InvalidMagicLinkPage() {
@@ -8,6 +9,7 @@ export default function InvalidMagicLinkPage() {
         <p className="house-home__eyebrow">Sign-in link</p>
         <h1 id="link-invalid-title">This sign-in link is no longer valid</h1>
         <p>Request a new link to continue. For your privacy, no account details are shown.</p>
+        <Link href="/sign-in">Request a new sign-in link</Link>
       </section>
     </main>
   );

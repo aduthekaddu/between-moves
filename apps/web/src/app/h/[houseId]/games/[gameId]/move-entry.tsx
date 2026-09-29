@@ -1,6 +1,11 @@
 'use client';
 
-import type { ChessMoveProposal, ChessSquare, SideToMove } from '@between-moves/domain';
+import {
+  isGameRealtimeTopic,
+  type ChessMoveProposal,
+  type ChessSquare,
+  type SideToMove,
+} from '@between-moves/domain';
 import {
   useCallback,
   useEffect,
@@ -13,6 +18,7 @@ import {
 import { applyOptimisticMove, parseFenPieces, type BoardPieces } from './board-model';
 import { ChessBoard } from './chess-board';
 import { generateClientCommandId } from './client-command-id';
+import { GameActions } from './game-actions';
 import { LiveClocks } from './live/live-clocks';
 import {
   acceptedMove,
@@ -27,6 +33,9 @@ interface SubmitCommand {
   readonly expectedPly: number;
   readonly clientCommandId: string;
 }
+
+/** An open correspondence board re-reads the canonical Game this often while visible. */
+const CORRESPONDENCE_REFRESH_MS = 60_000;
 
 function needsPromotion(pieces: BoardPieces, from: ChessSquare | null, to: ChessSquare | null) {
   if (from === null || to === null) return false;
@@ -219,7 +228,7 @@ export function MoveEntry({
     [gameId, houseId, live],
   );
 
-  const reconcileLive = useEffectEvent((background: boolean) => {
+  const reconcileCanonical = useEffectEvent((background: boolean) => {
     if (document.visibilityState === 'hidden' || commandInFlight.current || !navigator.onLine)
       return;
     void refreshCanonicalPosition(background);
@@ -227,18 +236,35 @@ export function MoveEntry({
 
   useEffect(() => {
     if (!live) return;
-    const refocus = () => reconcileLive(false);
+    const refocus = () => reconcileCanonical(false);
     refocus(); // Replace the SSR snapshot after hydration, including any delivery delay.
     window.addEventListener('focus', refocus);
     document.addEventListener('visibilitychange', refocus);
     const timer =
-      position.state === 'active' ? window.setInterval(() => reconcileLive(true), 3000) : undefined;
+      position.state === 'active'
+        ? window.setInterval(() => reconcileCanonical(true), 3000)
+        : undefined;
     return () => {
       window.removeEventListener('focus', refocus);
       document.removeEventListener('visibilitychange', refocus);
       window.clearInterval(timer);
       refreshRequest.current?.controller.abort();
       refreshRequest.current = null;
+    };
+  }, [live, position.state]);
+
+  useEffect(() => {
+    if (live || position.state !== 'active') return;
+    // [BM-028] correspondence boards have no realtime channel: re-read when the reader comes
+    // back to the tab, and now and then while it stays open, so offers and Moves appear
+    const refocus = () => reconcileCanonical(true);
+    window.addEventListener('focus', refocus);
+    document.addEventListener('visibilitychange', refocus);
+    const timer = window.setInterval(refocus, CORRESPONDENCE_REFRESH_MS);
+    return () => {
+      window.removeEventListener('focus', refocus);
+      document.removeEventListener('visibilitychange', refocus);
+      window.clearInterval(timer);
     };
   }, [live, position.state]);
 
@@ -273,7 +299,7 @@ export function MoveEntry({
         source = new EventSource(
           `/api/houses/${encodeURIComponent(houseId)}/games/${encodeURIComponent(gameId)}/live?token=${encodeURIComponent(issued.token)}`,
         );
-        source.onopen = () => reconcileLive(true);
+        source.onopen = () => reconcileCanonical(true);
         source.onmessage = (event) => {
           try {
             const envelope: unknown = JSON.parse(event.data);
@@ -283,7 +309,8 @@ export function MoveEntry({
               'channel' in envelope &&
               envelope.channel === channel &&
               'name' in envelope &&
-              (envelope.name === 'game.move-accepted' || envelope.name === 'game.completed') &&
+              typeof envelope.name === 'string' &&
+              isGameRealtimeTopic(envelope.name) &&
               'data' in envelope &&
               envelope.data !== null &&
               typeof envelope.data === 'object' &&
@@ -292,7 +319,7 @@ export function MoveEntry({
               'aggregateId' in envelope.data &&
               envelope.data.aggregateId === gameId
             ) {
-              reconcileLive(true);
+              reconcileCanonical(true);
             }
           } catch {
             // The periodic canonical read repairs malformed or missing events.
@@ -552,6 +579,14 @@ export function MoveEntry({
           </>
         )}
       </div>
+
+      <GameActions
+        houseId={houseId}
+        gameId={gameId}
+        position={position}
+        disabled={pending || offline || !canonicalFresh}
+        onSettled={() => refreshCanonicalPosition()}
+      />
 
       <div className="game-position-status" aria-live="polite">
         <strong>{gameStatus(position, canonicalFresh)}</strong>

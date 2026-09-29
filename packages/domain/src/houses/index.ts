@@ -5,6 +5,17 @@ export type {
   ReadHouseHomeDependencies,
   ReadHouseHomeQuery,
 } from './house-home';
+export type {
+  HouseRoster,
+  HouseRosterMember,
+  HouseRosterReadRepository,
+  PendingInvitation,
+  PendingInvitationKind,
+  PendingInvitationReadRepository,
+  ReadHouseRosterDependencies,
+  ReadHouseRosterQuery,
+  ReadPendingInvitationsDependencies,
+} from './roster';
 export { createHouseEmblemSeed, createHouseSlug, validateCreateHouseCommand } from './house';
 export type {
   CreateHouseCommand,

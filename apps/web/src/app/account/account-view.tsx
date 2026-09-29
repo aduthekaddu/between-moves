@@ -1,7 +1,9 @@
 import type { AccountSummary, MembershipRole } from '@between-moves/domain';
 import Link from 'next/link';
 import { BrandMark } from '../_components/brand-mark';
+import { CreateHouseForm } from './create-house-form';
 import { DeleteAccountPanel } from './delete-account-panel';
+import { SignOutButton } from './sign-out-button';
 
 const ROLES: Readonly<Record<MembershipRole, string>> = {
   owner: 'Owner',
@@ -31,6 +33,15 @@ export function AccountView({ summary }: { readonly summary: AccountSummary }) {
         <section className="account-intro" aria-labelledby="account-title">
           <p className="house-home__eyebrow">Your account</p>
           <h1 id="account-title">{summary.displayName}</h1>
+          <SignOutButton />
+        </section>
+
+        <section className="account-section" aria-labelledby="account-create-title">
+          <h2 id="account-create-title">Start a House</h2>
+          <p className="account-section__copy">
+            Give your group a private table. You can invite Members after the House opens.
+          </p>
+          <CreateHouseForm />
         </section>
 
         <section className="account-section" aria-labelledby="account-houses-title">

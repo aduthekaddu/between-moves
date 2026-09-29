@@ -1,5 +1,6 @@
 import {
   GAME_COMPLETED_TOPIC,
+  GAME_DRAW_OFFER_CHANGED_TOPIC,
   GAME_MOVE_ACCEPTED_TOPIC,
   NIGHT_CHAT_POSTED_TOPIC,
   NIGHT_STARTED_TOPIC,
@@ -32,6 +33,19 @@ describe('Realtime publish adapter', () => {
         sequence: 1n,
         houseId,
         payload: {},
+        attempts: 1,
+        availableAt: occurredAt,
+        occurredAt,
+      }),
+    ).toBe(opaqueRealtimeChannelId(serverKey, 'game', houseId, gameId));
+    expect(
+      channels.channelFor({
+        id: eventId,
+        topic: GAME_DRAW_OFFER_CHANGED_TOPIC,
+        aggregateId: gameId,
+        sequence: 2n,
+        houseId,
+        payload: { change: 'offered' },
         attempts: 1,
         availableAt: occurredAt,
         occurredAt,

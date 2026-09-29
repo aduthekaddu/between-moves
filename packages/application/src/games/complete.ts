@@ -36,13 +36,14 @@ export async function resignGame(
   return retryTransaction(() => dependencies.completions.resign(context, input));
 }
 
-/** [BM-028] [DR-DRAW-01/02] Record or accept one House-scoped draw offer. */
+/** [BM-028] [DR-DRAW-01/02] Offer, accept, or decline one House-scoped draw offer. */
 export async function handleDraw(
   request: DrawGameRequest,
   dependencies: GameCompletionDependencies,
 ): Promise<GameLifecycleResult> {
   const { context, input } = await authorizedInput(request, dependencies);
+  const offerEventId = dependencies.ids.generate();
   return retryTransaction(() =>
-    dependencies.completions.draw(context, { ...input, action: request.action }),
+    dependencies.completions.draw(context, { ...input, action: request.action, offerEventId }),
   );
 }

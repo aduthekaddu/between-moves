@@ -41,8 +41,11 @@ interface GameLifecycleRequest {
 
 export type ResignGameRequest = GameLifecycleRequest;
 
+/** [BM-028] [DR-DRAW-02] Offer, accept, or decline; the opponent answers an offer on their turn. */
+export type DrawAction = 'offer' | 'accept' | 'decline';
+
 export interface DrawGameRequest extends GameLifecycleRequest {
-  readonly action: 'offer' | 'accept';
+  readonly action: DrawAction;
 }
 
 export interface GameCompletionInput {
@@ -54,7 +57,9 @@ export interface GameCompletionInput {
 }
 
 export interface DrawGameInput extends GameCompletionInput {
-  readonly action: 'offer' | 'accept';
+  readonly action: DrawAction;
+  /** Outbox ID for the realtime notice when an offer is made or declined. */
+  readonly offerEventId: string;
 }
 
 export interface GameCompletionRepository {

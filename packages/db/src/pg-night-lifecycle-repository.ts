@@ -7,6 +7,7 @@ import {
   type AuthorizationContext,
   type HouseNightHostAssignmentRepository,
   type NightHostCandidate,
+  type NightEndInput,
   type NightLifecycleEvent,
   type NightLifecycleInput,
   type NightLifecycleRepository,
@@ -14,6 +15,7 @@ import {
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
 import { enqueueOutboxEvent } from './enqueue-outbox-event';
+import { settleNightAttendance } from './pg-night-attendance-repository';
 import {
   nightRsvpJoin,
   nightString,
@@ -76,7 +78,7 @@ async function lockAuthorizedNight(
 async function applyLifecycle(
   client: PoolClient,
   context: AuthorizationContext,
-  input: NightLifecycleInput,
+  input: NightLifecycleInput | NightEndInput,
   event: NightLifecycleEvent,
 ): Promise<NightLifecycleResult> {
   const previous = parseNight(await lockAuthorizedNight(client, context, input.nightId, false));
@@ -97,6 +99,15 @@ async function applyLifecycle(
     viewer_is_host: previous.viewerIsHost,
     viewer_rsvp: previous.viewerRsvp,
   });
+  if (event === 'end' && 'settlementIds' in input) {
+    // [BM-036] nobody stays at the table after the Night: close every open interval now
+    await settleNightAttendance(client, {
+      houseId: context.houseId,
+      nightId: input.nightId,
+      endedAt: input.at,
+      ids: input.settlementIds,
+    });
+  }
   await enqueueOutboxEvent(
     {
       id: input.eventId,
@@ -126,10 +137,7 @@ export class PgNightLifecycleRepository
     return transaction(this.database, (client) => applyLifecycle(client, context, input, 'start'));
   }
 
-  async end(
-    context: AuthorizationContext,
-    input: NightLifecycleInput,
-  ): Promise<NightLifecycleResult> {
+  async end(context: AuthorizationContext, input: NightEndInput): Promise<NightLifecycleResult> {
     return transaction(this.database, (client) => applyLifecycle(client, context, input, 'end'));
   }
 

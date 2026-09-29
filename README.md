@@ -76,6 +76,49 @@ Review the draft, then copy what you keep into the next numbered directory with 
 
 ## Analysis worker
 
+### Deploy the Trigger.dev jobs
+
+The web app on Vercel handles pages and API routes. The scheduled outbox, nudge, and
+analysis jobs live in `apps/worker` and run on Trigger.dev. Create a Trigger.dev project,
+then find its `proj_...` project reference in Project Settings. The project URL slug is
+not this reference.
+
+Set `TRIGGER_PROJECT_ID` to that reference in the shell used for deployment. Add the
+runtime values in `apps/worker/.env.example` to the matching Trigger.dev environment.
+For the live Vercel site, use the **Production** environment with the same Neon database,
+`BETTER_AUTH_SECRET`, and `REALTIME_SERVER_KEY` as Vercel. Set `APP_ORIGIN` to the deployed
+web origin. The `RESEND_FROM_EMAIL` address must use a domain verified in Resend. Keep
+`ANALYSIS_ENABLED=false` until an analysis engine is deployed; otherwise set
+`ANALYSIS_WORKER_URL` and `ANALYSIS_WORKER_SECRET` as well. Sign-in links are queued in
+PostgreSQL and will not be emailed until the outbox dispatcher is running against that
+same database.
+
+From `apps/worker`, authenticate and deploy with the CLI version matching the SDK:
+
+```bash
+pnpm dlx trigger.dev@4.5.6 login
+pnpm trigger:deploy
+```
+
+The config already discovers `src/trigger`. After deployment, check the Trigger.dev
+**Production** dashboard for `outbox-dispatcher-schedule` (each minute),
+`nudge-dispatcher-schedule` (every fifteen minutes), and `analysis-worker-schedule`
+(each minute; inactive with the environment flag). The outbox also exposes
+`outbox-dispatcher` for event-triggered runs. `pnpm trigger:dev` connects the Development
+environment only while that CLI process stays running. Deploy separately with
+`pnpm trigger:deploy --env staging` if you use a Staging environment; give it its own
+database and secrets.
+
+### Resend delivery webhook
+
+In Resend, register `https://between-moves-web.vercel.app/api/webhooks/resend` as the
+webhook endpoint and select the email delivery events you want recorded (at least
+`email.sent`, `email.delivered`, `email.bounced`, and `email.failed`). Copy the webhook's
+`whsec_...` signing secret into the web app's `RESEND_WEBHOOK_SECRET` on Vercel. This is
+separate from the Resend API key used by the Trigger.dev worker to send mail.
+
+### Analysis engine
+
 The outbox dispatcher turns each `game.analysis-requested` event into one durable
 `analysis_jobs` row. The separate `analysis-worker-schedule` leases jobs and sends
 `POST` requests to `ANALYSIS_WORKER_URL`. The request contains a job ID, game ID,
@@ -158,6 +201,41 @@ is read rather than rewritten. Migration `0026_account_deletion` makes deletion 
 user can never be reactivated, hold a session, or rejoin a House, and a later sign-in with the same
 address creates a new identity. The handlers log `identity.account.exported` and
 `identity.account.deleted` with counts only.
+
+## Members, seats and Nights
+
+Active Members see their House's roster at `/h/{houseId}/members`. The Owner and Stewards also
+create Invitations there: a shared link, usable until the House is full, or a single-email link
+that only that address can redeem. Both last seven days. Only the token digest is stored, so a new
+link is shown once, when it is created; pending Invitations can be revoked but never shown again.
+The Owner changes roles and hands over the House, which signs both people out everywhere. Stewards
+can remove Members, and anyone but the Owner can leave.
+
+`/h/{houseId}/games/new` opens a seat or challenges one Member by name. Correspondence Games use the
+active Charter's pace; live Games need a live Night. Waiting seats are listed on the House home
+until someone takes them or they expire after seven days, and a direct challenge is listed only for
+the two Members it involves. The Member who opened a seat can cancel it, and the challenged Member
+can decline, through `POST /api/houses/{houseId}/games/{gameId}/cancel`; either way the waiting Game
+and its seat become `cancelled`.
+
+Seated players resign from the Game page, offer a draw while their opponent is to move, and accept
+or decline an offer made to them. A declined offer can be renewed only after the offerer's next Move,
+and a Move withdraws a pending one. `GET /api/houses/{houseId}/games/{gameId}` carries
+`pendingDrawOffer` and `drawOfferDeclined`. An offer or decline also enqueues
+`game.draw-offer-changed` on the Game's event sequence, which reaches live boards through realtime;
+correspondence boards have no realtime channel and re-read the Game when their tab regains focus and
+once a minute while it stays open.
+
+During a live Night, "Pull up a chair" on the rail records durable attendance through `/join` and
+`/leave`. Fifteen minutes at the table qualifies the Member for that Night's point, counted when they
+step away or when the Night ends: ending a Night closes every open interval in the same transaction.
+Finishing a live Game on a Night qualifies both players too. The outbox worker reads the completed
+Game from the database, not the event payload, and records `completed_live_game` attendance,
+creating the row for a player who never pulled up a chair. Qualification is idempotent and the
+Season ledger deduplicates by Night, so each Member scores a Night at most once.
+
+Signed-out visitors reach `/sign-in`, `/sign-up` and `/recover`. A recovery link signs the person
+in, revokes every other session, and lands on `/account`.
 
 ## Design system: paper and lamplight
 

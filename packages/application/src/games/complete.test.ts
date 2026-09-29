@@ -13,6 +13,7 @@ const gameId = '01941f29-7c00-7000-8000-000000000301';
 const clientCommandId = '01941f29-7c00-7000-8000-000000000401';
 const completedEventId = '01941f29-7c00-7000-8000-000000000501';
 const analysisEventId = '01941f29-7c00-7000-8000-000000000502';
+const offerEventId = '01941f29-7c00-7000-8000-000000000503';
 const completedAt = new Date('2026-09-09T08:00:00.000Z');
 const viewer: AuthenticatedViewer = {
   kind: 'authenticated',
@@ -48,7 +49,7 @@ function dependencies(repository: Partial<GameCompletionRepository> = {}) {
     })),
     ...repository,
   };
-  const ids = [completedEventId, analysisEventId];
+  const ids = [completedEventId, analysisEventId, offerEventId];
   return {
     authorizeHouseAction: vi.fn(async () => context),
     clock: { now: vi.fn(() => completedAt) },
@@ -90,7 +91,19 @@ describe('BM-028 Game completion commands', () => {
       completedAt,
       completedEventId,
       analysisEventId,
+      offerEventId,
     });
+  });
+
+  it('[BM-028] [DR-DRAW-02] passes a decline through the same draw command', async () => {
+    const deps = dependencies();
+
+    await handleDraw({ houseId, gameId, clientCommandId, action: 'decline', viewer }, deps);
+
+    expect(deps.completions.draw).toHaveBeenCalledWith(
+      context,
+      expect.objectContaining({ action: 'decline', offerEventId }),
+    );
   });
 
   it('[BM-028] [DR-SEC-01] denies a non-Member before persistence', async () => {

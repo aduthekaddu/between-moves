@@ -17,6 +17,6 @@ export default async function AccountPage() {
     headers: await headers(),
   });
   const summary = await readAccountSummary(request);
-  if (summary === null) redirect('/');
+  if (summary === null) redirect('/sign-in');
   return <AccountView summary={summary} />;
 }
