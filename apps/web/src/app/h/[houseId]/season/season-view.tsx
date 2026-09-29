@@ -49,7 +49,6 @@ function ActiveSeason({
   const status = season.state === 'active' ? 'Season active' : `Season ${season.state}`;
   return (
     <article className="season-active" aria-labelledby="season-active-title">
-      <span className="season-parade" aria-hidden="true" />
       <p className="season-eyebrow">{status}</p>
       <h1 id="season-active-title">{season.title}</h1>
       {recap}

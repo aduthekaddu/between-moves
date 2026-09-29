@@ -34,11 +34,6 @@ export function HouseHomeView({
 
       <main className="house-home">
         <section className="house-identity" aria-labelledby="house-name">
-          <span
-            className="bm-puppet house-identity__scene"
-            data-puppet="table"
-            aria-hidden="true"
-          />
           <HouseEmblem
             className="house-emblem"
             seed={home.emblemSeed}

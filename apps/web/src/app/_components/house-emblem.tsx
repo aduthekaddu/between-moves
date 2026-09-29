@@ -1,29 +1,16 @@
 /**
- * [UX-IMG-01] A House's emblem is a rosette cut from black card and held up to the lamp: a
- * scalloped edge, a ring of punched holes, and one chess piece cut out of the middle and backed
- * with coloured tissue. The emblem seed decides the edge, the holes, the piece and the dye, so
- * every House cuts its own mark, and the same House always cuts the same one.
+ * [UX-IMG-01] A House's emblem is a square of paper with some of its corners folded in,
+ * showing the dyed underside. The emblem seed decides which corners fold, how deep, and
+ * which of the three dyes the paper was soaked in — so every House folds its own mark.
  */
 
-const DYES = ['#e8a21a', '#d2361e', '#7c86d6', '#5fa35a'] as const;
-const SCREEN = '#f6e7c8';
-const CARD = '#1c130d';
-
-/** Piece silhouettes in a 24 × 24 box, cut as the tissue window. */
-const PIECES = [
-  // pawn
-  'M12 3.2a3.3 3.3 0 1 1 0 6.6 3.3 3.3 0 0 1 0-6.6zM8.4 10.6h7.2v1.9H8.4zM9.6 12.9h4.8c.2 2.6 1.3 4.6 3 6v1.1H6.6v-1.1c1.7-1.4 2.8-3.4 3-6zM5.6 20.4h12.8v1.8H5.6z',
-  // rook
-  'M6.2 2.8h2.4v2h1.9v-2h3v2h1.9v-2h2.4v5l-2 1.6v8.4l2.2 1.9v1.1H6v-1.1l2.2-1.9V9.4l-2-1.6zM5.2 20.4h13.6v1.8H5.2z',
-  // bishop
-  'M12 1.8a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM12 5.2c2.6 1.9 4 4.1 4 6.3 0 1.6-.8 2.8-2 3.5l.9 3.6 2 1.3v.9H7.1v-.9l2-1.3.9-3.6c-1.2-.7-2-1.9-2-3.5 0-2.2 1.4-4.4 4-6.3zm1.6 2.4-3 3.6.8.6 3-3.4zM5.4 20.4h13.2v1.8H5.4z',
-  // knight
-  'M9.4 2.6l1.2 2c3.9-.2 6.9 2.9 7.1 7.6l.3 6.9H7.4c0-3.2 1.3-4.9 3.4-6.4-1.4.3-2.6.8-3.6 1.8l-2-1.8c1.1-3.2 2.4-5.6 4-7.3zM5.4 20.4h13.2v1.8H5.4z',
-  // queen
-  'M4.6 5.6 7.2 12l1.4-6.6L12 11.6l3.4-6.2 1.4 6.6 2.6-6.4.9 1.3-2.6 10.2 1.6 1.2v1.3H5.3v-1.3l1.6-1.2L4.3 6.9zM5.4 20.4h13.2v1.8H5.4z',
-  // king
-  'M11 1.6h2v2.2h2.2v2H13v2.1c3 .7 5 2.6 5 5 0 1.7-1 3.1-2.6 4.1l.8 1.6 1.4 1v1.2H6.4v-1.2l1.4-1 .8-1.6C7 15.9 6 14.5 6 12.8c0-2.4 2-4.3 5-5V5.8H8.8v-2H11zM5.4 20.4h13.2v1.8H5.4z',
+const DYES = [
+  { flap: '#2a3565', shade: '#1b2242', crease: '#11172f' },
+  { flap: '#e0492f', shade: '#b8321d', crease: '#7d1d0f' },
+  { flap: '#f4a53c', shade: '#d9861c', crease: '#9a5b06' },
 ] as const;
+
+type Corner = 'nw' | 'ne' | 'se' | 'sw';
 
 function hash(seed: string): number {
   let h = 0x811c9dc5;
@@ -45,21 +32,23 @@ function random(seed: number): () => number {
   };
 }
 
-const C = 32;
-const round = (n: number) => Math.round(n * 100) / 100;
+const S = 64;
 
-/** A scalloped disc: `count` bumps of depth `depth` around radius `r`. */
-function scallops(count: number, r: number, depth: number): string {
-  const steps = count * 8;
-  const points: string[] = [];
-  for (let i = 0; i < steps; i += 1) {
-    const a = (i / steps) * Math.PI * 2 - Math.PI / 2;
-    const bump = Math.abs(Math.sin((i / 8) * Math.PI));
-    const radius = r - depth + bump * depth;
-    points.push(`${round(C + Math.cos(a) * radius)},${round(C + Math.sin(a) * radius)}`);
+/** Corner point, the two points where the fold meets the edges, and the folded tip. */
+function fold(corner: Corner, depth: number) {
+  switch (corner) {
+    case 'nw':
+      return { a: [depth, 0], b: [0, depth], tip: [depth, depth] };
+    case 'ne':
+      return { a: [S - depth, 0], b: [S, depth], tip: [S - depth, depth] };
+    case 'se':
+      return { a: [S, S - depth], b: [S - depth, S], tip: [S - depth, S - depth] };
+    case 'sw':
+      return { a: [depth, S], b: [0, S - depth], tip: [depth, S - depth] };
   }
-  return `M${points.join('L')}Z`;
 }
+
+const points = (list: readonly (readonly number[])[]) => list.map((p) => p.join(',')).join(' ');
 
 export function HouseEmblem({
   seed,
@@ -71,39 +60,69 @@ export function HouseEmblem({
   readonly className?: string;
 }) {
   const next = random(hash(seed));
-  const scallopCount = [0, 8, 10, 12, 14, 16][Math.floor(next() * 6)] ?? 12;
-  const piece = PIECES[Math.floor(next() * PIECES.length)] ?? PIECES[0];
   const dye = DYES[Math.floor(next() * DYES.length)] ?? DYES[0];
-  const holes = 10 + Math.floor(next() * 4) * 4;
-  const holeRadius = 1.05 + next() * 0.5;
-  const ring = 21.5 + next() * 2;
-  const tilt = next() * Math.PI;
-  const innerRing = next() > 0.45;
+  const all: Corner[] = ['nw', 'ne', 'se', 'sw'];
+  const pattern = Math.floor(next() * 5);
+  const corners: Corner[] =
+    pattern === 0
+      ? all
+      : pattern === 1
+        ? ['nw', 'se']
+        : pattern === 2
+          ? ['ne']
+          : pattern === 3
+            ? all.filter(() => next() > 0.35)
+            : ['nw', 'ne'];
+  if (corners.length === 0) corners.push('se');
+  const blintz = pattern === 0 && next() > 0.5;
+  const folds = corners.map((corner) => ({
+    corner,
+    ...fold(corner, blintz ? S / 2 : Math.round(16 + next() * 16)),
+  }));
+  const seal = next() > 0.45;
+  const sealAt = [18 + next() * 28, 18 + next() * 28];
 
-  const edge =
-    scallopCount === 0 ? `M${C},${C - 30}a30,30 0 1 1 -0.01,0Z` : scallops(scallopCount, 30, 2.4);
+  // paper outline once every folded corner has been cut back along its crease
+  const outline: number[][] = [];
+  for (const corner of all) {
+    const f = folds.find((item) => item.corner === corner);
+    const cornerPoint =
+      corner === 'nw' ? [0, 0] : corner === 'ne' ? [S, 0] : corner === 'se' ? [S, S] : [0, S];
+    if (f === undefined) {
+      outline.push(cornerPoint);
+    } else if (corner === 'nw') {
+      // walking clockwise we arrive up the left edge, so the left-edge point comes first
+      outline.push(f.b, f.a);
+    } else {
+      outline.push(f.a, f.b);
+    }
+  }
 
   return (
     <svg className={className} viewBox="-4 -4 72 72" role="img" aria-label={label}>
-      <path d={edge} fill="#000" opacity="0.22" transform="translate(1.5 2.5)" />
-      <path d={edge} fill={CARD} />
-      {innerRing ? (
-        <circle cx={C} cy={C} r={ring - 4.2} fill="none" stroke={SCREEN} strokeWidth="0.7" />
-      ) : null}
-      {Array.from({ length: holes }, (_, i) => {
-        const a = tilt + (i / holes) * Math.PI * 2;
-        return (
-          <circle
-            key={i}
-            cx={round(C + Math.cos(a) * ring)}
-            cy={round(C + Math.sin(a) * ring)}
-            r={round(holeRadius)}
-            fill={SCREEN}
+      <polygon points={points(outline)} fill="#000" opacity="0.18" transform="translate(1.5 2.5)" />
+      <polygon points={points(outline)} fill="#f6efe0" />
+      {folds.map((f, i) => (
+        <g key={f.corner}>
+          <polygon
+            points={points([f.a, f.b, f.tip])}
+            fill="#000"
+            opacity="0.12"
+            transform="translate(1 1.5)"
           />
-        );
-      })}
-      <circle cx={C} cy={C} r="13.5" fill={dye} opacity="0.2" />
-      <path d={piece} fill={dye} transform="translate(19.4 19.4) scale(1.05)" />
+          <polygon points={points([f.a, f.b, f.tip])} fill={i % 2 === 0 ? dye.flap : dye.shade} />
+          <line
+            x1={f.a[0]}
+            y1={f.a[1]}
+            x2={f.b[0]}
+            y2={f.b[1]}
+            stroke={dye.crease}
+            strokeWidth="0.8"
+            strokeLinecap="round"
+          />
+        </g>
+      ))}
+      {seal ? <circle cx={sealAt[0]} cy={sealAt[1]} r="3.2" fill="#e0492f" /> : null}
     </svg>
   );
 }

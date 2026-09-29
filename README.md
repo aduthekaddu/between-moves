@@ -202,33 +202,24 @@ user can never be reactivated, hold a session, or rejoin a House, and a later si
 address creates a new identity. The handlers log `identity.account.exported` and
 `identity.account.deleted` with counts only.
 
-## Design system: Lamplight
+## Design system: paper and lamplight
 
-Between Moves is staged as a silhouette theatre: one lamp behind one cloth screen, and a
-company of cut-paper puppets in between, after Lotte Reiniger's silhouette films and the
-shadow theatres before them. Day pages are the lit cloth (warm, grained, brightest under the
-lamp); the Night rail, live Games, the Closing Book, Invitations and the auth pages are the
-dark stage around lit panels. Colour is rare and means something: amber for the lamp (live,
-selected, the leader), vermilion for your turn and alarms, indigo for the House, leaf for done.
-Motifs: dotted perforation rules, notched ticket stubs, rivet pips and a black scalloped valance
-across the top of every page.
+The interface is built from folded paper, indigo card and one lamp. Three dyes carry
+meaning: indigo for the House, vermilion for your turn and alarms, marigold for the lamp
+(selection, live, the leader). House, Season and Puzzle pages are day paper; the Night rail,
+live Games and Invitations are lamp-lit indigo.
 
-- **Type:** Anek by Ek Type (variable, weight 100–800, width 75–125) for the interface, set in
-  condensed capitals for titles; IBM Plex Mono for notation, clocks and labels. The landing's
-  word journey adds two tiny subsets (Anek Devanagari for चतुरङ्ग, Noto Nastaliq Urdu for شطرنج).
-  Fonts are self-hosted from `apps/web/src/fonts` with their OFL licences.
-- **Company:** the chess pieces are the cast (King, Queen, Rook, Bishop, Knight and a chorus of
-  Pawns), with the House's friends, a lamplighter and the scenery in the same black card. Sprites
-  live in `apps/web/public/theatre` (large and `-s` small WebP) and are listed with their sizes in
-  `apps/web/src/app/_theatre/assets.ts`. Board pieces in `apps/web/public/pieces` are cut from the
-  same set: ivory paper with a black keyline, and black card.
-- **Motion:** puppets move on twos (12 fps) with a puppeteer's small hand-held jitter; light stays
-  continuous. Titles rise into place on rods, a word at a time (the landing's title letter by
-  letter). Buttons press down on twos. `prefers-reduced-motion` stills all of it.
-- **Landing theatre:** `apps/web/src/app/_theatre/engine.ts` is a small WebGL2 renderer. A
-  puppet at distance z from the screen casts a shadow magnified by 1 / (1 − z) about the lamp and
-  softened by the lamp's size; sprites multiply the screen's light, so black card blocks it and
-  coloured tissue windows glow. The lamp follows the pointer. `apps/web/src/app/_landing/stage`
-  cues each act's puppets from how far the reader has scrolled into it. Without WebGL2, or with
-  reduced motion, static posters stand in. In development, `/?t=<seconds>&lamp=<x>,<y>` pins one
-  frame for review.
+- **Type:** Anek by Ek Type (one variable family, weight 100–800 and width 75–125) for Latin
+  and nine Indian scripts, with IBM Plex Mono for notation, clocks and labels. Fonts are
+  self-hosted from `apps/web/src/fonts` with their OFL licences; the landing page loads
+  small per-script subsets that carry only the glyphs it shows.
+- **Pieces:** `apps/web/public/models/house-set.glb` is a low-poly, folded-paper rebuild of
+  the CC0 Poly Haven chess set by Riley Queen. The in-app board sprites in
+  `apps/web/public/pieces` and the landing turntables are rendered from the same models, so
+  every surface shows the same set.
+- **Motion:** pieces, stamps and reveals move on twos (12 fps) while light and camera stay
+  continuous. Entrances animate transforms only, so text never drops below its contrast
+  ratio mid-animation, and `prefers-reduced-motion` stills them.
+- **Landing hero:** `apps/web/src/app/_landing/hero` is a Three.js scene loaded after first
+  paint: a paper-stencil board under a lamp that follows the pointer, with the House present
+  only as shadows. In development, `/?t=<seconds>&lamp=<x>,<z>` pins one frame for review.

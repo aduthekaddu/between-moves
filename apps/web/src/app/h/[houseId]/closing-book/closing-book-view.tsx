@@ -106,7 +106,6 @@ function Cover({ shelf, book }: { shelf: HouseClosingBook; book: PublishedClosin
   return (
     <header className="closing-book-desk">
       <div className="closing-book-cover">
-        <span className="bm-puppet closing-book-cover__art" data-puppet="book" aria-hidden="true" />
         <p className="season-eyebrow">Closing Book · {shelf.houseName}</p>
         <h1 id="closing-book-title">{season.title}</h1>
         <p className="closing-book-cover__dates">

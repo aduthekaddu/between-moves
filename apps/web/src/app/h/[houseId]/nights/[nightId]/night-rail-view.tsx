@@ -27,12 +27,12 @@ const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 const PRESENCE_RENEWAL_SKEW_MS = 60_000;
 const PRESENCE_RETRY_MS = 30_000;
-const SILHOUETTES = ['braid', 'headphones', 'spectacles', 'scarf', 'cap'] as const;
+const SILHOUETTES = ['braid', 'headphones', 'chai', 'dupatta', 'cap'] as const;
 
-/** Everyone on the rail is a cut-paper bust at the table; the name picks which one, every time. */
+/** Everyone on the rail is a shadow at the table; the name picks which one, every time. */
 function silhouetteFor(name: string): (typeof SILHOUETTES)[number] {
   const sum = Array.from(name).reduce((total, character) => total + character.charCodeAt(0), 0);
-  return SILHOUETTES[sum % SILHOUETTES.length] ?? 'spectacles';
+  return SILHOUETTES[sum % SILHOUETTES.length] ?? 'chai';
 }
 
 function stateLabel(state: NightRailSnapshotResponse['state']): string {
@@ -414,8 +414,6 @@ export function NightRailView({
       <AppMasthead houseId={houseId} current="night" tone="night" />
       <main className="night-rail__main">
         <header className="night-rail__head">
-          <span className="bm-puppet night-rail__lights" data-puppet="lights" aria-hidden="true" />
-          <span className="bm-puppet night-rail__crowd" data-puppet="rooftop" aria-hidden="true" />
           <p className="house-home__eyebrow">Between Moves Night</p>
           <h1>The rail</h1>
           <p className="night-rail__status" data-state={snapshot.state} role="status">

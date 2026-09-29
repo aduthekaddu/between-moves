@@ -229,27 +229,24 @@ function NightLifecycleControls({
         </div>
       ) : null}
       {canEdit && open ? (
-        <div className="night-card__manage">
-          <p className="night-card__manage-label">Night host</p>
-          <form className="night-host" onSubmit={(event) => void assignHost(event)}>
-            <label>
-              Night host for Night {position}
-              <select
-                value={hostMembershipId}
-                onChange={(event) => setHostMembershipId(event.currentTarget.value)}
-                required
-              >
-                <option value="">Select a Member</option>
-                {hostCandidates.map((candidate) => (
-                  <option key={candidate.membershipId} value={candidate.membershipId}>
-                    {candidate.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit">Assign Night host</button>
-          </form>
-        </div>
+        <form className="night-host" onSubmit={(event) => void assignHost(event)}>
+          <label>
+            Night host for Night {position}
+            <select
+              value={hostMembershipId}
+              onChange={(event) => setHostMembershipId(event.currentTarget.value)}
+              required
+            >
+              <option value="">Select a Member</option>
+              {hostCandidates.map((candidate) => (
+                <option key={candidate.membershipId} value={candidate.membershipId}>
+                  {candidate.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit">Assign Night host</button>
+        </form>
       ) : null}
       {canHost && night.state === 'scheduled' ? (
         <button type="button" onClick={() => void run('/start', 'The Night could not be started.')}>
@@ -335,8 +332,7 @@ export function NightSchedule({
                 onError={(message) => setError(message === '' ? null : message)}
               />
               {canEdit && night.state === 'scheduled' ? (
-                <div className="night-card__manage">
-                  <p className="night-card__manage-label">Reschedule or cancel</p>
+                <>
                   <RescheduleForm
                     houseId={houseId}
                     night={night}
@@ -370,7 +366,7 @@ export function NightSchedule({
                       Cancel Night
                     </button>
                   )}
-                </div>
+                </>
               ) : null}
             </li>
           ))}

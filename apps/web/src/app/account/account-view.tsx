@@ -31,11 +31,6 @@ export function AccountView({ summary }: { readonly summary: AccountSummary }) {
 
       <main className="account-page">
         <section className="account-intro" aria-labelledby="account-title">
-          <span
-            className="bm-puppet account-intro__art"
-            data-puppet="lamplighter"
-            aria-hidden="true"
-          />
           <p className="house-home__eyebrow">Your account</p>
           <h1 id="account-title">{summary.displayName}</h1>
           <SignOutButton />
