@@ -74,8 +74,9 @@ function button(name: string): HTMLButtonElement {
 }
 
 function sentBody(): Record<string, unknown> {
-  const init = fetchMock.mock.calls.at(-1)?.[1] as RequestInit;
-  return JSON.parse(String(init.body)) as Record<string, unknown>;
+  const body = (fetchMock.mock.calls.at(-1)?.[1] as RequestInit | undefined)?.body;
+  if (typeof body !== 'string') throw new Error('No game action request body was sent');
+  return JSON.parse(body) as Record<string, unknown>;
 }
 
 describe('Game draw and resignation controls', () => {

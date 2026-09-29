@@ -61,10 +61,9 @@ async function submit() {
 }
 
 function sent(): Record<string, unknown> {
-  return JSON.parse(String((fetchMock.mock.calls.at(-1)?.[1] as RequestInit).body)) as Record<
-    string,
-    unknown
-  >;
+  const body = (fetchMock.mock.calls.at(-1)?.[1] as RequestInit | undefined)?.body;
+  if (typeof body !== 'string') throw new Error('No game creation request body was sent');
+  return JSON.parse(body) as Record<string, unknown>;
 }
 
 describe('Start a game form', () => {
