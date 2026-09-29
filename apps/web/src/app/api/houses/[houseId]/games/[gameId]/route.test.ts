@@ -21,6 +21,7 @@ const position: GamePosition = {
   result: null,
   inCheck: false,
   moves: [],
+  pendingDrawOffer: null,
 };
 
 describe('GET /api/houses/{houseId}/games/{gameId}', () => {

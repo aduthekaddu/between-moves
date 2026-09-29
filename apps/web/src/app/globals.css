@@ -3453,6 +3453,54 @@ a.move-card:focus-visible {
   background: var(--indigo-2);
 }
 
+/* 404 and errors: a lamp-lit print laid beside the paper sheet */
+.lost-page {
+  grid-template-columns: minmax(0, 560px) minmax(0, 480px);
+  justify-content: center;
+  gap: clamp(24px, 5vw, 64px);
+}
+
+.lost-page__photo {
+  margin: 0;
+  padding: 10px 10px 12px;
+  background: var(--paper-card);
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  transform: rotate(1.6deg);
+}
+
+.lost-page__photo img {
+  width: 100%;
+  height: auto;
+}
+
+.lost-page .house-unavailable__sheet {
+  width: 100%;
+}
+
+.lost-page__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 22px;
+}
+
+.lost-page__reference {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-3) !important;
+}
+
+@media (max-width: 860px) {
+  .lost-page {
+    grid-template-columns: minmax(0, 520px);
+  }
+
+  .lost-page__photo {
+    order: 2;
+    transform: rotate(-1deg);
+  }
+}
+
 /* ————— Arrival: cards are dealt onto the table, on twos ————— */
 
 .move-card,
@@ -3494,6 +3542,1027 @@ a.move-card:focus-visible {
   }
   to {
     translate: 0 0;
+  }
+}
+
+/* ————— House home: open seats and tonight's Night ————— */
+
+.house-home__main {
+  display: grid;
+  gap: clamp(40px, 6vw, 64px);
+}
+
+.house-live-night {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 clamp(28px, 4vw, 44px);
+  padding: 18px 22px;
+  background: var(--indigo) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  color: var(--night-text);
+  text-decoration: none;
+  box-shadow: var(--lift-shadow);
+  transform: rotate(-0.4deg);
+  transition: transform 160ms var(--ease);
+}
+
+.house-live-night:hover {
+  transform: rotate(0deg) translateY(-2px);
+}
+
+.house-live-night:focus-visible {
+  outline-color: var(--marigold);
+  outline-offset: 4px;
+}
+
+.house-live-night__pip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--marigold);
+  box-shadow: 0 0 0 5px rgba(244, 165, 60, 0.22);
+  animation: lamp-pulse 2.4s steps(12, end) infinite;
+}
+
+@keyframes lamp-pulse {
+  50% {
+    box-shadow: 0 0 0 9px rgba(244, 165, 60, 0.08);
+  }
+}
+
+.house-live-night__words {
+  display: grid;
+  gap: 2px;
+}
+
+.house-live-night__words strong {
+  font-size: 1.35rem;
+  font-weight: 760;
+  font-stretch: 80%;
+  text-transform: uppercase;
+  color: var(--marigold);
+}
+
+.house-live-night__words span {
+  color: var(--night-text-2);
+}
+
+.house-live-night__arrow {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  color: var(--marigold);
+}
+
+.open-seats {
+  display: grid;
+  gap: 22px;
+}
+
+.open-seats__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.seat-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  height: 100%;
+  padding: 18px 18px 16px;
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+  transform: rotate(var(--tilt, 0.5deg));
+}
+
+.open-seats__list li:nth-child(2n) .seat-card {
+  --tilt: -0.6deg;
+}
+
+/* a waiting seat is cut with a dashed edge: someone is still to sit down */
+.seat-card::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1.5px dashed var(--rule-2);
+  pointer-events: none;
+}
+
+.seat-card[data-kind='challenge']:not([data-own]) {
+  box-shadow:
+    inset 4px 0 0 var(--vermilion),
+    var(--card-shadow);
+}
+
+.seat-card[data-own] {
+  background-color: var(--paper-sunk);
+  box-shadow: none;
+}
+
+.seat-card[data-kind='challenge']:not([data-own]) .seat-card__stamp {
+  color: var(--vermilion-ink);
+}
+
+.seat-card strong {
+  font-size: 1.35rem;
+  font-weight: 760;
+  font-stretch: 82%;
+  line-height: 1.02;
+}
+
+.seat-card__terms {
+  display: grid;
+  gap: 2px;
+  font-size: 0.94rem;
+  color: var(--ink-2);
+}
+
+.seat-card__action {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.house-shell .seat-card__action button {
+  justify-self: start;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px var(--marigold);
+}
+
+.move-shelf__start {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 12px;
+  font-weight: 700;
+  color: var(--indigo-2);
+}
+
+.move-shelf__start::after {
+  content: ' →';
+  margin-left: 6px;
+  font-family: var(--font-mono);
+}
+
+/* ————— Members ————— */
+
+.members-page,
+.new-game-page {
+  display: grid;
+  gap: clamp(32px, 5vw, 56px);
+  width: var(--page);
+  margin: 0 auto;
+  padding-top: clamp(32px, 5vw, 64px);
+}
+
+.members-heading,
+.new-game-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 42%);
+  align-items: end;
+  gap: clamp(20px, 4vw, 48px);
+}
+
+.members-heading h1,
+.new-game-heading h1 {
+  font-size: clamp(3rem, 9vw, 7.4rem);
+  font-weight: 780;
+  font-stretch: 75%;
+  line-height: 0.86;
+  text-transform: uppercase;
+}
+
+.members-heading__words > p:last-child,
+.new-game-heading > div > p:last-child {
+  max-width: 44ch;
+  margin-top: 18px;
+  font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+  color: var(--ink-2);
+}
+
+.members-heading__art,
+.new-game-heading__art {
+  justify-self: end;
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  animation: deal 440ms steps(5, end) both;
+}
+
+.members-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: start;
+}
+
+.members-roster h2,
+.members-side h2,
+.new-game-closed h2 {
+  font-size: clamp(1.6rem, 2.6vw, 2.3rem);
+  font-weight: 760;
+  font-stretch: 78%;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.roster {
+  display: grid;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+
+.roster__member {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* each Member is a small folded name chip, indigo for the Owner, marigold-edged for Stewards */
+.roster__chip {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+  font-size: 1.2rem;
+  font-weight: 780;
+  font-stretch: 80%;
+  color: var(--indigo-2);
+  clip-path: polygon(0 0, 78% 0, 100% 22%, 100% 100%, 0 100%);
+}
+
+.roster__member[data-role='owner'] .roster__chip {
+  background-color: var(--indigo);
+  color: var(--marigold);
+}
+
+.roster__member[data-role='steward'] .roster__chip {
+  box-shadow:
+    inset 0 -3px 0 var(--marigold),
+    var(--card-shadow);
+}
+
+.roster__who {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.roster__who strong {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.12rem;
+  overflow-wrap: anywhere;
+}
+
+.roster__you {
+  padding: 1px 7px;
+  border: 1.5px solid var(--indigo-2);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--indigo-2);
+}
+
+.roster__since,
+.roster__role {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+.roster__role {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.roster__member[data-role='owner'] .roster__role {
+  color: var(--indigo-2);
+  font-weight: 600;
+}
+
+.member-actions {
+  grid-column: 2 / -1;
+}
+
+.member-actions > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--indigo-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.member-actions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.member-actions > summary::before {
+  content: '+';
+  font-size: 0.9rem;
+}
+
+.member-actions[open] > summary::before {
+  content: '–';
+}
+
+.member-actions__panel,
+.member-actions__confirm,
+.members-leave__confirm {
+  display: grid;
+  gap: 12px;
+}
+
+.member-actions__panel {
+  padding: 14px 16px;
+  border: 1.5px dashed var(--rule-2);
+}
+
+.member-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.house-shell button.member-actions__danger {
+  border-color: var(--vermilion-ink);
+  background: var(--vermilion-ink);
+  color: var(--paper-card);
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px #6d1b0e;
+}
+
+.member-actions__error {
+  font-weight: 600;
+}
+
+.member-actions--done {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--paper-sunk);
+}
+
+.member-actions--done a {
+  justify-self: start;
+  font-weight: 700;
+  color: var(--indigo-2);
+}
+
+.members-side {
+  display: grid;
+  gap: 24px;
+}
+
+.invite-panel {
+  display: grid;
+  gap: 14px;
+  padding: 26px;
+  background: var(--indigo) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  color: var(--night-text);
+  box-shadow: var(--lift-shadow);
+}
+
+.invite-panel .house-home__eyebrow {
+  margin: 0;
+  color: var(--night-text-2);
+}
+
+.invite-panel :focus-visible {
+  outline-color: var(--marigold);
+}
+
+.invite-panel__lede {
+  color: var(--night-text-2);
+}
+
+.invite-form {
+  display: grid;
+  gap: 16px;
+}
+
+.invite-form__kinds {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.invite-kind {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--night-rule);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.invite-kind:has(input:checked) {
+  border-color: var(--marigold);
+  background: rgba(244, 165, 60, 0.1);
+}
+
+.invite-kind input,
+.new-game-option input {
+  width: 18px;
+  height: 18px;
+  margin: 3px 0 0;
+  accent-color: var(--marigold);
+}
+
+.invite-kind > span {
+  display: grid;
+  gap: 2px;
+}
+
+.invite-kind > span > span {
+  font-size: 0.9rem;
+  color: var(--night-text-2);
+}
+
+.invite-form__field {
+  display: grid;
+  gap: 6px;
+}
+
+.invite-form__field label {
+  font-weight: 600;
+}
+
+.house-shell .invite-panel button {
+  border-color: var(--marigold);
+  background: var(--marigold);
+  color: var(--ink);
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px #9f5f0b;
+}
+
+.invite-form__submit {
+  justify-self: start;
+}
+
+.invite-panel [role='alert'] {
+  color: #ffb4a3;
+  font-weight: 600;
+}
+
+.invite-created {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  color: var(--ink);
+  transform: rotate(-0.8deg);
+  box-shadow: var(--card-shadow);
+}
+
+.invite-created__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.house-shell .invite-created__link {
+  min-height: 44px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.house-shell .invite-panel .invite-created button {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px var(--vermilion);
+}
+
+.invite-created__expiry {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-3);
+}
+
+.members-invitations,
+.members-note,
+.members-leave,
+.new-game-closed {
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+}
+
+.members-invitations__empty,
+.members-note p,
+.members-leave p {
+  color: var(--ink-2);
+}
+
+.invitation-slips {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.invitation-slip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px dashed var(--rule-2);
+}
+
+.invitation-slip__words {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.invitation-slip__words strong {
+  overflow-wrap: anywhere;
+}
+
+.invitation-slip__words span {
+  font-size: 0.86rem;
+  color: var(--ink-3);
+}
+
+.invitation-slip__expiry {
+  font-family: var(--font-mono);
+  font-size: 0.72rem !important;
+}
+
+.invitation-slip__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+
+.members-leave {
+  background-color: var(--paper-sunk);
+  box-shadow: none;
+}
+
+.members-leave button {
+  justify-self: start;
+}
+
+/* ————— Start a game ————— */
+
+.new-game-form {
+  display: grid;
+  gap: 26px;
+  max-width: 980px;
+  padding: clamp(22px, 4vw, 40px);
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+}
+
+.new-game-form__group {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.new-game-form__group > legend {
+  margin-bottom: 12px;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.new-game-options {
+  display: grid;
+  gap: 12px;
+}
+
+.new-game-options--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.new-game-options--clocks {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.new-game-options--sides {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.new-game-option {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius);
+  background: #fffdf7;
+  cursor: pointer;
+  transition: border-color 120ms var(--ease);
+}
+
+.new-game-option:hover {
+  border-color: var(--ink);
+}
+
+.new-game-option:has(input:checked) {
+  border-color: var(--indigo);
+  box-shadow: inset 0 0 0 1px var(--indigo);
+  background: #f3f1f7;
+}
+
+.new-game-option:has(input:focus-visible) {
+  outline: 2px solid var(--indigo-2);
+  outline-offset: 2px;
+}
+
+.new-game-option input {
+  accent-color: var(--indigo);
+}
+
+.new-game-option[data-disabled] {
+  cursor: not-allowed;
+  background: var(--paper-sunk);
+}
+
+.new-game-option[data-disabled]:hover {
+  border-color: var(--rule-2);
+}
+
+.new-game-option__card {
+  display: grid;
+  gap: 4px;
+}
+
+.new-game-option__card strong {
+  font-size: 1.12rem;
+  font-weight: 720;
+}
+
+.new-game-option__card > span {
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+
+.new-game-option__clock {
+  font-family: var(--font-mono);
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+}
+
+.new-game-option--side .new-game-option__card {
+  justify-items: start;
+}
+
+.new-game-side {
+  display: flex;
+  align-items: end;
+  height: 64px;
+  margin-bottom: 4px;
+}
+
+.new-game-side [data-piece] {
+  width: 50px;
+  height: 64px;
+}
+
+.new-game-side[data-side='either'] [data-piece] + [data-piece] {
+  margin-left: -16px;
+}
+
+.new-game-form__field {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+}
+
+.new-game-form__field label {
+  font-weight: 600;
+}
+
+.new-game-form__error {
+  padding: 12px 14px;
+  border-left: 4px solid var(--vermilion-ink);
+  background: #fbe9e3;
+  font-weight: 600;
+}
+
+.new-game-form__submit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--rule-2);
+}
+
+.house-shell .new-game-form__submit {
+  min-height: 56px;
+  padding: 0 28px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 1.1rem;
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px var(--vermilion);
+}
+
+.new-game-form__cancel {
+  font-weight: 600;
+  color: var(--indigo-2);
+}
+
+.new-game-closed {
+  max-width: 720px;
+}
+
+.new-game-closed p {
+  color: var(--ink-2);
+}
+
+.new-game-closed__action {
+  justify-self: start;
+  min-width: 240px;
+  gap: 18px;
+}
+
+/* ————— Game: draw and resignation ————— */
+
+.game-actions {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--rule-2);
+}
+
+.game-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.game-actions__offer {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fbf0dc;
+  box-shadow: inset 4px 0 0 var(--marigold);
+}
+
+.game-shell .game-actions__accept {
+  justify-self: start;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px var(--marigold);
+}
+
+.game-actions__note,
+.game-actions__hint {
+  font-size: 0.9rem;
+  color: var(--ink-3);
+}
+
+.game-actions__confirm {
+  display: grid;
+  gap: 10px;
+}
+
+.game-shell button.game-actions__resign {
+  border-color: var(--vermilion-ink);
+  background: var(--vermilion-ink);
+  color: var(--paper-card);
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px #6d1b0e;
+}
+
+.game-actions__error {
+  font-weight: 600;
+}
+
+.game-shell--live .game-actions {
+  border-color: var(--night-rule);
+}
+
+.game-shell--live .game-actions__note,
+.game-shell--live .game-actions__hint {
+  color: var(--night-text-2);
+}
+
+.game-shell--live .game-actions__offer {
+  background: rgba(244, 165, 60, 0.12);
+  color: var(--night-text);
+}
+
+/* ————— Night rail: durable attendance ————— */
+
+.rail-attendance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 24px;
+  max-width: 760px;
+  margin-top: 8px;
+  padding: 16px 20px;
+  border: 1px solid var(--night-rule);
+  background: rgba(20, 26, 49, 0.72);
+}
+
+.rail-attendance__words {
+  display: grid;
+  gap: 10px;
+}
+
+.rail-attendance__words p {
+  color: var(--night-text-2);
+}
+
+.rail-attendance__words strong {
+  color: var(--night-text);
+}
+
+.rail-attendance__meter {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: 6px;
+  background: var(--night-rule);
+}
+
+.rail-attendance__fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--marigold);
+}
+
+.rail-attendance__fill[data-step='1'] {
+  width: 10%;
+}
+.rail-attendance__fill[data-step='2'] {
+  width: 20%;
+}
+.rail-attendance__fill[data-step='3'] {
+  width: 30%;
+}
+.rail-attendance__fill[data-step='4'] {
+  width: 40%;
+}
+.rail-attendance__fill[data-step='5'] {
+  width: 50%;
+}
+.rail-attendance__fill[data-step='6'] {
+  width: 60%;
+}
+.rail-attendance__fill[data-step='7'] {
+  width: 70%;
+}
+.rail-attendance__fill[data-step='8'] {
+  width: 80%;
+}
+.rail-attendance__fill[data-step='9'] {
+  width: 90%;
+}
+.rail-attendance__fill[data-step='10'] {
+  width: 100%;
+}
+
+.rail-attendance__stamp {
+  justify-self: start;
+  padding: 3px 10px 2px;
+  border: 2px solid var(--marigold);
+  border-radius: 4px;
+  font-weight: 760;
+  font-stretch: 80%;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--marigold);
+  transform: rotate(-2.5deg);
+}
+
+.night-rail button.rail-attendance__join {
+  border-color: var(--marigold);
+  background: var(--marigold);
+  color: var(--ink);
+  box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px #9f5f0b;
+}
+
+.night-rail button.rail-attendance__leave {
+  border-color: var(--night-rule);
+  background: transparent;
+  color: var(--night-text);
+  box-shadow: none;
+}
+
+.rail-attendance [role='alert'] {
+  grid-column: 1 / -1;
+  color: #ffb4a3;
+}
+
+@media (max-width: 960px) {
+  .members-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .new-game-options--clocks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .members-heading,
+  .new-game-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .members-heading__art,
+  .new-game-heading__art {
+    justify-self: start;
+    max-width: 340px;
+  }
+
+  .new-game-options--two,
+  .new-game-options--sides {
+    grid-template-columns: 1fr;
+  }
+
+  .new-game-option--side .new-game-option__card {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 2px 12px;
+  }
+
+  .new-game-option--side .new-game-side {
+    grid-row: span 2;
+    height: 48px;
+    margin: 0;
+  }
+
+  .new-game-side [data-piece] {
+    width: 38px;
+    height: 48px;
+  }
+
+  .roster__member {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .roster__role {
+    grid-column: 2;
+  }
+
+  .invitation-slip {
+    grid-template-columns: 1fr;
+  }
+
+  .invitation-slip__actions {
+    justify-content: start;
+  }
+
+  .rail-attendance {
+    grid-template-columns: 1fr;
+  }
+
+  .rail-attendance button {
+    justify-self: start;
   }
 }
 

@@ -34,6 +34,13 @@ export type {
 } from './accept';
 export { creatorColorForOffer, OPEN_SEAT_LIFETIME_MS } from './seats';
 export type {
+  OpenSeatListing,
+  OpenSeatMember,
+  OpenSeatReadRepository,
+  ReadOpenSeatsDependencies,
+  ReadOpenSeatsQuery,
+} from './open-seats';
+export type {
   CreateGameSeatRequest,
   GameColor,
   GameSeatColorChooser,

@@ -10,11 +10,16 @@ import {
   type NightRailSnapshotResponse,
   type RealtimeTokenResponse,
 } from '@between-moves/contracts';
-import { NIGHT_CHAT_DELETED_TOPIC, NIGHT_CHAT_POSTED_TOPIC } from '@between-moves/domain';
+import {
+  NIGHT_ATTENDANCE_THRESHOLD_SECONDS,
+  NIGHT_CHAT_DELETED_TOPIC,
+  NIGHT_CHAT_POSTED_TOPIC,
+} from '@between-moves/domain';
 import { useEffect, useRef, useState } from 'react';
 import { AppMasthead } from '../../../../_components/app-masthead';
 import { Piece } from '../../../../_components/piece';
 import { parseFenPieces, squareName } from '../../games/[gameId]/board-model';
+import { AttendanceControl, type RailAttendance } from './attendance-control';
 import {
   applyOrRepairHouseChat,
   postedChatWireEvent,
@@ -299,11 +304,16 @@ export function NightRailView({
   initial,
   initialChat,
   attachRealtime = true,
+  attendance,
+  attendanceThresholdSeconds = NIGHT_ATTENDANCE_THRESHOLD_SECONDS,
 }: {
   readonly houseId: string;
   readonly initial: NightRailSnapshotResponse;
   readonly initialChat?: HouseChatSnapshotResponse;
   readonly attachRealtime?: boolean;
+  /** Omitted when attendance is unavailable; `null` before the viewer's first join. */
+  readonly attendance?: RailAttendance | null;
+  readonly attendanceThresholdSeconds?: number;
 }) {
   const [snapshot, setSnapshot] = useState(initial);
   const [chat, setChat] = useState(initialChat);
@@ -422,6 +432,20 @@ export function NightRailView({
           <p className="night-rail__live" aria-live="polite" data-live={live}>
             {live ? 'Live updates are on.' : 'Showing the last saved table.'}
           </p>
+          {attendance === undefined ? null : (
+            <AttendanceControl
+              key={
+                attendance === null
+                  ? 'none'
+                  : `${attendance.joinedAt ?? 'away'}:${attendance.accumulatedSeconds}:${attendance.qualified}`
+              }
+              houseId={houseId}
+              nightId={snapshot.nightId}
+              live={snapshot.state === 'live'}
+              initial={attendance}
+              thresholdSeconds={attendanceThresholdSeconds}
+            />
+          )}
         </header>
         <div className="night-rail__grid">
           <div className="night-rail__tables">

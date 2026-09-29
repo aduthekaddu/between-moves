@@ -14,12 +14,17 @@ export interface MoveEntryPosition {
   readonly version: number;
   readonly state: 'active' | 'completed';
   readonly viewerColor: SideToMove | null;
-  readonly white: { readonly name: string };
-  readonly black: { readonly name: string };
+  readonly white: { readonly name: string; readonly membershipId?: string };
+  readonly black: { readonly name: string; readonly membershipId?: string };
   readonly moveDueAt: Date | string | null;
   readonly result: 'white_win' | 'black_win' | 'draw' | 'aborted' | null;
   readonly inCheck: boolean;
   readonly moves: readonly GamePositionMove[];
+  /** [BM-028] Absent from older snapshots; `null` when no offer is waiting. */
+  readonly pendingDrawOffer?: {
+    readonly offeringMembershipId: string;
+    readonly ply: number;
+  } | null;
 }
 
 export interface AcceptedMoveBody {
@@ -152,5 +157,22 @@ export function moveEntryPosition(value: unknown): MoveEntryPosition | null {
       : null;
   });
   if (moves.some((move) => move === null)) return null;
+  const offer = body.pendingDrawOffer as Record<string, unknown> | null | undefined;
+  if (
+    offer !== undefined &&
+    offer !== null &&
+    (typeof offer !== 'object' ||
+      typeof offer.offeringMembershipId !== 'string' ||
+      typeof offer.ply !== 'number' ||
+      !Number.isInteger(offer.ply))
+  ) {
+    return null;
+  }
   return { ...(body as unknown as MoveEntryPosition), moves: moves as GamePositionMove[] };
+}
+
+/** [BM-028] The viewer's own membership, when they hold a seat and the snapshot names it. */
+export function viewerMembershipId(position: MoveEntryPosition): string | null {
+  if (position.viewerColor === null) return null;
+  return position[position.viewerColor].membershipId ?? null;
 }

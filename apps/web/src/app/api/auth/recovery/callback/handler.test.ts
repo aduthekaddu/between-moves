@@ -29,7 +29,7 @@ describe('GET /api/auth/recovery/callback', () => {
     expect(isExpectedPurpose).toHaveBeenCalledWith('magic-secret', 'recovery-proof');
     expect(completeRecovery).toHaveBeenCalledWith('new-session-secret');
     expect(response.status).toBe(302);
-    expect(response.headers.get('location')).toBe('https://app.example.test/');
+    expect(response.headers.get('location')).toBe('https://app.example.test/account');
     expect(response.headers.get('set-cookie')).toContain('signed-new-session');
     expect(response.headers.get('cache-control')).toBe('no-store');
     expect(onCompleted).toHaveBeenCalledWith({

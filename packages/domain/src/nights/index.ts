@@ -26,12 +26,14 @@ export {
   type NightAttendanceJoinResult,
   type NightAttendanceLeaveResult,
   type NightAttendanceQualificationReason,
+  type NightAttendanceReadRepository,
   type NightAttendanceRepository,
   type NightAttendanceRequest,
   type NightJoinLeaveKind,
   type NightJoinLeaveObservation,
   type NightJoinLeaveRecorder,
   type QualifyNightAttendanceInput,
+  type ReadNightAttendanceDependencies,
 } from './attendance';
 export {
   applyRailRealtimeEvent,

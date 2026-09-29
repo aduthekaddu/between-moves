@@ -1,7 +1,8 @@
-import type { HouseHome, MembershipRole, MoveShelf } from '@between-moves/domain';
+import type { HouseHome, MembershipRole, MoveShelf, OpenSeatListing } from '@between-moves/domain';
 import { AppMasthead } from '../../_components/app-masthead';
 import { HouseEmblem } from '../../_components/house-emblem';
 import { MoveShelfView } from './move-shelf-view';
+import { OpenSeatsView } from './open-seats-view';
 
 function roleLabel(role: MembershipRole): string {
   switch (role) {
@@ -23,11 +24,16 @@ export function HouseHomeView({
   home,
   shelf,
   viewedAt,
+  openSeats = [],
+  liveNightId = null,
 }: {
   readonly home: HouseHome;
   readonly shelf: MoveShelf;
   readonly viewedAt: Date;
+  readonly openSeats?: readonly OpenSeatListing[];
+  readonly liveNightId?: string | null;
 }) {
+  const base = `/h/${encodeURIComponent(home.houseId)}`;
   return (
     <div className="house-shell">
       <AppMasthead houseId={home.houseId} houseName={home.name} current="shelf" />
@@ -50,8 +56,27 @@ export function HouseHomeView({
           </div>
         </section>
 
+        {liveNightId === null ? null : (
+          <a
+            className="house-live-night"
+            href={`${base}/nights/${encodeURIComponent(liveNightId)}`}
+          >
+            <span className="house-live-night__pip" aria-hidden="true" />
+            <span className="house-live-night__words">
+              <strong>The Night is live</strong>
+              <span>Every board in view and one House chat. Pull up a chair on the rail.</span>
+            </span>
+            <span className="house-live-night__arrow" aria-hidden="true">
+              →
+            </span>
+          </a>
+        )}
+
         <div className="house-home__grid">
-          <MoveShelfView houseId={home.houseId} shelf={shelf} viewedAt={viewedAt} />
+          <div className="house-home__main">
+            <OpenSeatsView houseId={home.houseId} seats={openSeats} viewedAt={viewedAt} />
+            <MoveShelfView houseId={home.houseId} shelf={shelf} viewedAt={viewedAt} />
+          </div>
 
           <aside className="house-status" aria-labelledby="house-status-title">
             <p className="house-home__eyebrow">House status</p>
@@ -71,15 +96,21 @@ export function HouseHomeView({
                 <dd>{home.timeZone}</dd>
               </div>
             </dl>
-            <a
-              className="house-status__action"
-              href={`/h/${encodeURIComponent(home.houseId)}/season`}
-            >
+            <a className="house-status__action" href={`${base}/games/new`}>
+              Start a game
+            </a>
+            <a className="house-status__action house-status__action--quiet" href={`${base}/season`}>
               Open the Season table
             </a>
             <a
               className="house-status__action house-status__action--quiet"
-              href={`/h/${encodeURIComponent(home.houseId)}/puzzles`}
+              href={`${base}/members`}
+            >
+              {home.membershipRole === 'member' ? 'Members' : 'Members and invitations'}
+            </a>
+            <a
+              className="house-status__action house-status__action--quiet"
+              href={`${base}/puzzles`}
             >
               House Puzzles
             </a>

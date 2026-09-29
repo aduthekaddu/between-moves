@@ -202,6 +202,26 @@ user can never be reactivated, hold a session, or rejoin a House, and a later si
 address creates a new identity. The handlers log `identity.account.exported` and
 `identity.account.deleted` with counts only.
 
+## Members, seats and Nights
+
+Active Members see their House's roster at `/h/{houseId}/members`. The Owner and Stewards also
+create Invitations there: a shared link, usable until the House is full, or a single-email link
+that only that address can redeem. Both last seven days. Only the token digest is stored, so a new
+link is shown once, when it is created; pending Invitations can be revoked but never shown again.
+The Owner changes roles and hands over the House, which signs both people out everywhere. Stewards
+can remove Members, and anyone but the Owner can leave.
+
+`/h/{houseId}/games/new` opens a seat or challenges one Member by name. Correspondence Games use the
+active Charter's pace; live Games need a live Night. Waiting seats are listed on the House home
+until someone takes them or they expire after seven days, and a direct challenge is listed only for
+the two Members it involves. Seated players resign or offer a draw from the Game page while their
+opponent is to move. `GET /api/houses/{houseId}/games/{gameId}` carries `pendingDrawOffer`, and the
+next Move withdraws it. During a live Night, "Pull up a chair" on the rail records durable
+attendance through `/join` and `/leave`; it qualifies when the Member steps away after 15 minutes.
+
+Signed-out visitors reach `/sign-in`, `/sign-up` and `/recover`. A recovery link signs the person
+in, revokes every other session, and lands on `/account`.
+
 ## Design system: paper and lamplight
 
 The interface is built from folded paper, indigo card and one lamp. Three dyes carry

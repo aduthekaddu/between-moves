@@ -5,7 +5,7 @@ import {
 } from '@between-moves/domain';
 import { fakeAuthorizationContext, FakeClock } from '@between-moves/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { joinNight, leaveNight } from './attendance';
+import { joinNight, leaveNight, readNightAttendance } from './attendance';
 
 const houseId = '01941f29-7c00-7000-8000-000000000201';
 const nightId = '01941f29-7c00-7000-8000-000000000901';
@@ -215,5 +215,42 @@ describe('Between Moves Night attendance commands', () => {
       change: 'join',
       outcome: 'rejected',
     });
+  });
+});
+
+describe('Between Moves Night attendance read', () => {
+  it('[BM-036] authorizes a House view before reading the viewer attendance', async () => {
+    const authorizeHouseAction = vi.fn(async () => context);
+    const readViewerAttendance = vi.fn(async () => null);
+
+    await expect(
+      readNightAttendance(
+        { houseId, nightId, viewer },
+        { authorizeHouseAction, attendance: { readViewerAttendance } },
+      ),
+    ).resolves.toBeNull();
+    expect(authorizeHouseAction).toHaveBeenCalledWith(
+      { kind: 'view_house_content' },
+      houseId,
+      viewer,
+    );
+    expect(readViewerAttendance).toHaveBeenCalledWith(context, nightId);
+  });
+
+  it('[BM-036] [PR-PLAT-05] never reads attendance after a denial', async () => {
+    const readViewerAttendance = vi.fn(async () => null);
+
+    await expect(
+      readNightAttendance(
+        { houseId, nightId, viewer },
+        {
+          authorizeHouseAction: vi.fn(async () => {
+            throw new HouseAuthorizationDeniedError('not_a_member', true);
+          }),
+          attendance: { readViewerAttendance },
+        },
+      ),
+    ).rejects.toBeInstanceOf(HouseAuthorizationDeniedError);
+    expect(readViewerAttendance).not.toHaveBeenCalled();
   });
 });

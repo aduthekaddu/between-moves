@@ -11,6 +11,7 @@ import {
   type NightAttendanceJoinResult,
   type NightAttendanceLeaveResult,
   type NightAttendanceQualificationReason,
+  type NightAttendanceReadRepository,
   type NightAttendanceRepository,
   type QualifyNightAttendanceInput,
 } from '@between-moves/domain';
@@ -194,8 +195,32 @@ async function enqueueQualificationEvent(
 }
 
 /** [BM-033] [BM-036] [DR-NIGHT-02/05] Unique (night, member) join/leave events, duration accrual, and scoring source. */
-export class PgNightAttendanceRepository implements NightAttendanceRepository {
+export class PgNightAttendanceRepository
+  implements NightAttendanceRepository, NightAttendanceReadRepository
+{
   constructor(private readonly database: Pool) {}
+
+  /** [BM-036] The viewer's own row for one Night, read through active House membership. */
+  async readViewerAttendance(
+    context: AuthorizationContext,
+    nightId: string,
+  ): Promise<NightAttendance | null> {
+    const result = await this.database.query<AttendanceRow>(
+      `select ${attendanceColumns}
+         from night_attendance a
+         join house_nights n on n.id = a.night_id and n.house_id = a.house_id
+         join houses h on h.id = a.house_id and h.status = 'active'
+         join memberships m
+           on m.id = a.membership_id
+          and m.house_id = a.house_id
+          and m.user_id = $3
+          and m.status = 'active'
+        where a.night_id = $1 and a.house_id = $2`,
+      [nightId, context.houseId, context.viewerId],
+    );
+    const row = result.rows[0];
+    return row === undefined ? null : parseAttendance(row);
+  }
 
   async join(
     context: AuthorizationContext,

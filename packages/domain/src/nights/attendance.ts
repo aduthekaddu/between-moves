@@ -72,6 +72,19 @@ export interface NightAttendanceRepository {
   qualify(input: QualifyNightAttendanceInput): Promise<NightAttendanceLeaveResult | null>;
 }
 
+/** [BM-036] The viewer's own attendance for one Night, or `null` before their first join. */
+export interface NightAttendanceReadRepository {
+  readViewerAttendance(
+    context: AuthorizationContext,
+    nightId: string,
+  ): Promise<NightAttendance | null>;
+}
+
+export interface ReadNightAttendanceDependencies {
+  readonly authorizeHouseAction: AuthorizeHouseAction;
+  readonly attendance: NightAttendanceReadRepository;
+}
+
 export interface NightAttendanceRequest {
   readonly houseId: string;
   readonly nightId: string;

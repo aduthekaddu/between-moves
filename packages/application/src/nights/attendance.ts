@@ -1,11 +1,13 @@
 import {
   DomainError,
+  type NightAttendance,
   type NightAttendanceDependencies,
   type NightAttendanceJoinResult,
   type NightAttendanceLeaveResult,
   type NightAttendanceRequest,
   type NightJoinLeaveKind,
   type NightJoinLeaveObservation,
+  type ReadNightAttendanceDependencies,
 } from '@between-moves/domain';
 
 async function authorize(
@@ -85,6 +87,19 @@ async function observeJoinLeave<T>(
     });
     throw error;
   }
+}
+
+/** [BM-036] Read the viewer's own attendance so the rail can show whether they have joined. */
+export async function readNightAttendance(
+  request: NightAttendanceRequest,
+  dependencies: ReadNightAttendanceDependencies,
+): Promise<NightAttendance | null> {
+  const context = await dependencies.authorizeHouseAction(
+    { kind: 'view_house_content' },
+    request.houseId,
+    request.viewer,
+  );
+  return dependencies.attendance.readViewerAttendance(context, request.nightId);
 }
 
 /** [BM-036] [DR-NIGHT-02] Record a server-timestamped join and open one attendance interval. */

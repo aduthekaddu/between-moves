@@ -2,7 +2,9 @@
   min-height: 100vh;
   background:
     radial-gradient(circle at 16% 86%, rgba(244, 165, 60, 0.18), transparent 32%),
-    linear-gradient(145deg, #f8f4ea 0%, #e9dfcb 100%);
+    linear-gradient(145deg, rgba(248, 244, 234, 0.72) 0%, rgba(233, 223, 203, 0.72) 100%),
+    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
+    var(--paper);
 }
 
 .auth-masthead {
@@ -42,8 +44,11 @@
 .auth-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
+  grid-template-areas:
+    'intro card'
+    'photo card';
   align-items: center;
-  gap: clamp(32px, 7vw, 112px);
+  gap: 28px clamp(32px, 7vw, 112px);
   width: min(var(--page), 1120px);
   min-height: calc(100vh - 88px);
   margin: 0 auto;
@@ -51,9 +56,43 @@
 }
 
 .auth-intro {
+  grid-area: intro;
+  align-self: end;
   display: grid;
   gap: 22px;
   align-content: center;
+}
+
+.auth-card {
+  grid-area: card;
+}
+
+/* the photograph is a print laid on the desk: paper border, a slight turn, lamp shadow */
+.auth-photo {
+  grid-area: photo;
+  align-self: start;
+  justify-self: start;
+  width: min(100%, 520px);
+  margin: 0;
+  padding: 10px 10px 12px;
+  background: var(--paper-card);
+  box-shadow: var(--lift-shadow);
+  transform: rotate(-1.4deg);
+}
+
+.auth-photo img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+
+.auth-photo figcaption {
+  padding: 10px 4px 0;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
 }
 
 .auth-eyebrow,
@@ -202,11 +241,22 @@
 }
 
 .auth-card__foot {
+  display: grid;
+  gap: 8px;
   margin: 0;
   padding: 16px clamp(24px, 4vw, 36px);
   border-top: 1px dashed var(--rule-2);
   color: var(--ink-3);
   font-size: 0.86rem;
+}
+
+.auth-card__foot p {
+  margin: 0;
+}
+
+.auth-card__foot a {
+  color: var(--indigo-2);
+  font-weight: 650;
 }
 
 .auth-result {
@@ -252,9 +302,18 @@
 @media (max-width: 760px) {
   .auth-main {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'intro'
+      'card'
+      'photo';
     gap: 34px;
     align-content: start;
     padding: 44px 0 64px;
+  }
+
+  .auth-photo {
+    justify-self: center;
+    width: min(100%, 420px);
   }
 
   .auth-intro {

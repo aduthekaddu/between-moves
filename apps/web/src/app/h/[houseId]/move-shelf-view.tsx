@@ -131,6 +131,9 @@ export function MoveShelfView({
       {empty ? (
         <div className="move-shelf__empty">
           <p>No games yet. Challenge a member or take an open seat.</p>
+          <a className="move-shelf__start" href={`/h/${encodeURIComponent(houseId)}/games/new`}>
+            Start a game
+          </a>
         </div>
       ) : (
         <div className="move-shelf__groups">

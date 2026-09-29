@@ -5,7 +5,9 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { getConfig } from '../../../config';
 import { getHouseHome } from '../../../server/house-home';
+import { getScheduledNights } from '../../../server/nights';
 import { getMoveShelf } from '../../../modules/games/move-shelf';
+import { getOpenSeats } from '../../../modules/games/open-seats';
 import { HouseHomeView } from './house-home-view';
 
 export const dynamic = 'force-dynamic';
@@ -37,5 +39,18 @@ export default async function HousePage({ params }: HousePageProps) {
   ]);
 
   if (home === null || shelf === null) notFound();
-  return <HouseHomeView home={home} shelf={shelf} viewedAt={clock.now()} />;
+  const [openSeats, nights] = await Promise.all([
+    getOpenSeats(request, houseId),
+    getScheduledNights(request, houseId),
+  ]);
+  const liveNight = nights.find((night) => night.state === 'live');
+  return (
+    <HouseHomeView
+      home={home}
+      shelf={shelf}
+      viewedAt={clock.now()}
+      openSeats={openSeats}
+      liveNightId={liveNight?.nightId ?? null}
+    />
+  );
 }

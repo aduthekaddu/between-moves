@@ -13,6 +13,7 @@ import {
 import { applyOptimisticMove, parseFenPieces, type BoardPieces } from './board-model';
 import { ChessBoard } from './chess-board';
 import { generateClientCommandId } from './client-command-id';
+import { GameActions } from './game-actions';
 import { LiveClocks } from './live/live-clocks';
 import {
   acceptedMove,
@@ -552,6 +553,14 @@ export function MoveEntry({
           </>
         )}
       </div>
+
+      <GameActions
+        houseId={houseId}
+        gameId={gameId}
+        position={position}
+        disabled={pending || offline || !canonicalFresh}
+        onSettled={() => refreshCanonicalPosition()}
+      />
 
       <div className="game-position-status" aria-live="polite">
         <strong>{gameStatus(position, canonicalFresh)}</strong>

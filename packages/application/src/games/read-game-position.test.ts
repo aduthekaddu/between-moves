@@ -33,6 +33,7 @@ const position: GamePosition = {
   result: null,
   inCheck: false,
   moves: [],
+  pendingDrawOffer: null,
 };
 
 describe('Game position read', () => {

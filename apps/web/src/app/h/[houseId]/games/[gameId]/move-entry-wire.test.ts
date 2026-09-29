@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { acceptedMove, conflictPosition, flagFall, moveEntryPosition } from './move-entry-wire';
+import {
+  acceptedMove,
+  conflictPosition,
+  flagFall,
+  moveEntryPosition,
+  viewerMembershipId,
+} from './move-entry-wire';
 
 describe('Move-entry wire responses', () => {
   it('[BM-041] recognizes a flag result without treating it as an accepted Move', () => {
@@ -97,5 +103,47 @@ describe('[BM-042] live snapshot validation', () => {
     { liveClock: { ...snapshot.liveClock, turnStartedAt: null } },
   ])('rejects unsafe or incomplete clock state: %j', (patch) => {
     expect(moveEntryPosition({ ...snapshot, ...patch })).toBeNull();
+  });
+});
+
+describe('[BM-028] draw offer on the repair snapshot', () => {
+  const snapshot = {
+    currentFen: '8/8/8/8/4P3/8/8/8 b - - 0 1',
+    currentPly: 1,
+    sideToMove: 'black',
+    version: 1,
+    state: 'active',
+    viewerColor: 'black',
+    white: { name: 'Ada', membershipId: 'ada-membership' },
+    black: { name: 'Bea', membershipId: 'bea-membership' },
+    moveDueAt: null,
+    result: null,
+    inCheck: false,
+    moves: [{ ply: 1, uci: 'e2e4', san: 'e4' }],
+  };
+
+  it('carries a pending offer and names the viewer seat', () => {
+    const parsed = moveEntryPosition({
+      ...snapshot,
+      pendingDrawOffer: { offeringMembershipId: 'ada-membership', ply: 1 },
+    });
+    expect(parsed?.pendingDrawOffer).toEqual({ offeringMembershipId: 'ada-membership', ply: 1 });
+    expect(parsed === null ? null : viewerMembershipId(parsed)).toBe('bea-membership');
+  });
+
+  it('accepts snapshots without an offer and rejects a malformed one', () => {
+    expect(moveEntryPosition(snapshot)?.pendingDrawOffer).toBeUndefined();
+    expect(moveEntryPosition({ ...snapshot, pendingDrawOffer: null })?.pendingDrawOffer).toBeNull();
+    expect(
+      moveEntryPosition({ ...snapshot, pendingDrawOffer: { offeringMembershipId: 7, ply: 1 } }),
+    ).toBeNull();
+    expect(
+      moveEntryPosition({ ...snapshot, pendingDrawOffer: { offeringMembershipId: 'a', ply: 1.5 } }),
+    ).toBeNull();
+  });
+
+  it('has no viewer seat for a spectator', () => {
+    const parsed = moveEntryPosition({ ...snapshot, viewerColor: null });
+    expect(parsed === null ? 'invalid' : viewerMembershipId(parsed)).toBeNull();
   });
 });

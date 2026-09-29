@@ -1,10 +1,19 @@
 import { SystemClock, generateUuidV7 } from '@between-moves/adapters';
-import { createAuthorizeHouseAction, joinNight, leaveNight } from '@between-moves/application';
+import {
+  createAuthorizeHouseAction,
+  joinNight,
+  leaveNight,
+  readNightAttendance,
+} from '@between-moves/application';
 import {
   PgHouseAuthorizationMembershipRepository,
   PgNightAttendanceRepository,
 } from '@between-moves/db';
-import type { NightAttendanceDependencies } from '@between-moves/domain';
+import {
+  HouseAuthorizationDeniedError,
+  type NightAttendance,
+  type NightAttendanceDependencies,
+} from '@between-moves/domain';
 import {
   createHouseAuthorizationMetricStubs,
   createNightAttendanceEventRecorder,
@@ -15,7 +24,7 @@ import { getDatabase } from '../../server/database';
 import { createHouseAuthorizationDenialRecorder } from '../../server/house-authorization-observability';
 import { getLogger } from '../../server/logger';
 import type { NightAttendanceHandlerDependencies } from '../../server/night-attendance-handler';
-import { requireViewer } from '../../server/viewer';
+import { getViewer, requireViewer } from '../../server/viewer';
 import { readRequestId } from '../../kernel/request';
 
 const clock = new SystemClock();
@@ -53,4 +62,24 @@ export function nightAttendanceHandlerDependencies(
     joinNight: (command) => joinNight(command, attendanceDependencies),
     leaveNight: (command) => leaveNight(command, attendanceDependencies),
   };
+}
+
+/** [BM-036] The viewer's own attendance for one Night; `null` before their first join. */
+export async function getViewerNightAttendance(
+  request: Request,
+  houseId: string,
+  nightId: string,
+): Promise<NightAttendance | null> {
+  const { authorizeHouseAction } = dependencies(request);
+  const attendance = new PgNightAttendanceRepository(getDatabase().pool);
+  const viewer = await getViewer(request);
+  try {
+    return await readNightAttendance(
+      { houseId, nightId, viewer },
+      { authorizeHouseAction, attendance },
+    );
+  } catch (error) {
+    if (error instanceof HouseAuthorizationDeniedError) return null;
+    throw error;
+  }
 }
