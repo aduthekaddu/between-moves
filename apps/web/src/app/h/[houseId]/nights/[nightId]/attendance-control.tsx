@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { postHouseCommand, problemDetail } from '../../../../_components/house-command';
 
 /** The viewer's durable attendance as the server last saw it. */
@@ -49,13 +49,23 @@ export function AttendanceControl({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [now, setNow] = useState(() => Date.now());
+  const refreshedAfterEnd = useRef(false);
   const seated = attendance?.joinedAt !== null && attendance !== null;
 
   useEffect(() => {
-    if (!seated) return;
+    if (!seated || !live) return;
     const timer = window.setInterval(() => setNow(Date.now()), 20_000);
     return () => window.clearInterval(timer);
-  }, [seated]);
+  }, [seated, live]);
+
+  useEffect(() => {
+    if (live) {
+      refreshedAfterEnd.current = false;
+    } else if (seated && !refreshedAfterEnd.current) {
+      refreshedAfterEnd.current = true;
+      router.refresh();
+    }
+  }, [live, seated, router]);
 
   if (!live && attendance === null) return null;
   const total = secondsAtTable(attendance, now);

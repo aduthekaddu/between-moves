@@ -30,7 +30,7 @@ export default async function MembersPage({ params }: MembersPageProps) {
     getHouseHome(request, houseId),
     getHouseRoster(request, houseId),
   ]);
-  if (home === null || roster === null) notFound();
+  if (home === null || roster === null) return notFound();
   const invitations =
     roster.viewerRole === 'member' ? [] : await getPendingInvitations(request, houseId);
 

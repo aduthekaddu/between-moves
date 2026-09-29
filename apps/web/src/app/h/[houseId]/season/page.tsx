@@ -31,7 +31,7 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
   const url = new URL(`/h/${encodeURIComponent(houseId)}/season`, getConfig().appOrigin);
   const request = new Request(url, { headers: requestHeaders });
   const home = await getHouseHome(request, houseId);
-  if (home === null) notFound();
+  if (home === null) return notFound();
   const season = await getHouseSeason(request, houseId);
   const lastClosed = await getLastClosedSeason(request, houseId);
   const nights = await getScheduledNights(request, houseId);

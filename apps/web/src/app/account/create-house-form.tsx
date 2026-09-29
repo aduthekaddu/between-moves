@@ -34,7 +34,13 @@ export function CreateHouseForm() {
         );
         return;
       }
-      const result: unknown = await response.json();
+      let result: unknown;
+      try {
+        result = await response.json();
+      } catch {
+        setError('The House was created, but we could not open it. Refresh your account page.');
+        return;
+      }
       if (
         result === null ||
         typeof result !== 'object' ||

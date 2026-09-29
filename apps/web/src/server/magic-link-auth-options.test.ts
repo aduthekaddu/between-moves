@@ -30,7 +30,8 @@ describe('Better Auth magic-link configuration', () => {
       queueMagicLink,
     });
     const plugin = options.plugins?.find((candidate) => candidate.id === 'magic-link');
-    const pluginOptions = plugin?.options as {
+    if (plugin?.options === undefined) throw new Error('Magic-link plugin is not configured');
+    const pluginOptions = plugin.options as {
       expiresIn: number;
       storeToken: string;
       generateToken(email: string): Promise<string> | string;

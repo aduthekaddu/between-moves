@@ -93,6 +93,33 @@ describe('Night attendance on the rail', () => {
     expect(container.querySelector('button')).toBeNull();
   });
 
+  it('[BM-036] stops the attendance clock and reloads settled time when the Night ends', async () => {
+    const setInterval = vi.spyOn(window, 'setInterval');
+    const clearInterval = vi.spyOn(window, 'clearInterval');
+    const initial = {
+      joinedAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+      accumulatedSeconds: 0,
+      qualified: false,
+    };
+
+    try {
+      await mount(initial);
+      expect(setInterval).toHaveBeenCalledOnce();
+      expect(refresh).not.toHaveBeenCalled();
+
+      await mount(initial, false);
+      expect(clearInterval).toHaveBeenCalledWith(setInterval.mock.results[0]?.value);
+      expect(refresh).toHaveBeenCalledOnce();
+      expect(container.querySelector('button')).toBeNull();
+
+      await mount(initial, false);
+      expect(refresh).toHaveBeenCalledOnce();
+    } finally {
+      setInterval.mockRestore();
+      clearInterval.mockRestore();
+    }
+  });
+
   it('[BM-036] renders nothing on a Night that is not live and was never joined', async () => {
     await mount(null, false);
     expect(container.innerHTML).toBe('');
