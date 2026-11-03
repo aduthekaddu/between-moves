@@ -39,7 +39,7 @@ In Resend, register `https://between-moves-web.vercel.app/api/webhooks/resend` a
 
 `dispatchAnalysisJob` in `apps/worker/src/modules/stories/analysis.ts` leases one job and `POST`s JSON to `ANALYSIS_WORKER_URL`. The body has `jobId`, `gameId`, `engineVersion`, `leaseToken`, and `callbackUrl`. The header `x-analysis-signature` is a SHA-256 HMAC of that exact body, hex encoded, using `ANALYSIS_WORKER_SECRET`. `signAnalysisCallback` in `packages/adapters/src/analysis-signature.ts` builds it. The engine answers with HTTP 202.
 
-The engine later `POST`s a signed result to `/api/internal/analysis/callback`. The web handler checks the same header. A completed body has `status` `completed` and `result.swings`. Each swing has integer `ply`, `centipawnsBefore`, and `centipawnsAfter`, and a non-empty `bestLine` of UCI moves. A failed body has `status` `failed`.
+The engine later `POST`s a signed result to `/api/internal/analysis/callback`. The web handler checks the same header. A completed body has `status` `completed` and `result.swings`. Each swing has integer `ply`, `centipawnsBefore`, and `centipawnsAfter`, and a non-empty `bestLine` of UCI moves from the position before that ply. The stored puzzle position is that earlier position, taken from the game's moves. A failed body has `status` `failed`.
 
 `generatePuzzleCandidates` in `apps/web/src/modules/stories/candidates.ts` keeps a swing when the absolute centipawn change is at least `PUZZLE_SWING_THRESHOLD_CP`, which is 200. The worker passes `3` as `maxAttempts` when it claims, expires, and fails a job. `fail` in `packages/db/src/pg-analysis-job-repository.ts` sets the job to `failed` once `attempts` is at least that number. A failed engine call does not change the completed game.
 

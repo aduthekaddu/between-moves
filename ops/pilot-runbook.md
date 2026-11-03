@@ -40,7 +40,7 @@ A test fire sets `test_fire` to true. The local tests show that the payload is b
 
 Create a custom-format backup with `pg_dump -Fc` from the approved backup process. Set `APP_ENV=staging`, an explicit staging `PGHOST`, `PGUSER`, and `PGSSLMODE=require`. Set `BACKUP_FILE`, a fresh `RESTORE_DB_NAME` of the form `bm_restore_<unique_suffix>`, `RESTORE_RECORD_PATH`, and the approved `RTO_TARGET_SECONDS`. The role must be able to create the isolated database and run migrations on it.
 
-The script refuses a target database that already exists. With `APP_ENV=staging` it also refuses a localhost host. Any other `APP_ENV`, including `production`, is refused. Do not point it at the application database.
+The script refuses a target database that already exists. With `APP_ENV=staging` it also refuses a localhost host. Only `APP_ENV=staging` and `APP_ENV=local` are accepted. Any other value, including `production`, is refused. Do not point it at the application database.
 
 ```bash
 pnpm pilot:restore-drill
