@@ -40,6 +40,14 @@ flowchart TD
 
 The root boundary lint covers `apps/worker` and `packages/domain`, `packages/application`, `packages/db`, `packages/adapters`, and `packages/observability`. It does not cover `apps/web` or `packages/contracts`. Web lint is `apps/web/eslint.config.mjs`, which adds the Next.js rules and `react/no-danger`. Contracts has no ESLint config in this repo.
 
+## Where it runs
+
+A member uses the Next.js app on Vercel. That app and the Trigger.dev worker share one Neon database. The worker sends mail through Resend, and Resend posts delivery events back to the web app.
+
+![Between Moves runtime](architecture/stack.png)
+
+The dark picture is [architecture/stack-dark.png](architecture/stack-dark.png). The page behind both pictures is [architecture/stack.html](architecture/stack.html).
+
 ## Where a command runs
 
 A page or route under `apps/web/src/app` calls a module in `apps/web/src/modules` or a handler in `apps/web/src/server`. That code is the composition root. It calls a use case from `packages/application`, a repository from `packages/db`, and an adapter from `packages/adapters`. Application code calls domain functions and does not import `db` or `adapters`.
