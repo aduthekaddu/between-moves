@@ -1,6 +1,5 @@
-# Guidance and specs are intentionally not tracked in this repo
+# Private specs stay untracked. Public guidance is tracked, including AGENTS.md.
 docs/
-AGENTS.md
 
 # Dependencies
 node_modules/
