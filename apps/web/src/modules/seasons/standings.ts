@@ -16,10 +16,12 @@ import {
   createHouseAuthorizationMetricStubs,
   type StructuredLogger,
 } from '@between-moves/observability';
+import { getHouseRoster } from '../houses/roster';
 import { getDatabase } from '../../server/database';
 import { createHouseAuthorizationDenialRecorder } from '../../server/house-authorization-observability';
 import { getLogger } from '../../server/logger';
 import { getViewer } from '../../server/viewer';
+import { standingRows, type StandingRow } from './standing-rows';
 
 export interface SeasonStandingsReaderDependencies {
   readonly getViewer: (request: Request) => Promise<Viewer>;
@@ -99,4 +101,21 @@ export function getSeasonStandings(
     logger: getLogger(),
     clock,
   })(request, houseId, seasonId);
+}
+
+/**
+ * [BM-034] The active Season's table with names, for the Season page and the House home.
+ * Empty when the viewer may not read it.
+ */
+export async function readStandingRows(
+  request: Request,
+  houseId: string,
+  seasonId: string,
+): Promise<readonly StandingRow[]> {
+  const [roster, standings] = await Promise.all([
+    getHouseRoster(request, houseId),
+    getSeasonStandings(request, houseId, seasonId),
+  ]);
+  if (roster === null || standings === null) return [];
+  return standingRows(standings.standings, roster);
 }

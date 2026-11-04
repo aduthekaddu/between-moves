@@ -10,10 +10,12 @@ import type { ReactNode } from 'react';
 import { CharterAuthoringForm } from './charter-authoring-form';
 import { CloseSeasonPanel } from './close-season-panel';
 import { FinalStandings } from './final-standings';
+import { LiveStandings } from './live-standings';
 import { NightSchedule } from './night-schedule';
 import { PointsRecipe } from './points-recipe';
 import { PreviousSeason } from './previous-season';
 import { seasonOpeningFor } from './season-opening';
+import type { StandingRow } from '../../../../modules/seasons/standing-rows';
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -35,6 +37,7 @@ function ActiveSeason({
   recap,
   previous,
   timeZone,
+  standings,
 }: {
   readonly houseId: string;
   readonly membershipRole: MembershipRole;
@@ -44,6 +47,7 @@ function ActiveSeason({
   readonly recap: ReactNode;
   readonly previous: ReactNode;
   readonly timeZone: string;
+  readonly standings: readonly StandingRow[];
 }) {
   const charter = season.charter;
   if (charter === null || season.startsAt === null || season.endsAt === null) return recap;
@@ -72,6 +76,7 @@ function ActiveSeason({
         </div>
       </dl>
       {previous}
+      {season.state === 'active' ? <LiveStandings rows={standings} /> : null}
       <PointsRecipe recipe={charter.pointsRecipe} />
       <NightSchedule
         houseId={houseId}
@@ -104,6 +109,7 @@ export function SeasonView({
   lastClosed = null,
   timeZone = 'UTC',
   today,
+  standings = [],
 }: {
   readonly houseId: string;
   readonly membershipRole: MembershipRole;
@@ -114,6 +120,8 @@ export function SeasonView({
   readonly timeZone?: string;
   /** The House's calendar date, from the server so the form hydrates with the same value. */
   readonly today: string;
+  /** The active Season's ranked table; empty until someone scores. */
+  readonly standings?: readonly StandingRow[];
 }) {
   const recap =
     lastClosed === null ? null : <FinalStandings houseId={houseId} season={lastClosed} />;
@@ -134,6 +142,7 @@ export function SeasonView({
         recap={frozen}
         previous={previous}
         timeZone={timeZone}
+        standings={standings}
       />
     );
   }

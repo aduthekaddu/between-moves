@@ -2634,6 +2634,78 @@ a.move-card:focus-visible {
   outline-color: var(--marigold);
 }
 
+/* the viewer's own row: a lamp-coloured tag and a chalk outline around the tiles */
+.season-final__table li[data-viewer='true'] {
+  outline: 1.5px dashed var(--marigold);
+  outline-offset: 5px;
+}
+
+.season-final__you {
+  margin-left: 10px;
+  padding: 1px 7px;
+  border: 1.5px solid var(--marigold);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-stretch: 100%;
+  letter-spacing: 0.12em;
+  vertical-align: middle;
+  color: var(--marigold);
+}
+
+/* [BM-034] the running table: the same scoreboard, before it is frozen, beside the Nights */
+.season-live {
+  display: grid;
+  gap: 14px;
+  padding: clamp(20px, 3vw, 28px);
+  background:
+    url('/textures/paper-fibre.webp') 0 0 / 320px 320px,
+    linear-gradient(180deg, #232c55, #1a2244);
+  color: var(--night-text);
+  box-shadow: var(--lift-shadow);
+}
+
+.season-live h2 {
+  font-size: clamp(1.6rem, 2.6vw, 2.3rem);
+  font-weight: 760;
+  font-stretch: 78%;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.season-live__empty {
+  color: var(--night-text-2);
+}
+
+.season-live .season-final__table li {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.season-live .season-final__rank,
+.season-live .season-final__points {
+  height: 40px;
+}
+
+.season-live .season-final__rank {
+  font-size: 1.2rem;
+}
+
+.season-live .season-final__points {
+  min-width: 0;
+  padding: 0 10px;
+  font-size: 0.92rem;
+}
+
+.season-live .season-final__name {
+  font-size: 1.15rem;
+}
+
+.season-active > .season-live {
+  grid-column: 2;
+  margin-top: 36px;
+}
+
 /* the recap follows the page's h1 in the document but sits above it, a Season gap clear */
 .season-main > .season-final,
 .season-active > .season-final,
@@ -4941,7 +5013,8 @@ a.move-card:focus-visible {
 
   .season-active > .night-schedule,
   .season-active > .charter-points,
-  .season-active > .season-close {
+  .season-active > .season-close,
+  .season-active > .season-live {
     grid-column: 1;
     grid-row: auto;
   }
