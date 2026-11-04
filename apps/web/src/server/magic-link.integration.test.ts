@@ -57,14 +57,17 @@ integration('BM-008 magic-link full flow', () => {
     UPSTASH_REDIS_REST_TOKEN: 'upstash-integration-token',
     APP_ENV: 'local',
   });
-  const auth = betterAuth(
-    createBetterAuthOptions({
-      config,
-      database: database.pool,
-      logger: { log: vi.fn() },
-      queueMagicLink,
-    }),
-  );
+  const createAuth = () =>
+    betterAuth(
+      createBetterAuthOptions({
+        config,
+        database: database.pool,
+        logger: { log: vi.fn() },
+        queueMagicLink,
+      }),
+    );
+  // Built after migrateUp: Better Auth checks the schema once at construction and keeps a mismatch.
+  let auth: ReturnType<typeof createAuth>;
   const transport = new TestMagicLinkEmailSender();
   const dispatcher = createOutboxDispatcher({
     clock,
@@ -77,6 +80,7 @@ integration('BM-008 magic-link full flow', () => {
   beforeAll(async () => {
     await migrateDown(database.pool, { migrationsDirectory, all: true });
     await migrateUp(database.pool, { migrationsDirectory });
+    auth = createAuth();
   });
 
   afterAll(async () => {
@@ -112,7 +116,7 @@ integration('BM-008 magic-link full flow', () => {
 
     expect(Buffer.from(token, 'base64url')).toHaveLength(32);
     expect(verification.rows[0]?.identifier).not.toBe(token);
-    expect(verification.rows[0]?.identifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(verification.rows[0]?.identifier).toMatch(/^magic-link:[A-Za-z0-9_-]{43}$/);
     expect(verification.rows[0]!.expires_at.getTime() - Date.now()).toBeGreaterThan(14 * 60_000);
 
     const first = await auth.api.magicLinkVerify({
