@@ -105,7 +105,7 @@ export function InvitePanel({
 
   const full = seatsLeft === 0;
   return (
-    <section className="invite-panel" aria-labelledby={`${id}-title`}>
+    <section id="invite" className="invite-panel" aria-labelledby={`${id}-title`}>
       <p className="house-home__eyebrow">Invitations</p>
       <h2 id={`${id}-title`}>Invite someone</h2>
       <p className="invite-panel__lede">

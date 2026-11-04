@@ -1,7 +1,7 @@
 import type { ClosedSeasonView, FinalSeasonStanding } from '@between-moves/domain';
 
 /** Format the score with a singular unit only for exactly one point. */
-function pointsLabel(points: number): string {
+export function pointsLabel(points: number): string {
   return points === 1 ? '1 point' : `${points} points`;
 }
 
