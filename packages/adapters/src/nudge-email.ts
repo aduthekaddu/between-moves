@@ -11,6 +11,9 @@ export interface ResendNudgeEmailSenderOptions {
   readonly from: string;
   readonly fetch?: typeof fetch;
   readonly metrics: EmailMetrics;
+  /** The web origin; with it, the email links straight to the board. */
+  readonly appOrigin?: string | undefined;
+  readonly now?: () => Date;
 }
 
 function subject(message: NudgeEmail): string {
@@ -19,9 +22,36 @@ function subject(message: NudgeEmail): string {
     : `Still your move in ${message.houseName}`;
 }
 
-function body(message: NudgeEmail): string {
-  const timing = message.stage === 'advance' ? 'is approaching' : 'has passed';
-  return `Your move deadline ${timing} for Game ${message.gameId} at ply ${message.ply}.`;
+function timeLeft(due: Date, now: Date): string | null {
+  const hours = Math.round((due.getTime() - now.getTime()) / 3_600_000);
+  if (hours < 1) return null;
+  return hours === 1 ? 'about an hour' : `about ${hours} hours`;
+}
+
+/** Plain words a person acts on: who moved, what they played, how long is left, where to go. */
+function body(message: NudgeEmail, appOrigin: string | undefined, now: Date): string {
+  const lines: string[] = [];
+  if (message.stage === 'advance') {
+    lines.push(
+      message.lastMoveSan === null
+        ? `Your game against ${message.opponentName} has started, and you move first.`
+        : `${message.opponentName} played ${message.lastMoveSan}. It's your move.`,
+    );
+    const left = message.moveDueAt === null ? null : timeLeft(message.moveDueAt, now);
+    if (left !== null) lines.push(`You have ${left} to reply.`);
+  } else {
+    lines.push(
+      `Your move against ${message.opponentName} is past its deadline. The game is still waiting for you.`,
+    );
+  }
+  if (appOrigin !== undefined) {
+    const board = new URL(
+      `/h/${encodeURIComponent(message.houseId)}/games/${encodeURIComponent(message.gameId)}`,
+      appOrigin,
+    );
+    lines.push(`Open the board: ${board.toString()}`);
+  }
+  return lines.join('\n\n');
 }
 
 /** [BM-029] [PR-COPY-10/11] Fixed-origin Resend Nudge adapter; content is never logged. */
@@ -36,8 +66,13 @@ export class ResendNudgeEmailSender implements NudgeEmailSender {
     message: NudgeEmail,
     options: { readonly idempotencyKey: string },
   ): Promise<NudgeEmailSendResult> {
+    const now = this.options.now?.() ?? new Date();
     await this.client.send(
-      { to: message.email, subject: subject(message), text: body(message) },
+      {
+        to: message.email,
+        subject: subject(message),
+        text: body(message, this.options.appOrigin, now),
+      },
       options.idempotencyKey,
     );
     return 'sent';

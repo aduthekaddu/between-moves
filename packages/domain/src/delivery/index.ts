@@ -178,10 +178,16 @@ export interface NudgeRepository {
 
 export interface NudgeEmail {
   readonly email: string;
+  readonly houseId: string;
   readonly houseName: string;
   readonly gameId: string;
   readonly ply: number;
   readonly stage: NudgeStage;
+  /** The other player, named the way the House shows them. */
+  readonly opponentName: string;
+  /** The Move that put the reader on move, in SAN; null before the first Move. */
+  readonly lastMoveSan: string | null;
+  readonly moveDueAt: Date | null;
 }
 
 export interface NudgeEmailReader {

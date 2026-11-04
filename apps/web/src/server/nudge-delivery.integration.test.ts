@@ -123,6 +123,15 @@ integration('Nudge scheduling and delivery flow', () => {
 
     clock.advance(1_000);
     await expect(outbox.dispatchBatch()).resolves.toMatchObject({ retried: 0, sent: 1 });
+    expect(sendNudge).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        houseId: world.first.houseId,
+        opponentName: 'Bea',
+        lastMoveSan: null,
+        moveDueAt: new Date('2026-09-16T00:00:00.000Z'),
+      }),
+      expect.anything(),
+    );
     await expect(outbox.dispatchBatch()).resolves.toMatchObject({ claimed: 0, sent: 0 });
     expect(successfulSender.deliveries()).toHaveLength(1);
     expect(sendNudge).toHaveBeenCalledTimes(2);
