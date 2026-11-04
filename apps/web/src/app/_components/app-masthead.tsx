@@ -19,7 +19,7 @@ export function AppMasthead({
 }) {
   const base = `/h/${encodeURIComponent(houseId)}`;
   const rooms = [
-    { id: 'shelf', label: 'Move shelf', href: base },
+    { id: 'shelf', label: 'Games', href: base },
     { id: 'season', label: 'Season', href: `${base}/season` },
     { id: 'puzzles', label: 'Puzzles', href: `${base}/puzzles` },
     { id: 'members', label: 'Members', href: `${base}/members` },

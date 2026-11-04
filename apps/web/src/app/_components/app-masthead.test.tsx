@@ -10,6 +10,7 @@ describe('AppMasthead', () => {
       <AppMasthead houseId={houseId} houseName="Knights at Dusk" current="season" />,
     );
     expect(html).toContain(`href="/h/${houseId}/season" aria-current="page"`);
+    expect(html).toContain(`<a href="/h/${houseId}">Games</a>`);
     expect(html).toContain(`href="/h/${houseId}/puzzles"`);
     expect(html).toContain('Knights at Dusk');
     expect(html.match(/aria-current/g)).toHaveLength(1);
