@@ -57,6 +57,16 @@ export function formatSeasonDate(date: string): string {
   }).format(utcMidnight(date));
 }
 
+/** A stored Season day the way people say it, such as "5 Nov 2026". */
+export function seasonDayLabel(day: Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(day);
+}
+
 /**
  * The values a new Season starts from: the draft's own where it has them, otherwise a Season
  * named for this month that starts today.

@@ -157,13 +157,9 @@ export function HouseHomeView({
               <SeasonTableCard houseId={home.houseId} rows={standings} />
             ) : null}
             <aside className="house-status" aria-labelledby="house-status-title">
-              <p className="house-home__eyebrow">House status</p>
               <h2 id="house-status-title" className="house-status__title">
-                The table is set.
+                Around the House
               </h2>
-              <p className="house-status__copy">
-                This is the shared front door for your House. It stays private to active Members.
-              </p>
               <dl className="house-details">
                 <div>
                   <dt>Your place</dt>

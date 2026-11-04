@@ -360,7 +360,7 @@ describe('SeasonView', () => {
 
     expect(html).toContain('Season closed · Final standings');
     expect(html).toContain('Summer tables');
-    expect(html).toContain('01/08/2026 – 29/08/2026 · closed 30/08/2026');
+    expect(html).toContain('1 Aug 2026 – 29 Aug 2026 · closed 30 Aug 2026');
     expect(html.match(/aria-label="Rank 1"/g)).toHaveLength(2);
     expect(html).toContain('aria-label="Rank 3"');
     expect(html.match(/season-final__row--leader/g)).toHaveLength(2);

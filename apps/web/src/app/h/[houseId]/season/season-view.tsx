@@ -6,6 +6,7 @@ import type {
   NightHostCandidate,
   NightRecurrence,
 } from '@between-moves/domain';
+import { seasonDayLabel } from './season-opening';
 import type { ReactNode } from 'react';
 import { CharterAuthoringForm } from './charter-authoring-form';
 import { CloseSeasonPanel } from './close-season-panel';
@@ -62,8 +63,7 @@ function ActiveSeason({
         <div>
           <dt>Dates</dt>
           <dd>
-            {season.startsAt.toLocaleDateString('en-GB')} –{' '}
-            {season.endsAt.toLocaleDateString('en-GB')}
+            {seasonDayLabel(season.startsAt)} – {seasonDayLabel(season.endsAt)}
           </dd>
         </div>
         <div>

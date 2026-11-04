@@ -1,4 +1,5 @@
 import type { ClosedSeasonView, FinalSeasonStanding } from '@between-moves/domain';
+import { seasonDayLabel } from './season-opening';
 
 /** Format the score with a singular unit only for exactly one point. */
 export function pointsLabel(points: number): string {
@@ -53,10 +54,8 @@ export function FinalStandings({
       </p>
       <h2 id="season-final-title">{season.title}</h2>
       <p className="season-final__dates">
-        {season.startsAt.toLocaleDateString('en-GB')} – {season.endsAt.toLocaleDateString('en-GB')}
-        {season.closedAt === null
-          ? null
-          : ` · closed ${season.closedAt.toLocaleDateString('en-GB')}`}
+        {seasonDayLabel(season.startsAt)} – {seasonDayLabel(season.endsAt)}
+        {season.closedAt === null ? null : ` · closed ${seasonDayLabel(season.closedAt)}`}
       </p>
       {season.standings.length === 0 ? (
         <p>No Member scored this Season.</p>
