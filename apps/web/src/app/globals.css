@@ -564,8 +564,6 @@ label {
 }
 
 .house-status {
-  position: sticky;
-  top: 24px;
   display: grid;
   gap: 14px;
   padding: 26px;
@@ -652,6 +650,257 @@ label {
 .house-status :focus-visible,
 .app-masthead[data-tone='night'] :focus-visible {
   outline-color: var(--marigold);
+}
+
+.house-home__side {
+  display: grid;
+  gap: 24px;
+  align-content: start;
+}
+
+/* ————— House home: welcome and setup ————— */
+
+.house-guide {
+  display: grid;
+  gap: 18px;
+  padding: clamp(22px, 3vw, 32px);
+  border-top: 4px solid var(--marigold);
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+}
+
+.house-guide .house-home__eyebrow {
+  margin: 0 0 -8px;
+}
+
+.house-guide h2,
+.house-table h2 {
+  font-size: clamp(1.6rem, 2.6vw, 2.3rem);
+  font-weight: 760;
+  font-stretch: 78%;
+  line-height: 0.95;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.house-guide__points {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.house-guide__points li {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+  font-size: 1.05rem;
+  color: var(--ink-2);
+}
+
+.house-guide__points li::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  background: var(--indigo-2);
+  transform: translateY(-2px) rotate(45deg);
+}
+
+.house-guide__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.house-shell .house-guide .house-guide__primary {
+  margin-top: 0;
+  border-color: transparent;
+}
+
+.house-setup__steps {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--ink);
+}
+
+.house-setup__steps li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.house-setup__mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.house-setup__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.house-setup__detail,
+.house-setup__action,
+.house-setup__done {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.house-setup__detail {
+  color: var(--ink-3);
+}
+
+.house-setup__action {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.house-setup__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 700;
+  color: var(--indigo-2);
+}
+
+.house-setup__link::after {
+  content: ' →';
+  margin-left: 6px;
+  font-family: var(--font-mono);
+}
+
+.house-setup__done {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--leaf);
+}
+
+.house-setup__steps li[data-done='true'] .house-setup__mark {
+  border-color: var(--leaf);
+  background: var(--leaf);
+  color: var(--paper);
+}
+
+.house-setup__steps li[data-done='true'] .house-setup__title {
+  color: var(--ink-3);
+}
+
+/* ————— House home: the Season table ————— */
+
+.house-table {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  background: var(--paper-card) url('/textures/paper-fibre.webp') 0 0 / 320px 320px;
+  box-shadow: var(--card-shadow);
+}
+
+.house-table h2 {
+  font-size: 1.6rem;
+}
+
+.house-table__empty {
+  color: var(--ink-3);
+}
+
+.house-table__rows {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.house-table__rows li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 0;
+}
+
+.house-table__rows li[data-viewer='true'] {
+  background: rgba(244, 165, 60, 0.2);
+  box-shadow: inset 3px 0 0 var(--marigold);
+}
+
+/* the viewer's own row below the top five, set apart by a dotted break */
+.house-table__rows li[data-below='true'] {
+  margin-top: 14px;
+}
+
+.house-table__rows li[data-below='true']::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  right: 0;
+  left: 0;
+  border-top: 2px dotted var(--rule-2);
+}
+
+.house-table__rank {
+  display: grid;
+  place-items: center;
+  height: 30px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.house-table__rows li[data-leader='true'] .house-table__rank {
+  border-radius: 2px;
+  background: var(--marigold);
+}
+
+.house-table__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.house-table__points {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+
+.house-table .move-shelf__start {
+  justify-self: start;
+  margin-top: 0;
+}
+
+@media (min-width: 641px) {
+  .house-setup__steps li {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+
+  .house-setup__action,
+  .house-setup__done {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    justify-self: end;
+    margin-top: 0;
+  }
 }
 
 /* ————— Move shelf ————— */
@@ -2604,7 +2853,8 @@ a.move-card:focus-visible {
 
 /* [BM-048] the recap's way into the Closing Book: the lamp's colour on the scoreboard */
 .season-final__book,
-.closing-book-next__action {
+.closing-book-next__action,
+.house-shell .house-guide__primary {
   justify-self: start;
   display: inline-flex;
   align-items: center;
@@ -2622,13 +2872,15 @@ a.move-card:focus-visible {
 }
 
 .season-final__book::after,
-.closing-book-next__action::after {
+.closing-book-next__action::after,
+.house-guide__primary::after {
   content: '→';
   font-family: var(--font-mono);
 }
 
 .season-final__book:hover,
-.closing-book-next__action:hover {
+.closing-book-next__action:hover,
+.house-shell .house-guide__primary:hover:not(:disabled) {
   transform: translateY(1px);
 }
 
@@ -4964,10 +5216,6 @@ a.move-card:focus-visible {
   .night-rail__grid,
   .season-active {
     grid-template-columns: 1fr;
-  }
-
-  .house-status {
-    position: static;
   }
 
   .season-active > .night-schedule,
