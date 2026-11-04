@@ -917,7 +917,7 @@ a.move-card:focus-visible {
   grid-column: 2;
 }
 
-.move-entry > .chess-board {
+.move-entry > .chess-board-frame {
   grid-column: 1;
   grid-row: 1 / span 12;
 }
@@ -1066,6 +1066,119 @@ a.move-card:focus-visible {
   cursor: progress;
 }
 
+/* the frame holds the board, the dragged piece, and the promotion choice */
+.chess-board-frame {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+}
+
+.chess-board__square[data-movable] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.chess-board-frame--dragging,
+.chess-board-frame--dragging .chess-board__square {
+  cursor: grabbing;
+}
+
+.chess-board__square[data-dragging] .chess-board__piece {
+  opacity: 0.3;
+}
+
+.chess-board__square[data-drop-hover] {
+  box-shadow: inset 0 0 0 4px var(--marigold);
+}
+
+/* legal destinations: a dot on an empty square, a ring around a capture */
+.chess-board__square[data-target]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.chess-board__square[data-target='move']::after {
+  width: 28%;
+  height: 28%;
+  background: rgba(23, 22, 27, 0.26);
+}
+
+.chess-board__square[data-target='capture']::after {
+  width: 88%;
+  height: 88%;
+  border: 5px solid rgba(224, 73, 47, 0.62);
+}
+
+.chess-board__ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  display: none;
+  pointer-events: none;
+}
+
+.chess-board-frame--dragging .chess-board__ghost {
+  display: block;
+}
+
+.chess-board__ghost .chess-board__piece {
+  filter: drop-shadow(0 10px 8px rgba(10, 12, 24, 0.45));
+  transform: scale(1.12);
+}
+
+.chess-board__promotion {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  background: rgba(23, 22, 27, 0.58);
+}
+
+.chess-board__promotion-choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(56px, 88px));
+  gap: 10px;
+}
+
+.chess-board__promotion-choices button {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 2px solid var(--ink);
+  background: var(--paper-card);
+  box-shadow: var(--card-shadow);
+}
+
+.chess-board__promotion-choices button:focus-visible,
+.chess-board__promotion-choices button:hover {
+  background: var(--square-light-hot);
+}
+
+.chess-board__promotion-piece {
+  position: absolute;
+  inset: 8% 12% 10%;
+}
+
+.chess-board__promotion-cancel {
+  justify-self: center;
+  border-color: var(--paper);
+  background: transparent;
+  color: var(--paper);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .move-entry__staged-timer {
+    animation: none;
+  }
+}
+
 /* live clocks: two faces, the running one lit */
 .live-clocks {
   display: grid;
@@ -1153,13 +1266,6 @@ a.move-card:focus-visible {
   font-weight: 500;
 }
 
-.move-entry__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.move-entry__submit,
 .charter-form__submit,
 .season-close__confirm,
 .invitation-form button,
@@ -1173,21 +1279,50 @@ a.move-card:focus-visible {
   box-shadow: 0 calc(4px - var(--press) * 4px) 0 -1px var(--vermilion);
 }
 
-.move-entry__submit {
-  flex: 1 1 auto;
-  min-height: 52px;
-  font-size: 1.05rem;
-}
-
-.move-entry__submit:hover:not(:disabled),
 .charter-form__submit:hover:not(:disabled) {
   background: #000;
 }
 
-.move-entry__promotion {
-  display: grid;
-  gap: 6px;
-  font-size: 0.9rem;
+/* the Undo bar: the Move is already on the board; the line runs out as it is sent */
+.move-entry__staged {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 1.05rem;
+}
+
+.move-entry__staged strong {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+}
+
+.move-entry__undo {
+  min-height: 44px;
+  padding-inline: 20px;
+  border-color: var(--ink);
+  font-weight: 700;
+}
+
+.move-entry__staged-timer {
+  position: absolute;
+  right: -18px;
+  bottom: -18px;
+  left: -18px;
+  height: 4px;
+  background: var(--vermilion);
+  transform-origin: left center;
+  animation: move-entry-countdown 5s linear forwards;
+}
+
+@keyframes move-entry-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
 .game-position-status {
@@ -4601,12 +4736,12 @@ a.move-card:focus-visible {
   }
 
   .move-entry > *,
-  .move-entry > .chess-board {
+  .move-entry > .chess-board-frame {
     grid-column: 1;
     grid-row: auto;
   }
 
-  .move-entry > .chess-board {
+  .move-entry > .chess-board-frame {
     order: 3;
   }
 
@@ -4618,7 +4753,7 @@ a.move-card:focus-visible {
     order: 2;
   }
 
-  .move-entry > :not(.chess-board, .move-entry__heading, .live-clocks) {
+  .move-entry > :not(.chess-board-frame, .move-entry__heading, .live-clocks) {
     order: 4;
   }
 }

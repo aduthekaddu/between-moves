@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MoveEntry } from './move-entry';
+import { MoveEntry, UNDO_WINDOW_MS } from './move-entry';
 import type { MoveEntryPosition } from './move-entry-wire';
 
 const initial: MoveEntryPosition = {
@@ -121,7 +121,7 @@ describe('live move entry', () => {
     const source = FakeEventSource.instances[0];
     expect(source?.url).toContain('/games/game/live?token=scoped-spectator-token');
     expect(container.textContent).toContain("Only seated players can move. You're spectating.");
-    expect(container.querySelector('.move-entry__submit')).toBeNull();
+    expect(container.querySelector('[data-movable]')).toBeNull();
     expect(container.querySelectorAll('[role="gridcell"][aria-disabled="true"]')).toHaveLength(64);
 
     const readsOnAttach = fetchMock.mock.calls.length;
@@ -148,7 +148,7 @@ describe('live move entry', () => {
       'e4, white pawn',
     );
     expect(container.textContent).toContain('Move list (1)');
-    expect(container.querySelector('.move-entry__submit')).toBeNull();
+    expect(container.querySelector('[data-movable]')).toBeNull();
 
     await act(async () => root.render(<></>));
     expect(source?.close).toHaveBeenCalledOnce();
@@ -187,9 +187,8 @@ describe('live move entry', () => {
     expect(container.textContent).toContain('Your move');
   });
 
-  it('submits a move and replaces the optimistic board with the accepted snapshot', async () => {
+  it('sends a live move on the second tap and shows the accepted snapshot', async () => {
     await mount();
-    await proposeMove();
     fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
       Promise.resolve(
         options?.method === 'POST'
@@ -204,7 +203,8 @@ describe('live move entry', () => {
           : json(afterMove),
       ),
     );
-    await click('.move-entry__submit');
+    await proposeMove();
+    expect(container.textContent).not.toContain('Undo');
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/moves'),
       expect.objectContaining({ method: 'POST' }),
@@ -220,7 +220,6 @@ describe('live move entry', () => {
 
   it('confirms flag fall from the server before ending the game', async () => {
     await mount();
-    await proposeMove();
     fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
       Promise.resolve(
         options?.method === 'POST'
@@ -228,7 +227,7 @@ describe('live move entry', () => {
           : json({ ...initial, state: 'completed', result: 'black_win' }),
       ),
     );
-    await click('.move-entry__submit');
+    await proposeMove();
     expect(container.textContent).toContain('Time expired. Game complete.');
     expect(container.textContent).toContain('Bea won');
   });
@@ -238,9 +237,125 @@ describe('live move entry', () => {
     matches = false;
     await act(async () => changeViewport?.());
     expect(container.textContent).toContain('Live play needs a screen at least 768 px wide.');
-    expect(container.querySelector('.move-entry__submit')).toBeNull();
+    expect(container.querySelector('[data-movable]')).toBeNull();
     matches = true;
     await act(async () => changeViewport?.());
-    expect(container.querySelector('.move-entry__submit')).not.toBeNull();
+    expect(container.querySelector('[data-square="e2"]')?.hasAttribute('data-movable')).toBe(true);
+  });
+});
+
+const correspondence: MoveEntryPosition = {
+  mode: 'correspondence',
+  currentFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+  currentPly: 0,
+  sideToMove: 'white',
+  version: 0,
+  state: 'active',
+  viewerColor: 'white',
+  white: { name: 'Ada' },
+  black: { name: 'Bea' },
+  moveDueAt: '2099-09-10T08:00:00.000Z',
+  result: null,
+  inCheck: false,
+  moves: [],
+};
+
+function posts() {
+  return fetchMock.mock.calls.filter(([, options]) => (options as RequestInit)?.method === 'POST');
+}
+
+function postedBody(index = 0) {
+  return JSON.parse(String((posts()[index]?.[1] as RequestInit).body)) as Record<string, unknown>;
+}
+
+function square(name: string) {
+  return container.querySelector<HTMLElement>(`[data-square="${name}"]`);
+}
+
+function buttonNamed(name: string) {
+  const button = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+    (candidate) => candidate.textContent === name || candidate.getAttribute('aria-label') === name,
+  );
+  expect(button, name).toBeDefined();
+  return button!;
+}
+
+describe('correspondence move entry', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows where a picked piece can go', async () => {
+    await mount(correspondence);
+    await click('[data-square="e2"]');
+    expect(square('e2')?.getAttribute('aria-selected')).toBe('true');
+    expect(
+      [...container.querySelectorAll('[data-target]')].map((node) =>
+        node.getAttribute('data-square'),
+      ),
+    ).toEqual(['e4', 'e3']);
+    expect(square('e4')?.getAttribute('aria-label')).toBe('e4, empty, legal move');
+  });
+
+  it('plays on the second tap and sends after the Undo window', async () => {
+    await mount(correspondence);
+    await proposeMove();
+    expect(square('e4')?.getAttribute('aria-label')).toBe('e4, white pawn');
+    expect(container.textContent).toContain('You played e4');
+    expect(posts()).toHaveLength(0);
+
+    await act(async () => vi.advanceTimersByTime(UNDO_WINDOW_MS));
+    expect(posts()).toHaveLength(1);
+    expect(postedBody()).toMatchObject({ expectedPly: 0, move: { from: 'e2', to: 'e4' } });
+  });
+
+  it('takes a Move back with Undo, and nothing is sent', async () => {
+    await mount(correspondence);
+    await proposeMove();
+    await act(async () => buttonNamed('Undo').click());
+    expect(square('e2')?.getAttribute('aria-label')).toBe('e2, white pawn');
+    expect(square('e4')?.getAttribute('aria-label')).toBe('e4, empty');
+    expect(container.textContent).toContain('Your move.');
+
+    await act(async () => vi.advanceTimersByTime(UNDO_WINDOW_MS * 2));
+    expect(posts()).toHaveLength(0);
+  });
+
+  it('does not play a square the piece cannot reach', async () => {
+    await mount(correspondence);
+    await click('[data-square="e2"]');
+    await click('[data-square="e5"]');
+    expect(container.textContent).not.toContain('You played');
+    expect(container.querySelectorAll('[data-target]')).toHaveLength(0);
+    await act(async () => vi.advanceTimersByTime(UNDO_WINDOW_MS));
+    expect(posts()).toHaveLength(0);
+  });
+
+  it('asks which piece a pawn becomes and sends that choice', async () => {
+    await mount({ ...correspondence, currentFen: '8/4P3/8/8/8/8/8/k6K w - - 0 1' });
+    await click('[data-square="e7"]');
+    await click('[data-square="e8"]');
+    expect(
+      container.querySelector('[role="group"][aria-label="Promote the pawn to"]'),
+    ).not.toBeNull();
+    await act(async () => buttonNamed('Knight').click());
+    expect(container.textContent).toContain('You played e8=N');
+
+    await act(async () => vi.advanceTimersByTime(UNDO_WINDOW_MS));
+    expect(postedBody()).toMatchObject({ move: { from: 'e7', to: 'e8', promotion: 'n' } });
+  });
+
+  it('sends a waiting Move at once when the reader leaves the page', async () => {
+    await mount(correspondence);
+    await proposeMove();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    visibility.mockRestore();
+    expect(posts()).toHaveLength(1);
+    expect((posts()[0]?.[1] as RequestInit).keepalive).toBe(true);
   });
 });

@@ -45,7 +45,7 @@ describe('Game view', () => {
     expect(html.match(/role="timer"/g)).toHaveLength(2);
     expect(html).toContain('aria-label="White time remaining"');
     expect(html).toContain('aria-live="off"');
-    expect(html).toContain('Submit Move');
+    expect(html).toContain('data-square="e2" data-color="light" data-movable="true"');
   });
 
   it('[BM-027] [UX-CMP-01] renders an accessible canonical board and move controls', () => {
@@ -57,7 +57,8 @@ describe('Game view', () => {
     expect(html).toContain('aria-label="e2, white pawn"');
     expect(html).toContain('aria-label="a8, empty"');
     expect(html).toContain('White to move');
-    expect(html).toContain('Submit Move');
+    expect(html).toContain('Your move.');
+    expect(html).not.toContain('Submit Move');
     expect(html).toContain('Move list (0)');
     expect(html).toContain('Ada plays White. Bea plays Black.');
   });
