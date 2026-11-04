@@ -46,11 +46,11 @@ export function NewGameView({
             <p>
               Games count toward a Season, so one has to be running before anyone can play.{' '}
               {canPublishCharter
-                ? 'Write the Season’s Charter and publish it to open the table.'
-                : 'Ask the Owner or a Steward to publish the next Charter.'}
+                ? 'Open a Season to set the table.'
+                : 'Ask the Owner or a Steward to open the next Season.'}
             </p>
             <a className="house-status__action new-game-closed__action" href={`${base}/season`}>
-              {canPublishCharter ? 'Write the Charter' : 'See the Season'}
+              {canPublishCharter ? 'Open a Season' : 'See the Season'}
             </a>
           </section>
         ) : opponents.length === 0 ? (

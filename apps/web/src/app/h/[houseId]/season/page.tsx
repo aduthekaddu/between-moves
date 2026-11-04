@@ -7,6 +7,7 @@ import { getNightHostCandidates } from '../../../../modules/nights/lifecycle';
 import { getHouseHome } from '../../../../server/house-home';
 import { getHouseSeason, getLastClosedSeason } from '../../../../server/seasons';
 import { getScheduledNights } from '../../../../server/nights';
+import { houseLocalDate } from './season-opening';
 import { SeasonView } from './season-view';
 
 export const dynamic = 'force-dynamic';
@@ -48,6 +49,7 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
           season={season}
           lastClosed={lastClosed}
           timeZone={home.timeZone}
+          today={houseLocalDate(new Date(), home.timeZone)}
         />
       </main>
     </div>

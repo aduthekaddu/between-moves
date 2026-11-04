@@ -2738,6 +2738,7 @@ a.move-card:focus-visible {
 }
 
 .charter-field > label,
+.charter-field__label,
 .charter-night legend {
   font-family: var(--font-mono);
   font-size: 0.74rem;
@@ -2747,9 +2748,13 @@ a.move-card:focus-visible {
   color: var(--ink-2);
 }
 
-.charter-field__hint {
-  font-size: 0.85rem;
-  color: var(--ink-3);
+/* the end date is printed, not typed: a ruled line where an input would sit */
+.charter-field__value {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  border-bottom: 1.5px dashed var(--rule-2);
+  font-weight: 600;
 }
 
 .charter-field__compound {

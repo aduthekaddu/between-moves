@@ -1,79 +1,49 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { PointsRecipe } from './points-recipe';
 import { PreviousSeason } from './previous-season';
+import {
+  formatSeasonDate,
+  openSeason,
+  seasonEndDate,
+  type ProblemDetails,
+  type SeasonOpening,
+  type SeasonOpeningProgress,
+} from './season-opening';
 
 interface CharterAuthoringFormProps {
   readonly houseId: string;
-  readonly draftSeasonId?: string | undefined;
-  readonly initialTitle?: string | undefined;
-  readonly initialPaceHours?: number | undefined;
-  readonly initialWeekday?: number | undefined;
-  readonly initialLocalTime?: string | undefined;
-  readonly initialCharterVersioned?: boolean | undefined;
+  readonly initial: SeasonOpening;
+  readonly progress: SeasonOpeningProgress;
   /** [BM-049] The last closed Season's title when this Charter renews the House. */
   readonly previousSeasonTitle?: string | undefined;
   /** Frozen standings shown above the Charter but placed after its h1 in the document. */
   readonly recap?: ReactNode;
 }
 
-interface ProblemDetails {
-  readonly detail?: string;
-  readonly errors?: Record<string, string[]>;
-}
-
-async function postJson(
-  url: string,
-  body: unknown,
-  headers: Readonly<Record<string, string>> = {},
-): Promise<Record<string, unknown>> {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-  });
-  const payload = (await response.json()) as Record<string, unknown> & ProblemDetails;
-  if (!response.ok) throw payload;
-  return payload;
-}
-
-function dateAtUtcMidnight(value: string): string {
-  return new Date(`${value}T00:00:00.000Z`).toISOString();
-}
-
-function validateFields(input: {
-  readonly title: string;
-  readonly startsAt: string;
-  readonly endsAt: string;
-  readonly paceHours: number;
-  readonly weekday: number;
-  readonly localTime: string;
-}): Record<string, string[]> {
+function validateFields(opening: SeasonOpening): Record<string, string[]> {
   const errors: Record<string, string[]> = {};
-  if (input.title.trim().length < 1 || input.title.trim().length > 80) {
+  if (opening.title.trim().length < 1 || opening.title.trim().length > 80) {
     errors.title = ['Enter a Season title of 1 to 80 characters.'];
   }
   if (
-    !Number.isInteger(input.paceHours) ||
-    input.paceHours <= 0 ||
-    input.paceHours > 2_147_483_647
+    !Number.isInteger(opening.paceHours) ||
+    opening.paceHours <= 0 ||
+    opening.paceHours > 2_147_483_647
   ) {
     errors.correspondencePaceHours = ['Enter a positive whole number of hours.'];
   }
-  if (!Number.isInteger(input.weekday) || input.weekday < 0 || input.weekday > 6) {
+  if (!Number.isInteger(opening.weekday) || opening.weekday < 0 || opening.weekday > 6) {
     errors['nightRecurrence.weekday'] = ['Choose a weekday.'];
   }
-  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(input.localTime)) {
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(opening.localTime)) {
     errors['nightRecurrence.localTime'] = ['Enter a valid local time.'];
   }
-  const start = Date.parse(`${input.startsAt}T00:00:00.000Z`);
-  const end = Date.parse(`${input.endsAt}T00:00:00.000Z`);
-  if (Number.isNaN(start)) errors.startsAt = ['Choose the Season start date.'];
-  if (Number.isNaN(end)) errors.endsAt = ['Choose the Season end date.'];
-  else if (!Number.isNaN(start) && end - start !== 28 * 24 * 60 * 60 * 1_000) {
-    errors.endsAt = ['Season end must be exactly four weeks after its start.'];
+  if (seasonEndDate(opening.startDate) === null) {
+    errors.startsAt = ['Choose the Season start date.'];
   }
   return errors;
 }
@@ -94,83 +64,67 @@ function FieldError({
 }
 
 /**
- * [BM-019] [UX-CMP-09] Narrow-first Charter authoring and three-command publication flow.
+ * [BM-019] [UX-CMP-09] Narrow-first Season opening and its three-command publication flow.
  * [BM-049] After a close the same flow renews the House: a fresh Season that carries nothing
  * over, which once published links back to the last Season's Closing Book.
  */
 export function CharterAuthoringForm({
   houseId,
-  draftSeasonId,
-  initialTitle = '',
-  initialPaceHours = 24,
-  initialWeekday = 5,
-  initialLocalTime = '19:30',
-  initialCharterVersioned = false,
+  initial,
+  progress: initialProgress,
   previousSeasonTitle,
   recap = null,
 }: CharterAuthoringFormProps) {
+  const router = useRouter();
   const [draftIdempotencyKey] = useState(() => crypto.randomUUID());
-  const [seasonId, setSeasonId] = useState(draftSeasonId);
-  const [title, setTitle] = useState(initialTitle);
-  const [startsAt, setStartsAt] = useState('');
-  const [endsAt, setEndsAt] = useState('');
-  const [paceHours, setPaceHours] = useState(initialPaceHours);
-  const [weekday, setWeekday] = useState(initialWeekday);
-  const [localTime, setLocalTime] = useState(initialLocalTime);
+  const [progress, setProgress] = useState(initialProgress);
+  const [title, setTitle] = useState(initial.title);
+  const [startDate, setStartDate] = useState(initial.startDate);
+  const [paceHours, setPaceHours] = useState(initial.paceHours);
+  const [weekday, setWeekday] = useState(initial.weekday);
+  const [localTime, setLocalTime] = useState(initial.localTime);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [publishedVersion, setPublishedVersion] = useState<number | null>(null);
-  const [charterVersioned, setCharterVersioned] = useState(initialCharterVersioned);
+  const [opened, setOpened] = useState(false);
+  const endDate = seasonEndDate(startDate);
+
+  function changeCharter() {
+    setProgress((current) => ({ ...current, charterVersioned: false }));
+  }
 
   async function publish(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
-    const fieldErrors = validateFields({ title, startsAt, endsAt, paceHours, weekday, localTime });
+    const opening = { title, startDate, paceHours, weekday, localTime };
+    const fieldErrors = validateFields(opening);
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length > 0) return;
     setSubmitting(true);
     try {
-      let currentSeasonId = seasonId;
-      if (currentSeasonId === undefined) {
-        const draft = await postJson(
-          `/api/houses/${houseId}/seasons`,
-          { title },
-          { 'Idempotency-Key': draftIdempotencyKey },
-        );
-        currentSeasonId = String(draft.seasonId);
-        setSeasonId(currentSeasonId);
-      }
-      if (!charterVersioned) {
-        await postJson(`/api/houses/${houseId}/seasons/${currentSeasonId}/charter`, {
-          correspondencePaceHours: paceHours,
-          nightRecurrence: { weekday, localTime, count: 4 },
-        });
-        setCharterVersioned(true);
-      }
-      const active = await postJson(`/api/houses/${houseId}/seasons/${currentSeasonId}/publish`, {
-        title,
-        startsAt: dateAtUtcMidnight(startsAt),
-        endsAt: dateAtUtcMidnight(endsAt),
+      await openSeason({
+        houseId,
+        opening,
+        progress,
+        draftIdempotencyKey,
+        onProgress: setProgress,
       });
-      setPublishedVersion(Number(active.publishedCharterVersion));
+      setOpened(true);
+      router.refresh();
     } catch (error) {
       const problem = error as ProblemDetails;
       setErrors(problem.errors ?? {});
-      setFormError(problem.detail ?? 'We could not publish that Charter. Try again.');
+      setFormError(problem.detail ?? 'We could not open that Season. Try again.');
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (publishedVersion !== null) {
+  if (opened) {
     return (
       <section className="season-active" role="status" aria-labelledby="season-active-title">
         <p className="season-eyebrow">Season active</p>
         <h1 id="season-active-title">{title}</h1>
-        <p>
-          Charter version {publishedVersion} is published. The House can begin its four-week Season.
-        </p>
         {previousSeasonTitle === undefined ? null : (
           <PreviousSeason houseId={houseId} title={previousSeasonTitle} />
         )}
@@ -184,7 +138,7 @@ export function CharterAuthoringForm({
         <p className="season-eyebrow">
           {previousSeasonTitle === undefined ? 'Four weeks at the table' : 'The next Season'}
         </p>
-        <h1>Publish a Charter</h1>
+        <h1>Open a Season</h1>
         <p>
           Set the rhythm for correspondence Games and your weekly Between Moves Night.
           {previousSeasonTitle === undefined
@@ -215,29 +169,17 @@ export function CharterAuthoringForm({
             name="startsAt"
             type="date"
             required
-            value={startsAt}
+            value={startDate}
             aria-describedby={errors.startsAt ? 'charter-start-error' : undefined}
-            onChange={(event) => setStartsAt(event.currentTarget.value)}
+            onChange={(event) => setStartDate(event.currentTarget.value)}
           />
           <FieldError id="charter-start-error" messages={errors.startsAt} />
         </div>
         <div className="charter-field">
-          <label htmlFor="charter-end">Season ends</label>
-          <input
-            id="charter-end"
-            name="endsAt"
-            type="date"
-            required
-            value={endsAt}
-            aria-describedby={
-              errors.endsAt ? 'charter-end-error charter-dates-hint' : 'charter-dates-hint'
-            }
-            onChange={(event) => setEndsAt(event.currentTarget.value)}
-          />
-          <p id="charter-dates-hint" className="charter-field__hint">
-            Exactly four weeks after the start.
+          <span className="charter-field__label">Season ends</span>
+          <p className="charter-field__value">
+            {endDate === null ? 'Four weeks after the start' : formatSeasonDate(endDate)}
           </p>
-          <FieldError id="charter-end-error" messages={errors.endsAt} />
         </div>
         <div className="charter-field">
           <label htmlFor="charter-pace">Correspondence pace</label>
@@ -257,7 +199,7 @@ export function CharterAuthoringForm({
               }
               onChange={(event) => {
                 setPaceHours(event.currentTarget.valueAsNumber);
-                setCharterVersioned(false);
+                changeCharter();
               }}
             />
             <span id="charter-pace-unit">hours per Move</span>
@@ -279,7 +221,7 @@ export function CharterAuthoringForm({
                 }
                 onChange={(event) => {
                   setWeekday(Number(event.currentTarget.value));
-                  setCharterVersioned(false);
+                  changeCharter();
                 }}
               >
                 {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(
@@ -305,7 +247,7 @@ export function CharterAuthoringForm({
                 }
                 onChange={(event) => {
                   setLocalTime(event.currentTarget.value);
-                  setCharterVersioned(false);
+                  changeCharter();
                 }}
               />
               <FieldError id="charter-time-error" messages={errors['nightRecurrence.localTime']} />
@@ -321,7 +263,7 @@ export function CharterAuthoringForm({
         </p>
       ) : null}
       <button className="charter-form__submit" type="submit" disabled={submitting}>
-        {submitting ? 'Publishing Charter…' : 'Publish Charter'}
+        {submitting ? 'Opening the Season…' : 'Open the Season'}
       </button>
     </form>
   );

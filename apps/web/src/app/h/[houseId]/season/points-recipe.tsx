@@ -12,7 +12,7 @@ export function PointsRecipe({
   return (
     <section className="charter-points" aria-labelledby="charter-points-title">
       <h2 id="charter-points-title">Season points</h2>
-      <p>The MVP points recipe is fixed, so every House plays by the same recipe.</p>
+      <p>Every House scores the same way.</p>
       <ul>
         <li>{recipe.completedGame} point to each Member for a completed Game</li>
         <li>
