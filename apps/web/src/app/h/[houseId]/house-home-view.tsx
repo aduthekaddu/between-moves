@@ -32,8 +32,25 @@ function roleLabel(role: MembershipRole): string {
   }
 }
 
-/** A lone other Member gets challenged by name; otherwise the newcomer picks on the seat form. */
-function welcomeAction(roster: HouseRoster, base: string): { label: string; href: string } {
+/**
+ * A challenge already waiting comes first, so the newcomer answers it instead of opening a
+ * second Game. Otherwise a lone other Member gets challenged by name.
+ */
+function welcomeAction(
+  roster: HouseRoster,
+  openSeats: readonly OpenSeatListing[],
+  base: string,
+): { label: string; href: string } {
+  const waiting = openSeats.find((seat) => seat.viewerMayAccept);
+  if (waiting !== undefined) {
+    return {
+      label:
+        waiting.intended === null
+          ? `Take ${waiting.creator.name}’s open seat`
+          : `Answer ${waiting.creator.name}’s challenge`,
+      href: '#open-seats',
+    };
+  }
   const others = roster.members.filter(
     (member) => member.membershipId !== roster.viewerMembershipId,
   );
@@ -128,7 +145,7 @@ export function HouseHomeView({
                 houseId={home.houseId}
                 houseName={home.name}
                 lines={welcomeLines(season)}
-                action={welcomeAction(roster, base)}
+                action={welcomeAction(roster, openSeats, base)}
               />
             ) : null}
             <OpenSeatsView houseId={home.houseId} seats={openSeats} viewedAt={viewedAt} />

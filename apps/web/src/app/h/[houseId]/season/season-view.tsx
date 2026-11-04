@@ -154,8 +154,8 @@ export function SeasonView({
           <h1 id="season-passive-title">The table is waiting.</h1>
           <p>
             {lastClosed === null
-              ? 'Your House is quiet. Publish a Charter to start the season.'
-              : `${lastClosed.title} is closed. When an Owner or Steward publishes the next Charter, a new Season starts from zero.`}
+              ? 'No Season is running yet. When an Owner or Steward opens one, games and points start.'
+              : `${lastClosed.title} is closed. When an Owner or Steward opens the next Season, points start again from zero.`}
           </p>
         </section>
         {recap}

@@ -234,7 +234,7 @@ test.describe('BM-049 Season renewal', () => {
     await memberPage.goto(season);
     await expect(
       memberPage.getByText(
-        'Autumn tables is closed. When an Owner or Steward publishes the next Charter, a new Season starts from zero.',
+        'Autumn tables is closed. When an Owner or Steward opens the next Season, points start again from zero.',
       ),
     ).toBeVisible();
     await memberPage.getByRole('link', { name: 'Read the Closing Book' }).click();
@@ -243,7 +243,7 @@ test.describe('BM-049 Season renewal', () => {
     await expect(book.getByText('Finished first with 3 points.')).toBeVisible();
     await expect(book.getByText('Ada beat Bea by checkmate')).toBeVisible();
     const memberNext = memberPage.getByRole('region', { name: 'The table is open.' });
-    await expect(memberNext).toContainText('When an Owner or Steward publishes the next Charter');
+    await expect(memberNext).toContainText('When an Owner or Steward opens the next Season');
     await expect(memberNext.getByRole('link')).toHaveCount(0);
     await expectAccessible(memberPage);
 

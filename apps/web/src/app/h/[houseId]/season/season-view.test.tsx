@@ -150,7 +150,9 @@ describe('SeasonView', () => {
       />,
     );
 
-    expect(html).toContain('Your House is quiet. Publish a Charter to start the season.');
+    expect(html).toContain(
+      'No Season is running yet. When an Owner or Steward opens one, games and points start.',
+    );
     expect(html).not.toContain('<form');
   });
 
@@ -542,9 +544,9 @@ describe('SeasonView', () => {
     );
 
     expect(html).toContain(
-      'Summer tables is closed. When an Owner or Steward publishes the next Charter, a new Season starts from zero.',
+      'Summer tables is closed. When an Owner or Steward opens the next Season, points start again from zero.',
     );
-    expect(html).not.toContain('Your House is quiet.');
+    expect(html).not.toContain('No Season is running yet.');
   });
 
   it.each(['owner', 'member'] as const)(
