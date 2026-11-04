@@ -451,6 +451,14 @@ export function NightRailView({
           <div className="night-rail__tables">
             <section aria-labelledby="rail-boards-title">
               <h2 id="rail-boards-title">Boards in play</h2>
+              {snapshot.state === 'live' ? (
+                <a
+                  className="night-rail__start"
+                  href={`/h/${encodeURIComponent(houseId)}/games/new?mode=live`}
+                >
+                  Start a live game
+                </a>
+              ) : null}
               {snapshot.activeBoards.length === 0 ? (
                 <p className="night-rail__empty">No boards are in play yet.</p>
               ) : (

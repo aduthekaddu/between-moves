@@ -2701,6 +2701,23 @@ a.move-card:focus-visible {
   justify-self: start;
 }
 
+.night-rail__start {
+  display: inline-flex;
+  align-items: center;
+  min-height: 46px;
+  margin: 2px 0 16px;
+  padding: 0 20px;
+  border-radius: var(--radius);
+  background: var(--marigold);
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.night-rail__start:hover {
+  background: #f7b45a;
+}
+
 /* host, reschedule and cancel stay folded until an Owner or Steward needs them */
 .night-card__manage {
   display: grid;

@@ -50,6 +50,7 @@ export function NewGameForm({
   liveNightId,
   opponents,
   requestedOpponentId,
+  requestedLive = false,
 }: {
   readonly houseId: string;
   readonly perMoveHours: number;
@@ -57,13 +58,17 @@ export function NewGameForm({
   readonly opponents: readonly Opponent[];
   /** From a "Challenge {name}" link; ignored unless it names one of `opponents`. */
   readonly requestedOpponentId?: string | undefined;
+  /** From the Night's "Start a live game" link; ignored unless a Night is live. */
+  readonly requestedLive?: boolean;
 }) {
   const router = useRouter();
   const id = useId();
   const requested = opponents.some((opponent) => opponent.membershipId === requestedOpponentId)
     ? requestedOpponentId
     : undefined;
-  const [mode, setMode] = useState<Mode>('correspondence');
+  const [mode, setMode] = useState<Mode>(
+    requestedLive && liveNightId !== null ? 'live' : 'correspondence',
+  );
   const [timeControl, setTimeControl] = useState<TimeControlId>('10+5');
   const [seatKind, setSeatKind] = useState<SeatKind>(
     requested === undefined ? 'open' : 'challenge',

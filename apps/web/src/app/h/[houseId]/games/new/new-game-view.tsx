@@ -12,6 +12,7 @@ export function NewGameView({
   opponents,
   canPublishCharter,
   requestedOpponentId,
+  requestedLive = false,
 }: {
   readonly home: HouseHome;
   readonly season: { readonly title: string; readonly perMoveHours: number } | null;
@@ -19,6 +20,8 @@ export function NewGameView({
   readonly opponents: readonly Opponent[];
   readonly canPublishCharter: boolean;
   readonly requestedOpponentId?: string | undefined;
+  /** From the Night's "Start a live game" link. */
+  readonly requestedLive?: boolean;
 }) {
   const base = `/h/${encodeURIComponent(home.houseId)}`;
   return (
@@ -70,6 +73,7 @@ export function NewGameView({
             liveNightId={liveNightId}
             opponents={opponents}
             requestedOpponentId={requestedOpponentId}
+            requestedLive={requestedLive}
           />
         )}
       </main>

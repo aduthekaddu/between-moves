@@ -17,7 +17,10 @@ export const metadata: Metadata = {
 
 interface NewGamePageProps {
   readonly params: Promise<{ readonly houseId: string }>;
-  readonly searchParams: Promise<{ readonly opponent?: string | string[] | undefined }>;
+  readonly searchParams: Promise<{
+    readonly opponent?: string | string[] | undefined;
+    readonly mode?: string | string[] | undefined;
+  }>;
 }
 
 const houseIdSchema = z.string().uuid();
@@ -28,7 +31,7 @@ const houseIdSchema = z.string().uuid();
  */
 export default async function NewGamePage({ params, searchParams }: NewGamePageProps) {
   const { houseId } = await params;
-  const { opponent } = await searchParams;
+  const { opponent, mode } = await searchParams;
   if (!houseIdSchema.safeParse(houseId).success) notFound();
 
   const url = new URL(`/h/${encodeURIComponent(houseId)}/games/new`, getConfig().appOrigin);
@@ -64,6 +67,7 @@ export default async function NewGamePage({ params, searchParams }: NewGamePageP
         .map((member) => ({ membershipId: member.membershipId, displayName: member.displayName }))}
       canPublishCharter={roster.viewerRole !== 'member'}
       requestedOpponentId={typeof opponent === 'string' ? opponent : undefined}
+      requestedLive={mode === 'live'}
     />
   );
 }
