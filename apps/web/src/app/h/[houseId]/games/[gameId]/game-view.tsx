@@ -3,6 +3,7 @@ import { AppMasthead } from '../../../../_components/app-masthead';
 import type { RematchOffer } from './game-end';
 import { GameNotes } from './game-notes';
 import { MoveEntry } from './move-entry';
+import { rivalryLine } from './rivalry';
 import { ReactionControl } from './reaction-control';
 
 /** House-scoped Game page for both modes with server-anchored live clocks. */
@@ -46,6 +47,14 @@ export function GameView({
               {position.black.name}
             </span>
           </h1>
+          <p className="game-title__rivalry">
+            {rivalryLine({
+              headToHead: position.headToHead,
+              white: position.white.name,
+              black: position.black.name,
+              viewer: position.viewerColor,
+            })}
+          </p>
           <p className="game-title__seats visually-hidden">
             {position.white.name} plays White. {position.black.name} plays Black.
           </p>

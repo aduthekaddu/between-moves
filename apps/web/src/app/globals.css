@@ -1129,6 +1129,18 @@ a.move-card:focus-visible {
   color: var(--ink-3);
 }
 
+.game-title__rivalry {
+  grid-column: 1;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+
+.game-shell--live .game-title__rivalry {
+  color: var(--night-text-2);
+}
+
 .game-shell--live .game-title__seats,
 .game-shell--live .house-home__eyebrow {
   color: var(--night-text-2);

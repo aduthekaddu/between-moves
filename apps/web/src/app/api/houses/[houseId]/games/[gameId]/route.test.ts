@@ -24,6 +24,7 @@ const position: GamePosition = {
   moves: [],
   pendingDrawOffer: null,
   drawOfferDeclined: false,
+  headToHead: { whiteWins: 0, blackWins: 0, draws: 0 },
 };
 
 describe('GET /api/houses/{houseId}/games/{gameId}', () => {

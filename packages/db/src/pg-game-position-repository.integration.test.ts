@@ -102,6 +102,7 @@ integration('PostgreSQL Game position query', () => {
       moves: [{ ply: 1, uci: 'e2e4', san: 'e4' }],
       pendingDrawOffer: null,
       drawOfferDeclined: false,
+      headToHead: { whiteWins: 0, blackWins: 0, draws: 0 },
     });
   });
 
@@ -167,7 +168,44 @@ integration('PostgreSQL Game position query', () => {
         }),
         gameId,
       ),
-    ).resolves.toMatchObject({ state: 'completed', result: 'black_win', resultReason: 'resign' });
+    ).resolves.toMatchObject({
+      state: 'completed',
+      result: 'black_win',
+      resultReason: 'resign',
+      headToHead: { whiteWins: 0, blackWins: 1, draws: 0 },
+    });
+  });
+
+  it("counts each player's wins against the other, whichever colour they had", async () => {
+    const earlier = new Date('2026-08-20T08:00:00.000Z');
+    await database.query(
+      `insert into games
+        (id, house_id, season_id, mode, state, white_membership_id, black_membership_id,
+         side_to_move, clock_policy, result, result_reason, completed_at, created_at)
+       values ($1, $2, $3, 'correspondence', 'completed', $4, $5, 'white',
+               '{"kind":"correspondence","perMoveHours":48}', $6, 'checkmate', $7, $7),
+              ($8, $2, $3, 'correspondence', 'completed', $5, $4, 'white',
+               '{"kind":"correspondence","perMoveHours":48}', 'draw', 'agreement', $7, $7)`,
+      [
+        id(905),
+        world.first.houseId,
+        seasonId,
+        world.first.nonOwner.membershipId,
+        world.first.member.membershipId,
+        'white_win',
+        earlier,
+        id(906),
+      ],
+    );
+    await expect(
+      repository.readGamePosition(
+        fakeAuthorizationContext({
+          houseId: world.first.houseId,
+          viewerId: world.first.member.userId,
+        }),
+        gameId,
+      ),
+    ).resolves.toMatchObject({ headToHead: { whiteWins: 0, blackWins: 1, draws: 1 } });
   });
 
   it('[BM-041] reads both server clocks and the active turn timestamp', async () => {
