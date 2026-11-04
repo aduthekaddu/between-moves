@@ -75,7 +75,8 @@ test.describe('Charter authoring and publication', () => {
 
     await page.goto(`/h/${seeded.first.houseId}`);
     await page.getByRole('link', { name: 'Open the Season table' }).click();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Publish a Charter');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Open a Season');
+    await expect(page.getByLabel('Season title')).toHaveValue(/^[A-Z][a-z]+ Season$/);
     await expectNoBlockingAxeViolations(page);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -83,15 +84,15 @@ test.describe('Charter authoring and publication', () => {
 
     await page.getByLabel('Season title').fill('Autumn tables');
     await page.getByLabel('Season starts').fill('2026-09-04');
-    await page.getByLabel('Season ends').fill('2026-10-02');
+    await expect(page.getByText('2 October 2026', { exact: true })).toBeVisible();
     await page.getByLabel('Correspondence pace').fill('24');
     await page.getByLabel('Weekday').selectOption('5');
     await page.getByLabel('Local time').fill('19:30');
-    await page.getByRole('button', { name: 'Publish Charter' }).click();
+    await page.getByRole('button', { name: 'Open the Season' }).click();
 
     await expect(page.getByText('Season active', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Autumn tables');
-    await expect(page.getByText('Charter version 1 is published.')).toBeVisible();
+    await expect(page.getByText('Charter version 1', { exact: true })).toBeVisible();
     await expectNoBlockingAxeViolations(page);
 
     await page.reload();

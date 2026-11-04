@@ -13,6 +13,7 @@ import { FinalStandings } from './final-standings';
 import { NightSchedule } from './night-schedule';
 import { PointsRecipe } from './points-recipe';
 import { PreviousSeason } from './previous-season';
+import { seasonOpeningFor } from './season-opening';
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -102,6 +103,7 @@ export function SeasonView({
   season,
   lastClosed = null,
   timeZone = 'UTC',
+  today,
 }: {
   readonly houseId: string;
   readonly membershipRole: MembershipRole;
@@ -110,6 +112,8 @@ export function SeasonView({
   readonly season: HouseSeasonView | null;
   readonly lastClosed?: ClosedSeasonView | null;
   readonly timeZone?: string;
+  /** The House's calendar date, from the server so the form hydrates with the same value. */
+  readonly today: string;
 }) {
   const recap =
     lastClosed === null ? null : <FinalStandings houseId={houseId} season={lastClosed} />;
@@ -152,12 +156,7 @@ export function SeasonView({
   return (
     <CharterAuthoringForm
       houseId={houseId}
-      draftSeasonId={season?.seasonId}
-      initialTitle={season?.title}
-      initialPaceHours={season?.charter?.correspondencePaceHours}
-      initialWeekday={season?.charter?.nightRecurrence.weekday}
-      initialLocalTime={season?.charter?.nightRecurrence.localTime}
-      initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
+      {...seasonOpeningFor(season, today)}
       previousSeasonTitle={lastClosed?.title}
       recap={recap}
     />

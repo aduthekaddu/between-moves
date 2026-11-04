@@ -38,9 +38,9 @@ describe('Start a game page', () => {
     );
 
     expect(member).toContain('The table opens with a Season');
-    expect(member).toContain('Ask the Owner or a Steward to publish the next Charter.');
+    expect(member).toContain('Ask the Owner or a Steward to open the next Season.');
     expect(member).not.toContain('<form');
-    expect(steward).toContain('Write the Charter');
+    expect(steward).toContain('Open a Season');
     expect(steward).toContain(`href="/h/${houseId}/season"`);
   });
 
