@@ -31,6 +31,7 @@ const position: GamePosition = {
   canMove: true,
   moveDueAt: new Date('2026-09-10T08:00:00.000Z'),
   result: null,
+  resultReason: null,
   inCheck: false,
   moves: [],
   pendingDrawOffer: null,

@@ -97,6 +97,7 @@ integration('PostgreSQL Game position query', () => {
       viewerColor: 'white',
       canMove: false,
       result: null,
+      resultReason: null,
       inCheck: false,
       moves: [{ ply: 1, uci: 'e2e4', san: 'e4' }],
       pendingDrawOffer: null,
@@ -149,6 +150,24 @@ integration('PostgreSQL Game position query', () => {
       canMove: true,
       pendingDrawOffer: { offeringMembershipId: world.first.member.membershipId, ply: 1 },
     });
+  });
+
+  it('says how a completed Game ended', async () => {
+    await database.query(
+      `update games set state = 'completed', result = 'black_win', result_reason = 'resign',
+              completed_at = $2, move_due_at = null
+        where id = $1`,
+      [gameId, new Date('2026-09-02T10:00:00.000Z')],
+    );
+    await expect(
+      repository.readGamePosition(
+        fakeAuthorizationContext({
+          houseId: world.first.houseId,
+          viewerId: world.first.member.userId,
+        }),
+        gameId,
+      ),
+    ).resolves.toMatchObject({ state: 'completed', result: 'black_win', resultReason: 'resign' });
   });
 
   it('[BM-041] reads both server clocks and the active turn timestamp', async () => {

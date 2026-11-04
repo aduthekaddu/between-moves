@@ -10,6 +10,7 @@ import type {
   SideToMove,
 } from '@between-moves/domain';
 import type { Pool, QueryResultRow } from 'pg';
+import { completionReason } from './pg-game-completion-state';
 
 interface GamePositionRow extends QueryResultRow {
   readonly game_id: unknown;
@@ -29,6 +30,7 @@ interface GamePositionRow extends QueryResultRow {
   readonly black_clock_ms: unknown;
   readonly turn_started_at: unknown;
   readonly result: unknown;
+  readonly result_reason: unknown;
   readonly moves: unknown;
   readonly draw_offer_membership_id: unknown;
   readonly draw_offer_ply: unknown;
@@ -119,7 +121,7 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
   ): Promise<GamePosition | null> {
     const gameResult = await this.database.query<GamePositionRow>(
       `select g.id::text as game_id, g.mode, g.state, g.current_fen, g.current_ply,
-              g.side_to_move, g.version, g.move_due_at, g.result,
+              g.side_to_move, g.version, g.move_due_at, g.result, g.result_reason,
               g.white_clock_ms, g.black_clock_ms, g.turn_started_at,
               g.draw_offer_membership_id::text as draw_offer_membership_id, g.draw_offer_ply,
               exists(
@@ -199,6 +201,7 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
           }
         : {}),
       result: result(row.result),
+      resultReason: completionReason(row.result_reason),
       inCheck: lastSan?.endsWith('+') === true || lastSan?.endsWith('#') === true,
       moves,
       pendingDrawOffer: drawOffer(row),
