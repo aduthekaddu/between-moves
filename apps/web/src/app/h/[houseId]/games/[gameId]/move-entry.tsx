@@ -15,12 +15,19 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { Piece } from '../../../../_components/piece';
 import { applyOptimisticMove, parseFenPieces } from './board-model';
+import { useBoardSound } from './board-sound';
+import { boardStatus } from './board-status';
 import { ChessBoard, type BoardSlide, type PromotionPiece } from './chess-board';
 import { generateClientCommandId } from './client-command-id';
+import { dueLabel, useMinuteClock } from './due-label';
 import { GameActions } from './game-actions';
+import { GameEnd, type RematchOffer } from './game-end';
+import { replayPositions } from './game-review';
 import { legalMoves, proposalSan } from './legal-moves';
 import { LiveClocks } from './live/live-clocks';
+import { materialBalance } from './material';
 import {
   acceptedMove,
   conflictPosition,
@@ -51,23 +58,13 @@ interface StagedMove {
   readonly san: string;
 }
 
+const STANDARD_START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
 const noSelection: Selection = { kind: 'none' };
 const noSquares: ReadonlySet<ChessSquare> = new Set();
 
 function turnLabel(side: SideToMove): string {
   return side === 'white' ? 'White to move' : 'Black to move';
-}
-
-function gameStatus(position: MoveEntryPosition, canonicalFresh: boolean): string {
-  if (!canonicalFresh) return 'Refreshing the canonical Game';
-  if (position.state === 'completed') {
-    if (position.result === 'draw') return 'Game drawn';
-    if (position.result === 'white_win') return `${position.white.name} won`;
-    if (position.result === 'black_win') return `${position.black.name} won`;
-    return 'Game ended';
-  }
-  if (position.viewerColor === null) return 'Watching this Game';
-  return position.viewerColor === position.sideToMove ? 'Your move' : 'Waiting on the other Member';
 }
 
 function subscribeToConnectivity(change: () => void): () => void {
@@ -95,12 +92,25 @@ export function MoveEntry({
   houseId,
   gameId,
   initial,
+  afterGame,
 }: {
   readonly houseId: string;
   readonly gameId: string;
   readonly initial: MoveEntryPosition;
+  /** What the finished Game can lead to; the server reads it once with the page. */
+  readonly afterGame?: {
+    readonly perMoveHours: number | null;
+    readonly incomingRematch: RematchOffer | null;
+  };
 }) {
   const [position, setPosition] = useState(initial);
+  const sound = useBoardSound();
+  const now = useMinuteClock();
+  const [reviewPly, setReviewPly] = useState<number | null>(null);
+  const positions = useMemo(
+    () => replayPositions(position.moves, position.currentFen),
+    [position.currentFen, position.moves],
+  );
   const live = initial.mode === 'live';
   const liveViewport = useSyncExternalStore(
     subscribeToLiveViewport,
@@ -222,6 +232,8 @@ export function MoveEntry({
       clientCommandId: generateClientCommandId(),
     };
     clearSelection();
+    setReviewPly(null);
+    sound.play(proposalSan(position.currentFen, proposal) ?? '');
     ownSlidePly.current = position.currentPly + 1;
     setSlide(
       via === 'drag'
@@ -258,6 +270,11 @@ export function MoveEntry({
     setStaged(null);
     void sendMove(current.command, keepalive);
   });
+
+  const playArrival = useEffectEvent((san: string) => sound.play(san));
+  useEffect(() => {
+    if (slide?.san !== undefined) playArrival(slide.san);
+  }, [slide]);
 
   useEffect(() => {
     if (staged === null) return;
@@ -317,6 +334,7 @@ export function MoveEntry({
               key: `${arrived.ply}:${arrived.uci}`,
               from: arrived.uci.slice(0, 2) as ChessSquare,
               to: arrived.uci.slice(2, 4) as ChessSquare,
+              san: arrived.san,
             });
           }
           positionVersion.current = refreshed.version;
@@ -577,14 +595,65 @@ export function MoveEntry({
   }
 
   const orientation = position.viewerColor ?? 'white';
+  const flipped: SideToMove = orientation === 'white' ? 'black' : 'white';
+  const reviewing = reviewPly !== null && positions !== null && reviewPly < position.moves.length;
+  const boardPieces = reviewing
+    ? parseFenPieces(
+        reviewPly === 0 ? STANDARD_START : (positions[reviewPly - 1] ?? STANDARD_START),
+      )
+    : shownPieces;
+  const balance = materialBalance(boardPieces);
+  const status = boardStatus({
+    position,
+    fresh: canonicalFresh,
+    narrowLive: live && !liveViewport,
+    pending,
+  });
+  const viewerWon =
+    position.viewerColor !== null && position.result === `${position.viewerColor}_win`;
+  const celebrate = initial.state === 'active' && position.state === 'completed' && viewerWon;
+  const opponentColor: SideToMove | null =
+    position.viewerColor === null ? null : position.viewerColor === 'white' ? 'black' : 'white';
+
+  function strip(color: SideToMove) {
+    const side = balance[color];
+    return (
+      <div
+        className="player-strip"
+        data-side={color}
+        data-to-move={(position.state === 'active' && position.sideToMove === color) || undefined}
+      >
+        <span className="player-strip__dot" aria-hidden="true" />
+        <span className="player-strip__name">
+          {position[color].name}
+          {position.viewerColor === color ? (
+            <span className="player-strip__you"> · you</span>
+          ) : null}
+        </span>
+        <span
+          className="player-strip__material"
+          aria-label={side.lead > 0 ? `Ahead by ${side.lead}` : undefined}
+          aria-hidden={side.lead > 0 ? undefined : true}
+        >
+          {side.ahead.map((kind, index) => (
+            <Piece
+              key={`${kind}-${index}`}
+              className="player-strip__piece"
+              color={color === 'white' ? 'black' : 'white'}
+              kind={kind}
+            />
+          ))}
+          {side.lead > 0 ? <span className="player-strip__lead">+{side.lead}</span> : null}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <section className="move-entry" aria-labelledby="board-heading">
-      <div className="move-entry__heading">
-        <h2 id="board-heading">Game board</h2>
-        <p data-testid="turn-status">
-          {position.state === 'active' ? turnLabel(position.sideToMove) : 'Game complete'}
-        </p>
-      </div>
+      <h2 id="board-heading" className="visually-hidden">
+        Game board
+      </h2>
 
       {offline && !offlineBannerDismissed ? (
         <div className="move-entry__banner" role="alert">
@@ -623,50 +692,67 @@ export function MoveEntry({
         </p>
       ) : null}
 
-      <ChessBoard
-        pieces={shownPieces}
-        orientation={orientation}
-        sideToMove={position.sideToMove}
-        active={position.state === 'active'}
-        lastMove={
-          staged === null
-            ? lastMove
-            : `${staged.command.proposal.from}${staged.command.proposal.to}`
-        }
-        inCheck={position.inCheck}
-        selected={selectedFrom}
-        targets={targets}
-        movable={movable}
-        disabled={!canMove || pending}
-        pending={pending}
-        slide={slide}
-        promotion={
-          selection.kind === 'promotion' && position.viewerColor !== null
-            ? { color: position.viewerColor }
-            : null
-        }
-        onSquare={tapSquare}
-        onDragStart={(square) => {
-          if (selection.kind !== 'piece' || selection.from !== square) pick(square);
-        }}
-        onDrop={dropPiece}
-        onPromote={(piece: PromotionPiece) => {
-          if (selection.kind !== 'promotion') return;
-          commit({ from: selection.from, to: selection.to, promotion: piece }, 'promotion');
-        }}
-        onCancelPromotion={() => {
-          if (selection.kind === 'promotion') pick(selection.from);
-        }}
-      />
+      <div className="board-stack" data-reviewing={reviewing || undefined}>
+        {strip(flipped)}
+        {reviewing ? (
+          <div className="board-review" role="status">
+            <span>
+              {reviewPly === 0 ? 'The start' : `After move ${reviewPly}`} of {position.moves.length}
+            </span>
+            <button type="button" onClick={() => setReviewPly(null)}>
+              Back to the game
+            </button>
+          </div>
+        ) : null}
+        <ChessBoard
+          pieces={boardPieces}
+          orientation={orientation}
+          sideToMove={position.sideToMove}
+          active={position.state === 'active'}
+          lastMove={
+            reviewing
+              ? reviewPly === 0
+                ? null
+                : (position.moves[reviewPly - 1]?.uci.slice(0, 4) ?? null)
+              : staged === null
+                ? lastMove
+                : `${staged.command.proposal.from}${staged.command.proposal.to}`
+          }
+          inCheck={reviewing ? false : position.inCheck}
+          selected={reviewing ? null : selectedFrom}
+          targets={reviewing ? noSquares : targets}
+          movable={reviewing ? noSquares : movable}
+          disabled={reviewing || !canMove || pending}
+          pending={pending}
+          slide={reviewing ? null : slide}
+          promotion={
+            !reviewing && selection.kind === 'promotion' && position.viewerColor !== null
+              ? { color: position.viewerColor }
+              : null
+          }
+          onSquare={(square) => {
+            sound.wake();
+            tapSquare(square);
+          }}
+          onDragStart={(square) => {
+            sound.wake();
+            if (selection.kind !== 'piece' || selection.from !== square) pick(square);
+          }}
+          onDrop={dropPiece}
+          onPromote={(piece: PromotionPiece) => {
+            if (selection.kind !== 'promotion') return;
+            commit({ from: selection.from, to: selection.to, promotion: piece }, 'promotion');
+          }}
+          onCancelPromotion={() => {
+            if (selection.kind === 'promotion') pick(selection.from);
+          }}
+        />
+        {strip(orientation)}
+      </div>
 
-      <div className="move-entry__controls">
-        {position.viewerColor === null ? (
-          <p>{"Only seated players can move. You're spectating."}</p>
-        ) : position.state !== 'active' ? (
-          <p>This Game is no longer accepting Moves.</p>
-        ) : live && !liveViewport ? (
-          <p>Widen your window to make a Move.</p>
-        ) : staged !== null ? (
+      <div className="move-entry__controls" data-tone={status.tone}>
+        {celebrate ? <span className="move-entry__confetti" aria-hidden="true" /> : null}
+        {staged !== null ? (
           <div className="move-entry__staged" role="status">
             <span>
               You played <strong>{staged.san}</strong>
@@ -682,17 +768,44 @@ export function MoveEntry({
               }}
             />
           </div>
-        ) : !canonicalFresh ? (
-          <p>Refreshing the canonical Game before Move entry resumes.</p>
-        ) : pending ? (
-          <p>Sending your Move.</p>
-        ) : !canMove && !offline ? (
-          <p>{"Waiting for the other Member's Move."}</p>
         ) : (
-          <p>
-            {selection.kind === 'promotion' ? 'Choose the piece your pawn becomes.' : 'Your move.'}
-          </p>
+          <p className="move-entry__status">{status.headline}</p>
         )}
+        <p className="move-entry__substatus">
+          <span data-testid="turn-status">
+            {position.state === 'active' ? turnLabel(position.sideToMove) : 'Game complete'}
+          </span>
+          {position.state !== 'active' || position.moveDueAt === null || now === null ? null : (
+            <>
+              {' · '}
+              <time dateTime={new Date(position.moveDueAt).toISOString()}>
+                {dueLabel(new Date(position.moveDueAt), now)}
+              </time>
+            </>
+          )}
+        </p>
+        {position.viewerColor === null ? (
+          <p className="move-entry__note">{"Only seated players can move. You're spectating."}</p>
+        ) : selection.kind === 'promotion' ? (
+          <p className="move-entry__note">Choose the piece your pawn becomes.</p>
+        ) : null}
+        {position.state === 'completed' && opponentColor !== null ? (
+          <GameEnd
+            houseId={houseId}
+            viewerColor={position.viewerColor}
+            opponent={position[opponentColor]}
+            perMoveHours={live ? null : (afterGame?.perMoveHours ?? null)}
+            incomingRematch={afterGame?.incomingRematch ?? null}
+          />
+        ) : null}
+        <button
+          type="button"
+          className="move-entry__sound"
+          aria-pressed={sound.on}
+          onClick={sound.toggle}
+        >
+          {sound.on ? 'Sound on' : 'Sound off'}
+        </button>
       </div>
 
       <GameActions
@@ -703,40 +816,69 @@ export function MoveEntry({
         onSettled={() => refreshCanonicalPosition()}
       />
 
-      <div className="game-position-status" aria-live="polite">
-        <strong>{gameStatus(position, canonicalFresh)}</strong>
-        {position.moveDueAt === null || position.state !== 'active' ? null : (
-          <span>
-            Move due{' '}
-            <time dateTime={new Date(position.moveDueAt).toISOString()}>
-              {new Date(position.moveDueAt).toLocaleString('en', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-                timeZone: 'UTC',
-              })}{' '}
-              UTC
-            </time>
-          </span>
-        )}
-      </div>
-
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
         {message}
       </p>
 
-      <details className="move-list">
+      <details className="move-list" open>
         <summary>Move list ({position.moves.length})</summary>
         {position.moves.length === 0 ? (
           <p>No Moves yet.</p>
         ) : (
-          <ol>
-            {position.moves.map((move) => (
-              <li key={move.ply} value={move.ply}>
-                <span className="visually-hidden">Move {move.ply}: </span>
-                {move.san}
-              </li>
-            ))}
-          </ol>
+          <>
+            <ol>
+              {position.moves.map((move) => (
+                <li
+                  key={move.ply}
+                  value={move.ply}
+                  data-current={(reviewing && reviewPly === move.ply) || undefined}
+                >
+                  {positions === null ? (
+                    <>
+                      <span className="visually-hidden">Move {move.ply}: </span>
+                      {move.san}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`Show the board after move ${move.ply}, ${move.san}`}
+                      onClick={() =>
+                        setReviewPly(move.ply === position.moves.length ? null : move.ply)
+                      }
+                    >
+                      {move.san}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ol>
+            {positions === null ? null : (
+              <div className="move-list__steps">
+                <button
+                  type="button"
+                  aria-label="Previous move"
+                  disabled={reviewPly === 0}
+                  onClick={() =>
+                    setReviewPly((current) => Math.max(0, (current ?? position.moves.length) - 1))
+                  }
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next move"
+                  disabled={!reviewing}
+                  onClick={() =>
+                    setReviewPly((current) =>
+                      current === null || current + 1 >= position.moves.length ? null : current + 1,
+                    )
+                  }
+                >
+                  →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </details>
     </section>

@@ -52,6 +52,8 @@ export interface BoardSlide {
   readonly key: string;
   readonly from: ChessSquare;
   readonly to: ChessSquare;
+  /** Set for a Move that arrived from the other player, so it can be heard as well as seen. */
+  readonly san?: string;
 }
 
 interface ChessBoardProps {

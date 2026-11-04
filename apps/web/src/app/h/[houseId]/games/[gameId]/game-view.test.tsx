@@ -58,7 +58,8 @@ describe('Game view', () => {
     expect(html).toContain('aria-label="e2, white pawn"');
     expect(html).toContain('aria-label="a8, empty"');
     expect(html).toContain('White to move');
-    expect(html).toContain('Your move.');
+    expect(html).toContain('<p class="move-entry__status">Your move</p>');
+    expect(html).toContain('Ada<span class="player-strip__you"> · you</span>');
     expect(html).not.toContain('Submit Move');
     expect(html).toContain('Move list (0)');
     expect(html).toContain('Ada plays White. Bea plays Black.');

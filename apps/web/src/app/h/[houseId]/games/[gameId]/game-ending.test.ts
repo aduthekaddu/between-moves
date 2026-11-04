@@ -25,6 +25,20 @@ describe('game ending headline', () => {
     );
   });
 
+  it('speaks to the reader about their own result', () => {
+    expect(
+      endingHeadline({
+        ...players,
+        result: 'black_win',
+        resultReason: 'checkmate',
+        viewer: 'black',
+      }),
+    ).toBe('You won by checkmate');
+    expect(
+      endingHeadline({ ...players, result: 'black_win', resultReason: 'resign', viewer: 'white' }),
+    ).toBe('You resigned. Bea won');
+  });
+
   it('falls back to the plain result when the reason is unknown', () => {
     expect(endingHeadline({ ...players, result: 'white_win' })).toBe('Ada won');
     expect(endingHeadline({ ...players, result: 'draw', resultReason: null })).toBe('Game drawn');

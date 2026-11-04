@@ -852,7 +852,7 @@ a.move-card:focus-visible {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 0.28em;
-  font-size: clamp(2.6rem, 7vw, 6.2rem);
+  font-size: clamp(2rem, 7vw, 6.2rem);
   font-weight: 780;
   font-stretch: 75%;
   line-height: 0.88;
@@ -917,35 +917,9 @@ a.move-card:focus-visible {
   grid-column: 2;
 }
 
-.move-entry > .chess-board-frame {
+.move-entry > .board-stack {
   grid-column: 1;
   grid-row: 1 / span 12;
-}
-
-.move-entry__heading {
-  display: grid;
-  gap: 10px;
-}
-
-.move-entry__heading h2 {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.move-entry__heading p {
-  font-size: clamp(1.8rem, 3vw, 2.6rem);
-  font-weight: 780;
-  font-stretch: 75%;
-  line-height: 0.95;
-  text-transform: uppercase;
-}
-
-.game-shell--live .move-entry__heading h2 {
-  color: var(--night-text-2);
 }
 
 /* the board: a printed paper frame around paper and indigo squares */
@@ -1266,6 +1240,243 @@ a.move-card:focus-visible {
   font-weight: 500;
 }
 
+.move-entry__controls {
+  position: relative;
+}
+
+/* the one line a player reads first */
+.move-entry__status {
+  font-size: clamp(1.45rem, 3.2vw, 2rem);
+  font-weight: 780;
+  font-stretch: 78%;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.move-entry__controls[data-tone='yours'] .move-entry__status {
+  color: var(--vermilion-ink);
+}
+
+.move-entry__controls[data-tone='waiting'] .move-entry__status,
+.move-entry__controls[data-tone='quiet'] .move-entry__status {
+  color: var(--ink-2);
+}
+
+.move-entry__controls[data-tone='won'] {
+  background: linear-gradient(180deg, rgba(244, 165, 60, 0.28), transparent 70%), var(--paper-card);
+}
+
+.move-entry__controls[data-tone='drawn'] .move-entry__status {
+  color: var(--indigo-2);
+}
+
+.move-entry__substatus {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+
+.move-entry__controls > .move-entry__substatus {
+  font-weight: 400;
+}
+
+.move-entry__note {
+  font-size: 0.95rem;
+}
+
+.move-entry__sound,
+.move-entry__sound[aria-pressed] {
+  justify-self: start;
+  min-height: 32px;
+  padding: 2px 10px;
+  border-color: var(--rule-2);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  box-shadow: none;
+}
+
+/* paper scraps thrown up once, the moment you win */
+.move-entry__confetti {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.move-entry__confetti::before,
+.move-entry__confetti::after {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 6px;
+  background: var(--vermilion);
+  box-shadow:
+    -90px 10px 0 var(--marigold),
+    -60px -6px 0 var(--indigo-2),
+    -28px 14px 0 var(--leaf),
+    30px -4px 0 var(--marigold),
+    62px 12px 0 var(--vermilion),
+    96px -8px 0 var(--indigo-2),
+    -118px -2px 0 var(--vermilion),
+    124px 6px 0 var(--leaf);
+  opacity: 0;
+  animation: move-entry-confetti 1.7s cubic-bezier(0.2, 0.7, 0.3, 1) 0.15s 1 both;
+}
+
+.move-entry__confetti::after {
+  transform: rotate(160deg);
+  animation-delay: 0.3s;
+  animation-duration: 1.9s;
+}
+
+@keyframes move-entry-confetti {
+  0% {
+    opacity: 1;
+    translate: 0 30px;
+    rotate: 0deg;
+  }
+  45% {
+    opacity: 1;
+    translate: 0 -70px;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 40px;
+    rotate: 200deg;
+  }
+}
+
+/* players sit on either side of the board: opponent above, you below */
+.board-stack {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 760px;
+}
+
+.player-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  font-weight: 600;
+}
+
+.player-strip__dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #f6f1e4;
+}
+
+.player-strip[data-side='black'] .player-strip__dot {
+  background: var(--ink);
+}
+
+.player-strip[data-to-move] .player-strip__dot {
+  box-shadow: 0 0 0 4px rgba(224, 73, 47, 0.35);
+}
+
+.player-strip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-strip__you {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.player-strip__material {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+
+.player-strip__piece {
+  width: 18px;
+  height: 22px;
+  margin-right: -5px;
+}
+
+.player-strip__lead {
+  margin-left: 10px;
+}
+
+.board-review {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--marigold-ink);
+  background: rgba(244, 165, 60, 0.18);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.board-review button {
+  min-height: 34px;
+  padding: 2px 12px;
+}
+
+.board-stack[data-reviewing] .chess-board {
+  filter: sepia(0.25);
+}
+
+.game-shell--live .player-strip__you,
+.game-shell--live .player-strip__material {
+  color: var(--night-text-2);
+}
+
+.game-shell--live .player-strip__dot {
+  border-color: var(--night-text);
+}
+
+/* what a finished Game leads to */
+.game-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+}
+
+.game-end__rematch,
+.game-end .seat-card__accept {
+  min-height: 48px;
+  padding-inline: 20px;
+  border-color: var(--ink);
+  background: var(--ink);
+  font-weight: 700;
+  color: var(--paper);
+}
+
+.game-end__home {
+  font-weight: 600;
+}
+
+.game-end__sent {
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .move-entry__confetti {
+    display: none;
+  }
+}
+
 .charter-form__submit,
 .season-close__confirm,
 .invitation-form button,
@@ -1323,32 +1534,6 @@ a.move-card:focus-visible {
   to {
     transform: scaleX(0);
   }
-}
-
-.game-position-status {
-  display: grid;
-  gap: 4px;
-  padding: 14px 0;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-}
-
-.game-position-status strong {
-  font-size: 1.15rem;
-}
-
-.game-position-status span {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--ink-3);
-}
-
-.game-shell--live .game-position-status {
-  border-color: var(--night-rule);
-}
-
-.game-shell--live .game-position-status span {
-  color: var(--night-text-2);
 }
 
 /* the move list as a scoresheet */
@@ -1428,9 +1613,37 @@ a.move-card:focus-visible {
   color: var(--ink-3);
 }
 
-.move-list li:last-child {
+.move-list li:last-child,
+.move-list li[data-current] {
   font-weight: 600;
   color: var(--vermilion-ink);
+}
+
+.move-list li button {
+  min-height: 32px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  color: inherit;
+}
+
+.move-list li[data-current] button {
+  background: var(--square-light-hot);
+}
+
+.move-list__steps {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--rule);
+}
+
+.move-list__steps button {
+  min-width: 48px;
+  min-height: 40px;
 }
 
 /* reactions: rubber stamps */
@@ -4736,24 +4949,20 @@ a.move-card:focus-visible {
   }
 
   .move-entry > *,
-  .move-entry > .chess-board-frame {
+  .move-entry > .board-stack {
     grid-column: 1;
     grid-row: auto;
   }
 
-  .move-entry > .chess-board-frame {
+  .move-entry > .board-stack {
     order: 3;
-  }
-
-  .move-entry > .move-entry__heading {
-    order: 1;
   }
 
   .move-entry > .live-clocks {
     order: 2;
   }
 
-  .move-entry > :not(.chess-board-frame, .move-entry__heading, .live-clocks) {
+  .move-entry > :not(.board-stack, .live-clocks) {
     order: 4;
   }
 }
