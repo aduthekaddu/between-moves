@@ -1,6 +1,14 @@
 import type { GamePositionMove } from '@between-moves/domain';
 import { Chess } from 'chess.js';
 
+export const STANDARD_START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+/** A Move the way a scoresheet names it: "2. Nf3" for White, "2… Nc6" for Black. */
+export function moveLabel(move: Pick<GamePositionMove, 'ply' | 'san'>): string {
+  const number = Math.ceil(move.ply / 2);
+  return move.ply % 2 === 1 ? `${number}. ${move.san}` : `${number}… ${move.san}`;
+}
+
 function placement(fen: string): string {
   return fen.split(' ')[0] ?? '';
 }
@@ -13,7 +21,7 @@ export function replayPositions(
   moves: readonly GamePositionMove[],
   currentFen: string,
 ): readonly string[] | null {
-  const chess = new Chess();
+  const chess = new Chess(STANDARD_START);
   const positions: string[] = [];
   try {
     for (const move of moves) {

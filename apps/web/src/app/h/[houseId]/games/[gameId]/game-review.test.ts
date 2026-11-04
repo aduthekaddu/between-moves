@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { replayPositions } from './game-review';
+import { moveLabel, replayPositions } from './game-review';
 
 const moves = [
   { ply: 1, uci: 'e2e4', san: 'e4' },
   { ply: 2, uci: 'e7e5', san: 'e5' },
 ];
+
+describe('move labels', () => {
+  it('numbers Moves the way the scoresheet does', () => {
+    expect(moveLabel({ ply: 3, san: 'Nf3' })).toBe('2. Nf3');
+    expect(moveLabel({ ply: 4, san: 'Nc6' })).toBe('2… Nc6');
+  });
+});
 
 describe('game review replay', () => {
   it('gives the position after every Move', () => {

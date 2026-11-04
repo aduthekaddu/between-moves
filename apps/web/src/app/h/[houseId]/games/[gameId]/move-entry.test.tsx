@@ -374,10 +374,10 @@ describe('reviewing a Game', () => {
 
   it('shows the board after an earlier Move, then returns to the game', async () => {
     await mount(played);
-    await act(async () => buttonNamed('Show the board after move 1, e4').click());
+    await act(async () => buttonNamed('Show the board after 1. e4').click());
     expect(square('e5')?.getAttribute('aria-label')).toBe('e5, empty');
     expect(square('e4')?.getAttribute('aria-label')).toBe('e4, white pawn');
-    expect(container.textContent).toContain('After move 1 of 2');
+    expect(container.textContent).toContain('After 1. e4');
     expect(container.querySelector('[data-movable]')).toBeNull();
 
     await act(async () => buttonNamed('Back to the game').click());
@@ -389,7 +389,7 @@ describe('reviewing a Game', () => {
     await mount(played);
     await act(async () => buttonNamed('Previous move').click());
     await act(async () => buttonNamed('Previous move').click());
-    expect(container.textContent).toContain('The start of 2');
+    expect(container.textContent).toContain('The starting position');
     expect(square('e2')?.getAttribute('aria-label')).toBe('e2, white pawn');
   });
 });
