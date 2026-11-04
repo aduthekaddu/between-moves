@@ -359,3 +359,37 @@ describe('correspondence move entry', () => {
     expect((posts()[0]?.[1] as RequestInit).keepalive).toBe(true);
   });
 });
+
+describe('reviewing a Game', () => {
+  const played: MoveEntryPosition = {
+    ...correspondence,
+    currentFen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
+    currentPly: 2,
+    version: 2,
+    moves: [
+      { ply: 1, uci: 'e2e4', san: 'e4' },
+      { ply: 2, uci: 'e7e5', san: 'e5' },
+    ],
+  };
+
+  it('shows the board after an earlier Move, then returns to the game', async () => {
+    await mount(played);
+    await act(async () => buttonNamed('Show the board after move 1, e4').click());
+    expect(square('e5')?.getAttribute('aria-label')).toBe('e5, empty');
+    expect(square('e4')?.getAttribute('aria-label')).toBe('e4, white pawn');
+    expect(container.textContent).toContain('After move 1 of 2');
+    expect(container.querySelector('[data-movable]')).toBeNull();
+
+    await act(async () => buttonNamed('Back to the game').click());
+    expect(square('e5')?.getAttribute('aria-label')).toBe('e5, black pawn');
+    expect(container.querySelector('[data-movable]')).not.toBeNull();
+  });
+
+  it('steps back to the start with the arrow buttons', async () => {
+    await mount(played);
+    await act(async () => buttonNamed('Previous move').click());
+    await act(async () => buttonNamed('Previous move').click());
+    expect(container.textContent).toContain('The start of 2');
+    expect(square('e2')?.getAttribute('aria-label')).toBe('e2, white pawn');
+  });
+});

@@ -219,7 +219,6 @@ test.describe('correspondence Move entry', () => {
     );
     await expect(page.getByTestId('turn-status')).toHaveText('Black to move');
     await expect(page.getByText('Move list (1)')).toBeVisible();
-    await page.getByText('Move list (1)').click();
     await expect(page.locator('.move-list li')).toContainText('e4');
     await expect(page.getByRole('grid', { name: /Last move e2e4/ })).toBeVisible();
     await expect(page.locator('[role="gridcell"][aria-disabled="true"]')).toHaveCount(64);
@@ -259,14 +258,14 @@ test.describe('correspondence Move entry', () => {
     await expect(page.getByText('Move accepted: Qh4#. Game complete.')).toBeAttached({
       timeout: 15_000,
     });
-    await expect(page.getByText('Bea won', { exact: true })).toBeVisible();
+    await expect(page.getByText('You won by checkmate', { exact: true })).toBeVisible();
     await expect(page.getByTestId('turn-status')).toHaveText('Game complete');
     await expect(page.locator('[data-square="e1"]')).toHaveAttribute('data-check', 'true');
     await expect(page.locator('[data-square="e1"]')).toHaveAttribute(
       'aria-label',
       'e1, white king, in check',
     );
-    await expect(page.getByText('This Game is no longer accepting Moves.')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Back to the House' })).toBeVisible();
     await expect(page.getByText('Move list (4)')).toBeVisible();
     await expect(page.getByText(/^Move due /)).toHaveCount(0);
     await expectNoBlockingAxeViolations(page);

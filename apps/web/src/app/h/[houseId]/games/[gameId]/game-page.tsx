@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { getConfig } from '../../../../../config';
 import { getGamePosition } from '../../../../../modules/games/game-position';
+import { getOpenSeats } from '../../../../../modules/games/open-seats';
+import { getHouseSeason } from '../../../../../server/seasons';
 import { getCurrentGameReaction } from '../../../../../modules/stories/reactions';
 import { getGameNotes } from '../../../../../modules/stories/notes';
 import { GameView } from './game-view';
@@ -32,12 +34,30 @@ export async function renderGamePage({ params }: GamePageProps, liveOnly = false
     position.state === 'completed' ? await getCurrentGameReaction(request, houseId, gameId) : null;
   const gameNotes =
     position.state === 'completed' ? await getGameNotes(request, houseId, gameId) : null;
+  const [season, seats] = await Promise.all([
+    getHouseSeason(request, houseId),
+    position.state === 'completed' ? getOpenSeats(request, houseId) : Promise.resolve([]),
+  ]);
+  const viewer = position.viewerColor;
+  const opponent = viewer === null ? null : position[viewer === 'white' ? 'black' : 'white'];
+  const incoming = seats.find(
+    (seat) =>
+      seat.mode === 'correspondence' &&
+      seat.viewerMayAccept &&
+      seat.intended?.membershipId === (viewer === null ? null : position[viewer].membershipId) &&
+      seat.creator.membershipId === opponent?.membershipId,
+  );
   return (
     <GameView
       houseId={houseId}
       position={position}
       currentReaction={currentReaction}
       gameNotes={gameNotes}
+      afterGame={{
+        perMoveHours:
+          season?.state === 'active' ? (season.charter?.correspondencePaceHours ?? null) : null,
+        incomingRematch: incoming === undefined ? null : { gameId: incoming.gameId },
+      }}
     />
   );
 }

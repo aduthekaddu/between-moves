@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { DEMO_GAME, DEMO_PLAYERS } from './demo-game';
-import { PaperSound } from './paper-sound';
+import { PaperSound } from '../../_components/paper-sound';
 import type { HeroScene } from './scene';
 
 interface Stamp {

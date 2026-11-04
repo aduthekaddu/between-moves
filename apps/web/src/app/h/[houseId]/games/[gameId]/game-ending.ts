@@ -27,11 +27,13 @@ export function endingHeadline(input: {
   readonly resultReason?: GameCompletionReason | null | undefined;
   readonly white: string;
   readonly black: string;
+  /** The reader's side: their own name reads as "You". */
+  readonly viewer?: 'white' | 'black' | null;
 }): string {
-  const winner =
-    input.result === 'white_win' ? input.white : input.result === 'black_win' ? input.black : null;
-  const loser =
-    input.result === 'white_win' ? input.black : input.result === 'black_win' ? input.white : null;
+  const white = input.viewer === 'white' ? 'You' : input.white;
+  const black = input.viewer === 'black' ? 'You' : input.black;
+  const winner = input.result === 'white_win' ? white : input.result === 'black_win' ? black : null;
+  const loser = input.result === 'white_win' ? black : input.result === 'black_win' ? white : null;
   const reason = input.resultReason ?? null;
   if (reason !== null && (winner !== null || input.result === 'draw')) {
     return endings[reason].headline(winner, loser);

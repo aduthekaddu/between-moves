@@ -99,9 +99,7 @@ async function openGame(
   await hydratedSnapshot;
   expect(response?.status()).toBe(200);
   await expect(page.locator('[data-square][data-movable]').first()).toBeVisible();
-  await expect(
-    page.getByText('Refreshing the canonical Game before Move entry resumes.'),
-  ).toHaveCount(0);
+  await expect(page.getByText('Refreshing the board', { exact: true })).toHaveCount(0);
 }
 
 async function seedMoveThroughCommand(
@@ -492,7 +490,7 @@ test.describe('[BM-042] live board', () => {
     await page.locator('[data-square="e2"]').click();
     await page.locator('[data-square="e4"]').click();
     await expect(page.getByTestId('turn-status')).toHaveText('Game complete');
-    await expect(page.getByText('Bea won', { exact: true })).toBeVisible();
+    await expect(page.getByText('You ran out of time. Bea won', { exact: true })).toBeVisible();
     await expect(page.getByTestId('white-clock')).toHaveText('0:00');
     await expect(page.locator('.live-clock[data-running="true"]')).toHaveCount(0);
     await expectNoBlockingAxeViolations(page);
