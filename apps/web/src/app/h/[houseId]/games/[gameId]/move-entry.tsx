@@ -25,7 +25,7 @@ import { dueLabel, useMinuteClock } from './due-label';
 import { GameActions } from './game-actions';
 import { GameEnd, type RematchOffer } from './game-end';
 import { endingHeadline } from './game-ending';
-import { replayPositions } from './game-review';
+import { moveLabel, replayPositions, STANDARD_START } from './game-review';
 import { legalMoves, proposalSan } from './legal-moves';
 import { LiveClocks } from './live/live-clocks';
 import { materialBalance } from './material';
@@ -58,8 +58,6 @@ interface StagedMove {
   readonly command: SubmitCommand;
   readonly san: string;
 }
-
-const STANDARD_START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 const noSelection: Selection = { kind: 'none' };
 const noSquares: ReadonlySet<ChessSquare> = new Set();
@@ -232,9 +230,10 @@ export function MoveEntry({
       expectedPly: position.currentPly,
       clientCommandId: generateClientCommandId(),
     };
+    const san = proposalSan(position.currentFen, proposal) ?? `${proposal.from}-${proposal.to}`;
     clearSelection();
     setReviewPly(null);
-    sound.play(proposalSan(position.currentFen, proposal) ?? '');
+    sound.play(san);
     ownSlidePly.current = position.currentPly + 1;
     setSlide(
       via === 'drag'
@@ -245,7 +244,6 @@ export function MoveEntry({
       void sendMove(command);
       return;
     }
-    const san = proposalSan(position.currentFen, proposal) ?? `${proposal.from}-${proposal.to}`;
     const next = { command, san };
     stagedRef.current = next;
     setStaged(next);
@@ -558,6 +556,7 @@ export function MoveEntry({
       }
 
       if (response.status === 409) {
+        ownSlidePly.current = null;
         const conflict = conflictPosition(body);
         if (conflict !== null) {
           const pieces = parseFenPieces(conflict.currentFen);
@@ -580,6 +579,7 @@ export function MoveEntry({
 
       setShownPieces(canonicalPieces);
       clearSelection();
+      ownSlidePly.current = null;
       setAlert(
         response.status === 422
           ? 'That Move is not legal from the current position. Choose another Move.'
@@ -698,7 +698,9 @@ export function MoveEntry({
         {reviewing ? (
           <div className="board-review" role="status">
             <span>
-              {reviewPly === 0 ? 'The start' : `After move ${reviewPly}`} of {position.moves.length}
+              {reviewPly === 0
+                ? 'The starting position'
+                : `After ${moveLabel(position.moves[reviewPly - 1]!)}`}
             </span>
             <button type="button" onClick={() => setReviewPly(null)}>
               Back to the game
@@ -780,7 +782,12 @@ export function MoveEntry({
             <>
               {' · '}
               <time dateTime={new Date(position.moveDueAt).toISOString()}>
-                {dueLabel(new Date(position.moveDueAt), now)}
+                {dueLabel(new Date(position.moveDueAt), now)} ·{' '}
+                {new Date(position.moveDueAt).toLocaleString(undefined, {
+                  weekday: 'short',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
               </time>
             </>
           )}
@@ -851,7 +858,7 @@ export function MoveEntry({
                   ) : (
                     <button
                       type="button"
-                      aria-label={`Show the board after move ${move.ply}, ${move.san}`}
+                      aria-label={`Show the board after ${moveLabel(move)}`}
                       onClick={() =>
                         setReviewPly(move.ply === position.moves.length ? null : move.ply)
                       }
