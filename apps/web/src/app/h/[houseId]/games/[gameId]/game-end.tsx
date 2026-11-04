@@ -1,6 +1,6 @@
 'use client';
 
-import type { SideToMove } from '@between-moves/domain';
+import type { GamePositionMove, SideToMove } from '@between-moves/domain';
 import { useRef, useState } from 'react';
 import {
   newIdempotencyKey,
@@ -8,6 +8,7 @@ import {
   problemDetail,
 } from '../../../../_components/house-command';
 import { AcceptSeatButton } from '../../accept-seat-button';
+import { shareResult } from './share-result';
 
 export interface RematchOffer {
   /** The waiting Game the opponent opened for the viewer. */
@@ -21,6 +22,7 @@ export function GameEnd({
   opponent,
   perMoveHours,
   incomingRematch,
+  share,
 }: {
   readonly houseId: string;
   readonly viewerColor: SideToMove | null;
@@ -28,11 +30,36 @@ export function GameEnd({
   /** The active Season's pace, or null when no Season is open for a new Game. */
   readonly perMoveHours: number | null;
   readonly incomingRematch: RematchOffer | null;
+  /** The finished Game as others should read it, for the share sheet or the clipboard. */
+  readonly share?: { readonly headline: string; readonly moves: readonly GamePositionMove[] };
 }) {
   const idempotencyKey = useRef(newIdempotencyKey());
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
   const house = `/h/${encodeURIComponent(houseId)}`;
+
+  async function shareGame() {
+    if (share === undefined) return;
+    const text = shareResult({
+      ...share,
+      url: new URL(window.location.pathname, window.location.origin).toString(),
+    });
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (failure) {
+        if (failure instanceof DOMException && failure.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setError('Sharing is not available here.');
+    }
+  }
 
   async function sendRematch() {
     if (state !== 'idle' || viewerColor === null || perMoveHours === null) return;
@@ -84,6 +111,11 @@ export function GameEnd({
           </button>
         )
       ) : null}
+      {share === undefined ? null : (
+        <button type="button" className="game-end__share" onClick={() => void shareGame()}>
+          {copied ? 'Copied' : 'Share result'}
+        </button>
+      )}
       {error === '' ? null : <p role="alert">{error}</p>}
       <a className="game-end__home" href={house}>
         Back to the House

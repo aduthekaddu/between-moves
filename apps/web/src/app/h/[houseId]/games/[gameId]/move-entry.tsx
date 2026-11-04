@@ -24,6 +24,7 @@ import { generateClientCommandId } from './client-command-id';
 import { dueLabel, useMinuteClock } from './due-label';
 import { GameActions } from './game-actions';
 import { GameEnd, type RematchOffer } from './game-end';
+import { endingHeadline } from './game-ending';
 import { replayPositions } from './game-review';
 import { legalMoves, proposalSan } from './legal-moves';
 import { LiveClocks } from './live/live-clocks';
@@ -796,6 +797,15 @@ export function MoveEntry({
             opponent={position[opponentColor]}
             perMoveHours={live ? null : (afterGame?.perMoveHours ?? null)}
             incomingRematch={afterGame?.incomingRematch ?? null}
+            share={{
+              headline: endingHeadline({
+                result: position.result,
+                resultReason: position.resultReason,
+                white: position.white.name,
+                black: position.black.name,
+              }),
+              moves: position.moves,
+            }}
           />
         ) : null}
         <button

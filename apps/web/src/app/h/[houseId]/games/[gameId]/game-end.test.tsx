@@ -74,6 +74,34 @@ describe('after a finished Game', () => {
     expect(button('Rematch Bea')).toBeUndefined();
   });
 
+  it('copies a short result for the group chat when the browser cannot share', async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    await act(async () =>
+      root.render(
+        <GameEnd
+          houseId="house"
+          viewerColor="white"
+          opponent={opponent}
+          perMoveHours={24}
+          incomingRematch={null}
+          share={{
+            headline: 'Ada won by checkmate',
+            moves: [
+              { ply: 1, uci: 'e2e4', san: 'e4' },
+              { ply: 2, uci: 'f7f6', san: 'f6' },
+            ],
+          }}
+        />,
+      ),
+    );
+    await act(async () => button('Share result')?.click());
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringMatching(/^Ada won by checkmate in 1 move\.\n1\. e4 f6\nBetween Moves · http/),
+    );
+    expect(button('Copied')).toBeDefined();
+  });
+
   it('has no rematch when no Season is open', async () => {
     await act(async () =>
       root.render(

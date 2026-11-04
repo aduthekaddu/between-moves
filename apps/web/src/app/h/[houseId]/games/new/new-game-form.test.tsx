@@ -152,6 +152,38 @@ describe('Start a game form', () => {
     expect(container.querySelector('button[type="submit"]')?.textContent).toBe('Open the seat');
   });
 
+  it('[BM-022] starts on a live game when the Night sent the Member here', async () => {
+    await act(async () =>
+      root.render(
+        <NewGameForm
+          houseId="house"
+          perMoveHours={48}
+          liveNightId="01941f29-7c00-7000-8000-000000000501"
+          opponents={opponents}
+          requestedLive
+        />,
+      ),
+    );
+    expect(container.querySelector<HTMLInputElement>('input[value="live"]')?.checked).toBe(true);
+  });
+
+  it('[BM-022] keeps correspondence when no Night is live, whatever the link asked', async () => {
+    await act(async () =>
+      root.render(
+        <NewGameForm
+          houseId="house"
+          perMoveHours={48}
+          liveNightId={null}
+          opponents={opponents}
+          requestedLive
+        />,
+      ),
+    );
+    expect(
+      container.querySelector<HTMLInputElement>('input[value="correspondence"]')?.checked,
+    ).toBe(true);
+  });
+
   it('[BM-022] asks for an opponent before sending a challenge', async () => {
     await mount();
     await choose('input[value="challenge"]');
