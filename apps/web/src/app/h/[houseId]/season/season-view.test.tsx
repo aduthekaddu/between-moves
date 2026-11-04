@@ -65,6 +65,59 @@ describe('SeasonView', () => {
     expect(html).toContain('Friday');
   });
 
+  it('[BM-034] shows the running table with shared ranks and the viewer marked', () => {
+    const row = (membershipId: string, displayName: string, points: number, rank: number) => ({
+      membershipId,
+      displayName,
+      points,
+      rank,
+      isViewer: displayName === 'Nia',
+    });
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
+        membershipRole="member"
+        season={activeSeason}
+        standings={[row('m1', 'Max', 4, 1), row('m2', 'Olivia', 4, 1), row('m3', 'Nia', 3, 3)]}
+      />,
+    );
+
+    expect(html).toContain('<h2 id="season-live-title">Standings</h2>');
+    expect(html.match(/aria-label="Rank 1"/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="Rank 3"');
+    expect(html).toMatch(
+      /data-viewer="true"><span[^>]*>3<\/span><span class="season-final__name">Nia<span class="season-final__you">You<\/span>/,
+    );
+    expect(html.indexOf('Standings')).toBeLessThan(html.indexOf('Scheduled Between Moves Nights'));
+  });
+
+  it('[BM-034] says nobody has scored before the first points land', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
+        membershipRole="member"
+        season={activeSeason}
+      />,
+    );
+
+    expect(html).toContain('No points yet. Finish a game to get on the table.');
+  });
+
+  it('[BM-034] leaves a closing Season to its frozen standings', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
+        membershipRole="member"
+        season={{ ...activeSeason, state: 'closing' }}
+      />,
+    );
+
+    expect(html).not.toContain('season-live');
+  });
+
   it('[BM-019] [UX-CMP-09] gives an Owner labeled Charter fields and a read-only points recipe', () => {
     const html = renderToStaticMarkup(
       <SeasonView
