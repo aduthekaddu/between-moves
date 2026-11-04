@@ -280,7 +280,7 @@ describe('Closing Book next Season', () => {
     const html = render(shelf({ membershipId: bea.membershipId, membershipRole: 'member' }));
 
     expect(html).toContain('<h2 id="closing-book-next-title">The table is open.</h2>');
-    expect(html).toContain('When an Owner or Steward publishes the next Charter');
+    expect(html).toContain('When an Owner or Steward opens the next Season');
     expect(html).toContain('Autumn tables stays here, on the House’s shelf.');
     expect(html).not.toContain('Start the next Season');
     expect(html).not.toContain(seasonHref);

@@ -372,7 +372,7 @@ function NextSeason({
           <p>
             {renews
               ? `Publish a Charter to start the next Season. Nothing carries over from ${title}: points, standings and awards begin again from zero.`
-              : `When an Owner or Steward publishes the next Charter, a new Season begins from zero. ${title} stays here, on the House’s shelf.`}
+              : `When an Owner or Steward opens the next Season, points start again from zero. ${title} stays here, on the House’s shelf.`}
           </p>
           {renews ? (
             <a className="closing-book-next__action" href={seasonHref}>

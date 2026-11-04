@@ -64,7 +64,7 @@ describe('Move Shelf view', () => {
       />,
     );
 
-    expect(html).toContain('No games yet. Challenge a member or take an open seat.');
+    expect(html).toContain('No games yet.');
     // the only control points at the real seat form (apps/web/src/app/h/[houseId]/games/new)
     expect(html).toContain(`href="/h/${houseId}/games/new"`);
     expect(html.match(/<a /g)).toHaveLength(1);

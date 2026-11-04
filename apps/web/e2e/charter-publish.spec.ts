@@ -234,7 +234,9 @@ test.describe('Charter authoring and publication', () => {
 
     await page.goto(`/h/${seeded.second.houseId}/season`);
     await expect(
-      page.getByText('Your House is quiet. Publish a Charter to start the season.'),
+      page.getByText(
+        'No Season is running yet. When an Owner or Steward opens one, games and points start.',
+      ),
     ).toBeVisible();
     await expectNoBlockingAxeViolations(page);
     expect(

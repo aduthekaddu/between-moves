@@ -226,6 +226,24 @@ describe('House home welcome for a new Member', () => {
     );
   });
 
+  it('[BM-013] sends the newcomer to a challenge that is already waiting for them', () => {
+    const challenge = {
+      ...seat(olivia),
+      intended: { membershipId: max.membershipId, name: 'Max' },
+      viewerIsCreator: false,
+      viewerMayAccept: true,
+    };
+    const html = render({
+      home: memberHome,
+      roster: roster(max, [olivia, max]),
+      season: activeSeason,
+      openSeats: [challenge],
+    });
+
+    expect(html).toContain('href="#open-seats">Answer Olivia’s challenge</a>');
+    expect(html).not.toContain('Challenge Olivia</a>');
+  });
+
   it.each([
     ['dismissed it on this device', { welcomeDismissed: true }],
     ['already has a game', { shelf: shelfWithGame }],
