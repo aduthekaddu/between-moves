@@ -110,6 +110,48 @@ describe('Start a game form', () => {
     });
   });
 
+  it('[BM-022] arrives from a Challenge link ready to challenge that Member', async () => {
+    await act(async () =>
+      root.render(
+        <NewGameForm
+          houseId="house"
+          perMoveHours={48}
+          liveNightId={null}
+          opponents={opponents}
+          requestedOpponentId={opponents[0]!.membershipId}
+        />,
+      ),
+    );
+
+    expect(container.querySelector('button[type="submit"]')?.textContent).toBe('Challenge Theo');
+    await submit();
+
+    expect(sent()).toEqual({
+      mode: 'correspondence',
+      clockPolicy: { kind: 'correspondence', perMoveHours: 48 },
+      offeredColor: 'any',
+      intendedMembershipId: opponents[0]!.membershipId,
+    });
+  });
+
+  it('[BM-022] ignores a Challenge link for someone who is not in the House', async () => {
+    await act(async () =>
+      root.render(
+        <NewGameForm
+          houseId="house"
+          perMoveHours={48}
+          liveNightId={null}
+          opponents={opponents}
+          requestedOpponentId="01941f29-7c00-7000-8000-000000000399"
+        />,
+      ),
+    );
+
+    expect(container.querySelector<HTMLInputElement>('input[value="open"]')?.checked).toBe(true);
+    expect(container.querySelector('select')).toBeNull();
+    expect(container.querySelector('button[type="submit"]')?.textContent).toBe('Open the seat');
+  });
+
   it('[BM-022] asks for an opponent before sending a challenge', async () => {
     await mount();
     await choose('input[value="challenge"]');
