@@ -32,6 +32,7 @@ const position: GamePosition = {
   moveDueAt: null,
   liveClock: { whiteMs: 300_000, blackMs: 300_000, turnStartedAt: now },
   result: null,
+  resultReason: null,
   inCheck: false,
   moves: [],
   pendingDrawOffer: null,

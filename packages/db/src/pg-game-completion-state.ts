@@ -70,7 +70,7 @@ function gameResult(value: unknown): CompletedGameResult | null {
   throw new Error('Invalid completed Game result');
 }
 
-function completionReason(value: unknown): GameCompletionReason | null {
+export function completionReason(value: unknown): GameCompletionReason | null {
   if (value === null) return null;
   if (
     value === 'checkmate' ||
