@@ -64,7 +64,9 @@ integration('BM-050 account export and deletion over HTTP', () => {
     logger: { log: vi.fn() },
     queueMagicLink: vi.fn(),
   });
-  const auth = betterAuth(options);
+  const createAuth = () => betterAuth(options);
+  // Built after migrateUp: Better Auth checks the schema once at construction and keeps a mismatch.
+  let auth: ReturnType<typeof createAuth>;
   const cookies = getCookies(options);
   const accounts = new PgAccountDataRightsRepository(database.pool);
   const clock = { now: () => new Date('2026-10-05T09:00:00.000Z') };
@@ -120,6 +122,7 @@ integration('BM-050 account export and deletion over HTTP', () => {
   beforeEach(async () => {
     await migrateDown(database.pool, { migrationsDirectory, all: true });
     await migrateUp(database.pool, { migrationsDirectory });
+    auth = createAuth();
     world = await twoHousesWithMembers(database.pool);
     log.mockReset();
     await database.pool.query(
