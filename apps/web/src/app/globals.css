@@ -2701,6 +2701,29 @@ a.move-card:focus-visible {
   justify-self: start;
 }
 
+/* host, reschedule and cancel stay folded until an Owner or Steward needs them */
+.night-card__manage {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--rule-2);
+}
+
+.night-card__manage summary {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.night-card__manage > button {
+  justify-self: start;
+}
+
 .night-cancel {
   border-color: transparent;
   background: transparent;

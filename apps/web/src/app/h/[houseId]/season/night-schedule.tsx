@@ -8,7 +8,7 @@ import {
   type NightRsvpStatus,
   type NightState,
 } from '@between-moves/domain';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 
 function houseLocalInput(date: Date, timeZone: string): string {
@@ -160,6 +160,7 @@ function NightLifecycleControls({
   hostCandidates,
   onChanged,
   onError,
+  manage,
 }: {
   readonly houseId: string;
   readonly night: HouseNightView;
@@ -168,6 +169,8 @@ function NightLifecycleControls({
   readonly hostCandidates: readonly NightHostCandidate[];
   readonly onChanged: (night: HouseNightView) => void;
   readonly onError: (message: string) => void;
+  /** Rescheduling and cancelling, folded away with the host choice. */
+  readonly manage?: ReactNode;
 }) {
   const [hostMembershipId, setHostMembershipId] = useState(night.hostMembershipId ?? '');
   const canHost = canEdit || night.viewerIsHost;
@@ -228,26 +231,6 @@ function NightLifecycleControls({
           </button>
         </div>
       ) : null}
-      {canEdit && open ? (
-        <form className="night-host" onSubmit={(event) => void assignHost(event)}>
-          <label>
-            Night host for Night {position}
-            <select
-              value={hostMembershipId}
-              onChange={(event) => setHostMembershipId(event.currentTarget.value)}
-              required
-            >
-              <option value="">Select a Member</option>
-              {hostCandidates.map((candidate) => (
-                <option key={candidate.membershipId} value={candidate.membershipId}>
-                  {candidate.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="submit">Assign Night host</button>
-        </form>
-      ) : null}
       {canHost && night.state === 'scheduled' ? (
         <button type="button" onClick={() => void run('/start', 'The Night could not be started.')}>
           Start Night {position}
@@ -257,6 +240,30 @@ function NightLifecycleControls({
         <button type="button" onClick={() => void run('/end', 'The Night could not be ended.')}>
           End Night {position}
         </button>
+      ) : null}
+      {canEdit && open ? (
+        <details className="night-card__manage">
+          <summary>Manage Night {position}</summary>
+          <form className="night-host" onSubmit={(event) => void assignHost(event)}>
+            <label>
+              Night host for Night {position}
+              <select
+                value={hostMembershipId}
+                onChange={(event) => setHostMembershipId(event.currentTarget.value)}
+                required
+              >
+                <option value="">Select a Member</option>
+                {hostCandidates.map((candidate) => (
+                  <option key={candidate.membershipId} value={candidate.membershipId}>
+                    {candidate.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">Assign Night host</button>
+          </form>
+          {manage}
+        </details>
       ) : null}
     </>
   );
@@ -318,7 +325,7 @@ export function NightSchedule({
                   className="night-card__rail"
                   href={`/h/${encodeURIComponent(houseId)}/nights/${encodeURIComponent(night.nightId)}`}
                 >
-                  Open the rail
+                  Join the Night
                 </a>
               ) : null}
               <NightLifecycleControls
@@ -330,44 +337,46 @@ export function NightSchedule({
                 hostCandidates={hostCandidates}
                 onChanged={replace}
                 onError={(message) => setError(message === '' ? null : message)}
+                manage={
+                  canEdit && night.state === 'scheduled' ? (
+                    <>
+                      <RescheduleForm
+                        houseId={houseId}
+                        night={night}
+                        position={index + 1}
+                        timeZone={timeZone}
+                        onChanged={replace}
+                      />
+                      {confirming === night.nightId ? (
+                        <div
+                          className="night-cancel-confirm"
+                          role="group"
+                          aria-label={`Confirm cancellation for Night ${index + 1}`}
+                        >
+                          <button type="button" onClick={() => setConfirming(null)}>
+                            Keep Night
+                          </button>
+                          <button
+                            type="button"
+                            className="night-cancel"
+                            onClick={() => void cancel(night)}
+                          >
+                            Confirm cancellation
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="night-cancel"
+                          onClick={() => setConfirming(night.nightId)}
+                        >
+                          Cancel Night
+                        </button>
+                      )}
+                    </>
+                  ) : null
+                }
               />
-              {canEdit && night.state === 'scheduled' ? (
-                <>
-                  <RescheduleForm
-                    houseId={houseId}
-                    night={night}
-                    position={index + 1}
-                    timeZone={timeZone}
-                    onChanged={replace}
-                  />
-                  {confirming === night.nightId ? (
-                    <div
-                      className="night-cancel-confirm"
-                      role="group"
-                      aria-label={`Confirm cancellation for Night ${index + 1}`}
-                    >
-                      <button type="button" onClick={() => setConfirming(null)}>
-                        Keep Night
-                      </button>
-                      <button
-                        type="button"
-                        className="night-cancel"
-                        onClick={() => void cancel(night)}
-                      >
-                        Confirm cancellation
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="night-cancel"
-                      onClick={() => setConfirming(night.nightId)}
-                    >
-                      Cancel Night
-                    </button>
-                  )}
-                </>
-              ) : null}
             </li>
           ))}
         </ol>

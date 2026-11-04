@@ -100,12 +100,14 @@ test.describe('Charter authoring and publication', () => {
     await expect(page.getByText('Charter version 1', { exact: true })).toBeVisible();
 
     const firstNight = page.locator('.night-card').nth(0);
+    await firstNight.getByText('Manage Night 1').click();
     await firstNight.getByLabel('New start for Night 1 (Asia/Kolkata)').fill('2026-09-05T19:30');
     await firstNight.getByLabel('New end for Night 1 (Asia/Kolkata)').fill('2026-09-05T21:30');
     await firstNight.getByRole('button', { name: 'Reschedule' }).click();
     await expect(firstNight.getByText('5 Sept 2026, 19:30', { exact: false })).toBeVisible();
 
     const secondNight = page.locator('.night-card').nth(1);
+    await secondNight.getByText('Manage Night 2').click();
     await secondNight.getByRole('button', { name: 'Cancel Night' }).click();
     const cancellation = secondNight.getByRole('group', {
       name: 'Confirm cancellation for Night 2',
