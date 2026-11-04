@@ -12,6 +12,13 @@ export interface GamePositionMember {
   readonly name: string;
 }
 
+/** Every finished Game these two Members have played against each other in this House. */
+export interface HeadToHead {
+  readonly whiteWins: number;
+  readonly blackWins: number;
+  readonly draws: number;
+}
+
 export interface GamePositionMove {
   readonly ply: number;
   readonly uci: string;
@@ -46,6 +53,8 @@ export interface GamePosition {
   readonly pendingDrawOffer: PendingDrawOffer | null;
   /** [BM-028] An offer at the current ply was declined; the next offer waits for another Move. */
   readonly drawOfferDeclined: boolean;
+  /** Wins are counted for this Game's White and Black players, whatever colours they had. */
+  readonly headToHead: HeadToHead;
 }
 
 export interface GamePositionReadRepository {

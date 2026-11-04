@@ -235,6 +235,7 @@ export type {
   GamePosition,
   GamePositionMember,
   GamePositionMove,
+  HeadToHead,
   GamePositionReadRepository,
   GamePositionResult,
   GamePositionState,

@@ -6,6 +6,7 @@ import type {
   GamePositionReadRepository,
   GamePositionResult,
   GamePositionState,
+  HeadToHead,
   PendingDrawOffer,
   SideToMove,
 } from '@between-moves/domain';
@@ -35,6 +36,7 @@ interface GamePositionRow extends QueryResultRow {
   readonly draw_offer_membership_id: unknown;
   readonly draw_offer_ply: unknown;
   readonly draw_offer_declined: unknown;
+  readonly head_to_head: unknown;
 }
 
 interface GameMoveRow {
@@ -93,6 +95,18 @@ function move(row: GameMoveRow): GamePositionMove {
   return { ply, uci: text(row.uci, 'Move UCI'), san: text(row.san, 'Move SAN') };
 }
 
+function headToHead(value: unknown): HeadToHead {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Invalid Game position head-to-head');
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    whiteWins: integer(record.whiteWins, 'head-to-head White wins'),
+    blackWins: integer(record.blackWins, 'head-to-head Black wins'),
+    draws: integer(record.draws, 'head-to-head draws'),
+  };
+}
+
 function drawOffer(row: GamePositionRow): PendingDrawOffer | null {
   if (row.draw_offer_membership_id === null && row.draw_offer_ply === null) return null;
   return {
@@ -141,7 +155,27 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
                        )
                   from moves m
                  where m.house_id = g.house_id and m.game_id = g.id
-              ), '[]'::jsonb) as moves
+              ), '[]'::jsonb) as moves,
+              (
+                select jsonb_build_object(
+                         'whiteWins', count(*) filter (
+                           where (h2h.result = 'white_win'
+                                  and h2h.white_membership_id = g.white_membership_id)
+                              or (h2h.result = 'black_win'
+                                  and h2h.black_membership_id = g.white_membership_id)),
+                         'blackWins', count(*) filter (
+                           where (h2h.result = 'white_win'
+                                  and h2h.white_membership_id = g.black_membership_id)
+                              or (h2h.result = 'black_win'
+                                  and h2h.black_membership_id = g.black_membership_id)),
+                         'draws', count(*) filter (where h2h.result = 'draw'))
+                  from games h2h
+                 where h2h.house_id = g.house_id and h2h.state = 'completed'
+                   and ((h2h.white_membership_id = g.white_membership_id
+                         and h2h.black_membership_id = g.black_membership_id)
+                     or (h2h.white_membership_id = g.black_membership_id
+                         and h2h.black_membership_id = g.white_membership_id))
+              ) as head_to_head
          from games g
          join houses h on h.id = g.house_id and h.status = 'active'
          join memberships viewer_member
@@ -206,6 +240,7 @@ export class PgGamePositionRepository implements GamePositionReadRepository {
       moves,
       pendingDrawOffer: drawOffer(row),
       drawOfferDeclined: gameState === 'active' && row.draw_offer_declined === true,
+      headToHead: headToHead(row.head_to_head),
     };
   }
 }
