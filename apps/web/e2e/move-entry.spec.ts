@@ -137,7 +137,7 @@ test.describe('correspondence Move entry', () => {
     await database.close();
   });
 
-  test('[BM-027] [UX-RESP-02] [UX-A11Y-04] submits a keyboard Move at 360 px and renders the server FEN', async ({
+  test('[BM-027] [UX-RESP-02] [UX-A11Y-04] plays a keyboard Move at 360 px with no confirm step and renders the server FEN', async ({
     page,
   }) => {
     await openGame(page);
@@ -154,11 +154,15 @@ test.describe('correspondence Move entry', () => {
     await page.keyboard.press('Enter');
     await page.keyboard.press('ArrowUp');
     await page.keyboard.press('ArrowUp');
+    await expect(page.locator('[data-square="e4"]')).toHaveAttribute(
+      'aria-label',
+      'e4, empty, legal move',
+    );
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('button', { name: 'Submit Move' })).toBeFocused();
-    await page.keyboard.press('Enter');
+    await expect(page.getByRole('status').filter({ hasText: 'You played e4' })).toBeVisible();
+    await expectNoBlockingAxeViolations(page);
 
-    await expect(page.getByText(/Move accepted: e4/)).toBeAttached();
+    await expect(page.getByText(/Move accepted: e4/)).toBeAttached({ timeout: 15_000 });
     await expect(page.locator('[data-square="e2"]')).toHaveAttribute('aria-label', 'e2, empty');
     await expect(page.locator('[data-square="e4"]')).toHaveAttribute(
       'aria-label',
@@ -182,8 +186,7 @@ test.describe('correspondence Move entry', () => {
     await openGame(page);
     await page.locator('[data-square="d2"]').click();
     await page.locator('[data-square="d4"]').click();
-    await expect(page.locator('[role="gridcell"][aria-selected="true"]')).toHaveCount(2);
-    await expectNoBlockingAxeViolations(page);
+    await expect(page.getByText('You played d4', { exact: true })).toBeVisible();
 
     const competingMove = await page.request.post(
       `/api/houses/${fixture().first.houseId}/games/${gameId}/moves`,
@@ -201,9 +204,10 @@ test.describe('correspondence Move entry', () => {
       },
     );
     expect(competingMove.status()).toBe(200);
-    await page.getByRole('button', { name: 'Submit Move' }).click();
 
-    await expect(page.getByText("That position moved on. Here's the latest board.")).toBeVisible();
+    await expect(page.getByText("That position moved on. Here's the latest board.")).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.locator('[data-square="d2"]')).toHaveAttribute(
       'aria-label',
       'd2, white pawn',
@@ -251,9 +255,10 @@ test.describe('correspondence Move entry', () => {
 
     await page.locator('[data-square="d8"]').click();
     await page.locator('[data-square="h4"]').click();
-    await page.getByRole('button', { name: 'Submit Move' }).click();
 
-    await expect(page.getByText('Move accepted: Qh4#. Game complete.')).toBeAttached();
+    await expect(page.getByText('Move accepted: Qh4#. Game complete.')).toBeAttached({
+      timeout: 15_000,
+    });
     await expect(page.getByText('Bea won', { exact: true })).toBeVisible();
     await expect(page.getByTestId('turn-status')).toHaveText('Game complete');
     await expect(page.locator('[data-square="e1"]')).toHaveAttribute('data-check', 'true');
@@ -265,5 +270,42 @@ test.describe('correspondence Move entry', () => {
     await expect(page.getByText('Move list (4)')).toBeVisible();
     await expect(page.getByText(/^Move due /)).toHaveCount(0);
     await expectNoBlockingAxeViolations(page);
+  });
+
+  test('[BM-027] takes back a slip with Undo, then plays by dragging the piece', async ({
+    page,
+  }) => {
+    await openGame(page);
+    await page.locator('[data-square="g1"]').click();
+    await page.locator('[data-square="h3"]').click();
+    await expect(page.getByText('You played Nh3', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.locator('[data-square="g1"]')).toHaveAttribute(
+      'aria-label',
+      'g1, white knight',
+    );
+    await page.waitForTimeout(6_000);
+    const afterUndo = await database?.pool.query('select current_ply from games where id = $1', [
+      gameId,
+    ]);
+    expect(afterUndo?.rows).toEqual([{ current_ply: 0 }]);
+
+    const from = await page.locator('[data-square="e2"]').boundingBox();
+    const to = await page.locator('[data-square="e4"]').boundingBox();
+    if (from === null || to === null) throw new Error('Board squares are not on screen');
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await expect(page.locator('[data-square="e4"]')).toHaveAttribute(
+      'aria-label',
+      'e4, white pawn',
+    );
+    await expect(page.getByText(/Move accepted: e4/)).toBeAttached({ timeout: 15_000 });
+    const afterDrag = await database?.pool.query(
+      'select current_fen, current_ply from games where id = $1',
+      [gameId],
+    );
+    expect(afterDrag?.rows).toEqual([{ current_fen: afterE4Fen, current_ply: 1 }]);
   });
 });

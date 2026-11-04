@@ -15,10 +15,11 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { applyOptimisticMove, parseFenPieces, type BoardPieces } from './board-model';
-import { ChessBoard } from './chess-board';
+import { applyOptimisticMove, parseFenPieces } from './board-model';
+import { ChessBoard, type BoardSlide, type PromotionPiece } from './chess-board';
 import { generateClientCommandId } from './client-command-id';
 import { GameActions } from './game-actions';
+import { legalMoves, proposalSan } from './legal-moves';
 import { LiveClocks } from './live/live-clocks';
 import {
   acceptedMove,
@@ -37,10 +38,21 @@ interface SubmitCommand {
 /** An open correspondence board re-reads the canonical Game this often while visible. */
 const CORRESPONDENCE_REFRESH_MS = 60_000;
 
-function needsPromotion(pieces: BoardPieces, from: ChessSquare | null, to: ChessSquare | null) {
-  if (from === null || to === null) return false;
-  return pieces[from]?.kind === 'pawn' && (to[1] === '1' || to[1] === '8');
+/** A correspondence Move waits this long before it is sent, so a slip can be taken back. */
+export const UNDO_WINDOW_MS = 5_000;
+
+type Selection =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'piece'; readonly from: ChessSquare }
+  | { readonly kind: 'promotion'; readonly from: ChessSquare; readonly to: ChessSquare };
+
+interface StagedMove {
+  readonly command: SubmitCommand;
+  readonly san: string;
 }
+
+const noSelection: Selection = { kind: 'none' };
+const noSquares: ReadonlySet<ChessSquare> = new Set();
 
 function turnLabel(side: SideToMove): string {
   return side === 'white' ? 'White to move' : 'Black to move';
@@ -103,9 +115,11 @@ export function MoveEntry({
   const positionVersion = useRef(initial.version);
   const [canonicalPieces, setCanonicalPieces] = useState(() => parseFenPieces(initial.currentFen));
   const [shownPieces, setShownPieces] = useState(canonicalPieces);
-  const [from, setFrom] = useState<ChessSquare | null>(null);
-  const [to, setTo] = useState<ChessSquare | null>(null);
-  const [promotion, setPromotion] = useState<'q' | 'r' | 'b' | 'n'>('q');
+  const [selection, setSelection] = useState<Selection>(noSelection);
+  const [staged, setStaged] = useState<StagedMove | null>(null);
+  const stagedRef = useRef<StagedMove | null>(null);
+  const [slide, setSlide] = useState<BoardSlide | null>(null);
+  const ownSlidePly = useRef<number | null>(null);
   const [pending, setPending] = useState(false);
   const [canonicalFresh, setCanonicalFresh] = useState(true);
   const [refreshNeeded, setRefreshNeeded] = useState(false);
@@ -118,58 +132,153 @@ export function MoveEntry({
   const [message, setMessage] = useState('');
   const [alert, setAlert] = useState('');
   const [retry, setRetry] = useState<SubmitCommand | null>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
 
   const canMove =
     (!live || liveViewport) &&
     canonicalFresh &&
     position.state === 'active' &&
     position.viewerColor === position.sideToMove &&
+    staged === null &&
     !offline;
   const lastMove = position.moves.at(-1)?.uci.slice(0, 4) ?? null;
-  const isPromotion = needsPromotion(canonicalPieces, from, to);
-  const proposal = useMemo<ChessMoveProposal | null>(() => {
-    if (from === null || to === null) return null;
-    return { from, to, ...(isPromotion ? { promotion } : {}) };
-  }, [from, isPromotion, promotion, to]);
+  const legal = useMemo(() => legalMoves(position.currentFen), [position.currentFen]);
+  const movable = useMemo<ReadonlySet<ChessSquare>>(
+    () =>
+      canMove && !pending
+        ? new Set(
+            [...legal.keys()].filter(
+              (square) => canonicalPieces[square]?.color === position.viewerColor,
+            ),
+          )
+        : noSquares,
+    [canMove, canonicalPieces, legal, pending, position.viewerColor],
+  );
+  const selectedFrom = selection.kind === 'none' ? null : selection.from;
+  const targets = useMemo<ReadonlySet<ChessSquare>>(
+    () =>
+      selection.kind === 'piece'
+        ? new Set((legal.get(selection.from) ?? new Map()).keys())
+        : noSquares,
+    [legal, selection],
+  );
 
-  useEffect(() => {
-    if (proposal !== null) confirmRef.current?.focus();
-  }, [proposal]);
-
-  function clearProposal() {
-    setFrom(null);
-    setTo(null);
-    setPromotion('q');
+  function clearSelection() {
+    setSelection(noSelection);
   }
 
-  function selectSquare(square: ChessSquare) {
+  function pick(square: ChessSquare) {
+    const count = legal.get(square)?.size ?? 0;
+    setSelection({ kind: 'piece', from: square });
+    setMessage(`${square} selected. ${count === 1 ? '1 legal move' : `${count} legal moves`}.`);
+  }
+
+  /** Every gesture ends here: a legal destination plays at once, a promotion asks first. */
+  function play(from: ChessSquare, to: ChessSquare, via: 'tap' | 'drag') {
+    const promotes = legal.get(from)?.get(to);
+    if (promotes === undefined) return false;
+    if (promotes) {
+      setSelection({ kind: 'promotion', from, to });
+      setMessage('Choose the piece your pawn becomes.');
+      return true;
+    }
+    commit({ from, to }, via);
+    return true;
+  }
+
+  function tapSquare(square: ChessSquare) {
     if (!canMove || pending) return;
     setAlert('');
     setRetry(null);
-    if (from === null) {
-      if (canonicalPieces[square]?.color !== position.viewerColor) {
-        setMessage('Choose one of your pieces to begin a Move.');
+    if (selection.kind === 'piece') {
+      if (square === selection.from) {
+        clearSelection();
+        setMessage('Selection cleared.');
         return;
       }
-      setFrom(square);
-      setMessage(`${square} selected. Choose a destination square.`);
+      if (play(selection.from, square, 'tap')) return;
+    }
+    if (movable.has(square)) {
+      pick(square);
       return;
     }
-    if (square === from) {
-      clearProposal();
-      setMessage('Move selection cleared.');
-      return;
-    }
-    if (canonicalPieces[square]?.color === position.viewerColor) {
-      setFrom(square);
-      setTo(null);
-      setMessage(`${square} selected. Choose a destination square.`);
-      return;
-    }
-    setTo(square);
-    setMessage(`Move proposed from ${from} to ${square}. Review and submit.`);
+    clearSelection();
+    setMessage(
+      canonicalPieces[square]?.color === position.viewerColor
+        ? `The piece on ${square} has no legal move.`
+        : 'Choose one of your pieces.',
+    );
   }
+
+  function dropPiece(from: ChessSquare, to: ChessSquare | null) {
+    if (!canMove || pending) return;
+    if (to !== null && to !== from && play(from, to, 'drag')) return;
+    pick(from);
+  }
+
+  function commit(proposal: ChessMoveProposal, via: 'tap' | 'drag' | 'promotion') {
+    const command: SubmitCommand = {
+      proposal,
+      expectedPly: position.currentPly,
+      clientCommandId: generateClientCommandId(),
+    };
+    clearSelection();
+    ownSlidePly.current = position.currentPly + 1;
+    setSlide(
+      via === 'drag'
+        ? null
+        : { key: `own:${command.clientCommandId}`, from: proposal.from, to: proposal.to },
+    );
+    if (live) {
+      void sendMove(command);
+      return;
+    }
+    const san = proposalSan(position.currentFen, proposal) ?? `${proposal.from}-${proposal.to}`;
+    const next = { command, san };
+    stagedRef.current = next;
+    setStaged(next);
+    setShownPieces(applyOptimisticMove(canonicalPieces, proposal));
+    setMessage(`You played ${san}. It sends in five seconds unless you press Undo.`);
+  }
+
+  function undoStaged() {
+    const current = stagedRef.current;
+    if (current === null) return;
+    stagedRef.current = null;
+    setStaged(null);
+    ownSlidePly.current = null;
+    setSlide(null);
+    setShownPieces(canonicalPieces);
+    setMessage(`${current.san} taken back. Your move.`);
+  }
+
+  const releaseStaged = useEffectEvent((keepalive: boolean) => {
+    const current = stagedRef.current;
+    if (current === null) return;
+    stagedRef.current = null;
+    setStaged(null);
+    void sendMove(current.command, keepalive);
+  });
+
+  useEffect(() => {
+    if (staged === null) return;
+    const timer = setTimeout(() => releaseStaged(false), UNDO_WINDOW_MS);
+    return () => clearTimeout(timer);
+  }, [staged]);
+
+  useEffect(() => {
+    // A staged Move must not be lost when the reader leaves: send it as the page goes away.
+    const sendNowIfHidden = () => {
+      if (document.visibilityState === 'hidden') releaseStaged(true);
+    };
+    const sendNow = () => releaseStaged(true);
+    document.addEventListener('visibilitychange', sendNowIfHidden);
+    window.addEventListener('pagehide', sendNow);
+    return () => {
+      document.removeEventListener('visibilitychange', sendNowIfHidden);
+      window.removeEventListener('pagehide', sendNow);
+      releaseStaged(true);
+    };
+  }, []);
 
   const refreshCanonicalPosition = useCallback(
     (background = false): Promise<MoveEntryPosition | null> => {
@@ -195,10 +304,20 @@ export function MoveEntry({
           if (refreshed.version < positionVersion.current) throw new Error('Stale Game snapshot');
           const pieces = parseFenPieces(refreshed.currentFen);
           if (!background || refreshed.version !== positionVersion.current) {
-            setFrom(null);
-            setTo(null);
-            setPromotion('q');
+            setSelection(noSelection);
             setRetry(null);
+          }
+          const arrived = refreshed.moves.at(-1);
+          if (
+            arrived !== undefined &&
+            refreshed.version !== positionVersion.current &&
+            arrived.ply !== ownSlidePly.current
+          ) {
+            setSlide({
+              key: `${arrived.ply}:${arrived.uci}`,
+              from: arrived.uci.slice(0, 2) as ChessSquare,
+              to: arrived.uci.slice(2, 4) as ChessSquare,
+            });
           }
           positionVersion.current = refreshed.version;
           setPosition(refreshed);
@@ -229,7 +348,12 @@ export function MoveEntry({
   );
 
   const reconcileCanonical = useEffectEvent((background: boolean) => {
-    if (document.visibilityState === 'hidden' || commandInFlight.current || !navigator.onLine)
+    if (
+      document.visibilityState === 'hidden' ||
+      commandInFlight.current ||
+      stagedRef.current !== null ||
+      !navigator.onLine
+    )
       return;
     void refreshCanonicalPosition(background);
   });
@@ -339,7 +463,7 @@ export function MoveEntry({
     };
   }, [gameId, houseId, live]);
 
-  async function sendMove(command: SubmitCommand) {
+  async function sendMove(command: SubmitCommand, keepalive = false) {
     if (commandInFlight.current || (live && !liveViewport)) return;
     commandInFlight.current = true;
     refreshRequest.current?.controller.abort();
@@ -348,12 +472,13 @@ export function MoveEntry({
     setAlert('');
     setRetry(null);
     setShownPieces(applyOptimisticMove(canonicalPieces, command.proposal));
-    setMessage(`Submitting ${command.proposal.from} to ${command.proposal.to}.`);
+    setMessage(`Sending ${command.proposal.from} to ${command.proposal.to}.`);
     try {
       const response = await fetch(
         `/api/houses/${encodeURIComponent(houseId)}/games/${encodeURIComponent(gameId)}/moves`,
         {
           method: 'POST',
+          keepalive,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             expectedPly: command.expectedPly,
@@ -384,7 +509,7 @@ export function MoveEntry({
                 ],
               },
         );
-        clearProposal();
+        clearSelection();
         setCanonicalFresh(false);
         const refreshed = await refreshCanonicalPosition();
         setMessage(
@@ -402,7 +527,7 @@ export function MoveEntry({
 
       if (response.ok && flagFall(body)) {
         setShownPieces(canonicalPieces);
-        clearProposal();
+        clearSelection();
         setCanonicalFresh(false);
         const refreshed = await refreshCanonicalPosition();
         setMessage(
@@ -423,7 +548,7 @@ export function MoveEntry({
         } else {
           setShownPieces(canonicalPieces);
         }
-        clearProposal();
+        clearSelection();
         setAlert(
           conflict === null
             ? "That Game changed. Here's the latest board."
@@ -435,7 +560,7 @@ export function MoveEntry({
       }
 
       setShownPieces(canonicalPieces);
-      clearProposal();
+      clearSelection();
       setAlert(
         response.status === 422
           ? 'That Move is not legal from the current position. Choose another Move.'
@@ -449,15 +574,6 @@ export function MoveEntry({
       commandInFlight.current = false;
       setPending(false);
     }
-  }
-
-  function submitProposal() {
-    if (proposal === null || pending || !canMove) return;
-    void sendMove({
-      proposal,
-      expectedPly: position.currentPly,
-      clientCommandId: generateClientCommandId(),
-    });
   }
 
   const orientation = position.viewerColor ?? 'white';
@@ -512,13 +628,35 @@ export function MoveEntry({
         orientation={orientation}
         sideToMove={position.sideToMove}
         active={position.state === 'active'}
-        lastMove={lastMove}
+        lastMove={
+          staged === null
+            ? lastMove
+            : `${staged.command.proposal.from}${staged.command.proposal.to}`
+        }
         inCheck={position.inCheck}
-        selectedFrom={from}
-        selectedTo={to}
+        selected={selectedFrom}
+        targets={targets}
+        movable={movable}
         disabled={!canMove || pending}
         pending={pending}
-        onSquare={selectSquare}
+        slide={slide}
+        promotion={
+          selection.kind === 'promotion' && position.viewerColor !== null
+            ? { color: position.viewerColor }
+            : null
+        }
+        onSquare={tapSquare}
+        onDragStart={(square) => {
+          if (selection.kind !== 'piece' || selection.from !== square) pick(square);
+        }}
+        onDrop={dropPiece}
+        onPromote={(piece: PromotionPiece) => {
+          if (selection.kind !== 'promotion') return;
+          commit({ from: selection.from, to: selection.to, promotion: piece }, 'promotion');
+        }}
+        onCancelPromotion={() => {
+          if (selection.kind === 'promotion') pick(selection.from);
+        }}
       />
 
       <div className="move-entry__controls">
@@ -528,55 +666,32 @@ export function MoveEntry({
           <p>This Game is no longer accepting Moves.</p>
         ) : live && !liveViewport ? (
           <p>Widen your window to make a Move.</p>
+        ) : staged !== null ? (
+          <div className="move-entry__staged" role="status">
+            <span>
+              You played <strong>{staged.san}</strong>
+            </span>
+            <button type="button" className="move-entry__undo" onClick={undoStaged}>
+              Undo
+            </button>
+            <span
+              className="move-entry__staged-timer"
+              aria-hidden="true"
+              ref={(node) => {
+                if (node !== null) node.style.animationDuration = `${UNDO_WINDOW_MS}ms`;
+              }}
+            />
+          </div>
         ) : !canonicalFresh ? (
           <p>Refreshing the canonical Game before Move entry resumes.</p>
+        ) : pending ? (
+          <p>Sending your Move.</p>
         ) : !canMove && !offline ? (
           <p>{"Waiting for the other Member's Move."}</p>
         ) : (
-          <>
-            <p>
-              {proposal === null
-                ? from === null
-                  ? 'Choose a piece, then its destination.'
-                  : `${from} selected. Choose a destination.`
-                : `${proposal.from} to ${proposal.to}`}
-            </p>
-            {isPromotion ? (
-              <label className="move-entry__promotion">
-                Promote pawn to
-                <select
-                  value={promotion}
-                  onChange={(event) => setPromotion(event.target.value as typeof promotion)}
-                >
-                  <option value="q">Queen</option>
-                  <option value="r">Rook</option>
-                  <option value="b">Bishop</option>
-                  <option value="n">Knight</option>
-                </select>
-              </label>
-            ) : null}
-            <div className="move-entry__actions">
-              <button
-                ref={confirmRef}
-                type="button"
-                className="move-entry__submit"
-                disabled={proposal === null || pending || offline}
-                onClick={submitProposal}
-              >
-                {pending ? 'Submitting Move…' : 'Submit Move'}
-              </button>
-              <button
-                type="button"
-                disabled={(from === null && to === null) || pending}
-                onClick={() => {
-                  clearProposal();
-                  setMessage('Move selection cleared.');
-                }}
-              >
-                Clear
-              </button>
-            </div>
-          </>
+          <p>
+            {selection.kind === 'promotion' ? 'Choose the piece your pawn becomes.' : 'Your move.'}
+          </p>
         )}
       </div>
 
@@ -584,7 +699,7 @@ export function MoveEntry({
         houseId={houseId}
         gameId={gameId}
         position={position}
-        disabled={pending || offline || !canonicalFresh}
+        disabled={pending || offline || !canonicalFresh || staged !== null}
         onSettled={() => refreshCanonicalPosition()}
       />
 
