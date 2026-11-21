@@ -399,6 +399,36 @@ describe('correspondence move entry', () => {
     expect(square('e1')?.getAttribute('aria-label')).toBe('e1, white king, in check');
   });
 
+  it('keeps the check mark with the Move while it sends and once it is accepted', async () => {
+    await mount({ ...correspondence, currentFen: 'k3r3/8/8/8/8/8/8/4K3 w - - 0 1', inCheck: true });
+    let answer: (response: Response) => void = () => {};
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
+      options?.method === 'POST'
+        ? new Promise<Response>((resolve) => (answer = resolve))
+        : new Promise<Response>(() => {}),
+    );
+    await click('[data-square="e1"]');
+    await click('[data-square="d1"]');
+    await act(async () => vi.advanceTimersByTime(UNDO_WINDOW_MS));
+    expect(posts()).toHaveLength(1);
+    expect(container.querySelector('[data-check]')).toBeNull();
+
+    await act(async () =>
+      answer(
+        json({
+          ply: 1,
+          uci: 'e1d1',
+          san: 'Kd1',
+          fenAfter: 'k3r3/8/8/8/8/8/8/3K4 b - - 1 1',
+          sideToMove: 'black',
+          version: 1,
+        }),
+      ),
+    );
+    expect(square('d1')?.getAttribute('aria-label')).toBe('d1, white king');
+    expect(container.querySelector('[data-check]')).toBeNull();
+  });
+
   it('marks the check a staged Move gives', async () => {
     await mount({ ...correspondence, currentFen: '4k3/8/8/8/8/8/8/R3K3 w - - 0 1' });
     await click('[data-square="a1"]');
