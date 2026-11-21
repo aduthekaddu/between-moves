@@ -1,0 +1,45 @@
+apps/web/src/app/h/[houseId]/games/[gameId]/legal-moves.ts
+  s_6d8786361a6a9a::t_01c020bccab212 28-32,34-36
+apps/web/src/app/h/[houseId]/games/[gameId]/move-entry.tsx
+  s_6d8786361a6a9a::t_942cc10c60b80f 340,343
+  s_6d8786361a6a9a::t_dc6a05a2aa486c 354
+  s_6d8786361a6a9a::t_95e35874624427 498-502
+  s_6d8786361a6a9a::t_6e7df3c7b4fab2 826,829
+  s_6d8786361a6a9a::t_6454e49753676b 9
+  s_6d8786361a6a9a::t_5a17bc9b7af15e 255-260
+  s_6d8786361a6a9a::t_a13d5c143976f5 739
+  s_6d8786361a6a9a::t_95f04054276d53 61-63
+  s_6d8786361a6a9a::t_38dc2bc4625f76 636-643
+  s_6d8786361a6a9a::t_3b8ac3680c98be 30
+  s_6d8786361a6a9a::t_156f515dbc478c 240-241
+  s_6d8786361a6a9a::t_b769720fea5165 750
+  s_6d8786361a6a9a::t_45717dc5eac218 131
+  s_6d8786361a6a9a::t_815dc97f607dd9 110-111
+  s_6d8786361a6a9a::t_cf080d590462d5 503
+apps/web/src/app/h/[houseId]/games/[gameId]/game-view.test.tsx
+  s_6d8786361a6a9a::t_d80ff5eb42ba5b 3,6
+  s_6d8786361a6a9a::t_981dbd3da9f89b 7
+apps/web/src/app/h/[houseId]/games/[gameId]/game-end.test.tsx
+  s_6d8786361a6a9a::t_63dc733ae6c593 42,65,82,107
+apps/web/src/app/h/[houseId]/games/[gameId]/legal-moves.test.ts
+  s_6d8786361a6a9a::t_e4598a64c8dc37 2
+  s_6d8786361a6a9a::t_59c6763ce1b8b0 33,35-36,38
+apps/web/src/app/h/[houseId]/games/[gameId]/game-end.tsx
+  s_6d8786361a6a9a::t_63dc733ae6c593 21,27-31,67,76-77,90,93,98,103,112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ed450ed6cd2d7f90573847c7c389b934a2a45a0",
+  "prompts": {},
+  "sessions": {
+    "s_6d8786361a6a9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5db39921-48f9-5376-bbb3-ec734dfec2f6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
