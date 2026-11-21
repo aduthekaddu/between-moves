@@ -13,7 +13,7 @@ interface NudgeEmailRow extends QueryResultRow {
   house_name: string;
   opponent_name: string;
   last_move_san: string | null;
-  move_due_at: Date | null;
+  move_due_at: Date;
 }
 
 function eventPayload(event: ClaimedOutboxEvent): {
@@ -45,14 +45,16 @@ export class PgNudgeEmailReader implements NudgeEmailReader {
               coalesce(opponent.display_name_snapshot, opponent_user.display_name) as opponent_name,
               (select mv.san from moves mv
                 where mv.house_id = g.house_id and mv.game_id = g.id
-                order by mv.ply desc limit 1) as last_move_san,
-              g.move_due_at
+                  and mv.ply = delivery.ply) as last_move_san,
+              delivery.move_due_at
          from nudge_deliveries delivery
          join houses h on h.id = delivery.house_id and h.status = 'active'
          join memberships m on m.id = delivery.recipient_membership_id
                            and m.house_id = delivery.house_id and m.status = 'active'
          join users u on u.id = m.user_id and u.status = 'active'
+         -- The Nudge is about one turn. Once that turn is over, its email would be wrong.
          join games g on g.id = delivery.game_id and g.house_id = delivery.house_id
+                     and g.state = 'active' and g.current_ply = delivery.ply
          join memberships opponent
            on opponent.house_id = g.house_id
           and opponent.id = case when g.white_membership_id = delivery.recipient_membership_id
