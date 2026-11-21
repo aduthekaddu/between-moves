@@ -570,8 +570,9 @@
     display: inline;
   }
 
+  /* the sound button sits under the caption here; side by side they overlap */
   .lp-caption {
-    bottom: 18px;
+    bottom: calc(16px + 44px + 14px);
   }
 
   .lp-caption__text {
@@ -591,7 +592,7 @@
   .lp-stage__vignette {
     background:
       linear-gradient(180deg, rgba(7, 9, 19, 0.92) 0%, rgba(7, 9, 19, 0.55) 36%, transparent 58%),
-      linear-gradient(0deg, rgba(7, 9, 19, 0.85) 0%, transparent 20%);
+      linear-gradient(0deg, rgba(7, 9, 19, 0.92) 0%, rgba(7, 9, 19, 0.78) 20%, transparent 36%);
   }
 
   .lp-lamp-hint {
@@ -1939,7 +1940,7 @@
   background: rgba(241, 232, 214, 0.06);
   color: var(--lp-paper);
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .lp-door__field input::placeholder {

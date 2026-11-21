@@ -9,7 +9,7 @@ on:
 
 jobs:
   dependency-security:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -21,7 +21,7 @@ jobs:
       - run: pnpm audit --audit-level high
 
   secret-security:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     permissions:
       contents: read
       pull-requests: write
@@ -35,7 +35,7 @@ jobs:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   sast-security:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,7 +47,7 @@ jobs:
           semgrep scan --config p/owasp-top-ten --severity ERROR --error
 
   traceability:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -60,7 +60,7 @@ jobs:
       - run: pnpm traceability:check
 
   quality:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,7 +103,7 @@ jobs:
   database-integration:
     needs: quality
     # Playwright 1.55.1 has no Chromium build for ubuntu-latest once that image is 26.04.
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
     services:
       postgres:
         image: postgres:16.10-bookworm
@@ -173,10 +173,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
           NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
-          PGPASSWORD: postgres-test-only
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           pnpm db:migrate
-          psql -h 127.0.0.1 -U postgres -d between_moves_test -v ON_ERROR_STOP=1 \
+          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d between_moves_test -v ON_ERROR_STOP=1 \
             -c "grant select, insert, update, delete on all tables in schema public to between_moves_app"
 
       - name: Install Playwright Chromium

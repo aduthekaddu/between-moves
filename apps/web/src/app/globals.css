@@ -131,6 +131,13 @@ textarea {
   color: inherit;
 }
 
+/* iOS Safari zooms the page into any field whose text is under 16px, so a small label never shrinks its field */
+input,
+select,
+textarea {
+  font-size: max(1rem, 1em);
+}
+
 :where(
     .house-shell,
     .game-shell,
@@ -2335,8 +2342,8 @@ a.move-card:focus-visible {
 }
 
 .house-chat__message {
-  position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 4px;
   padding: 12px 14px;
   background: #f6efe0;
@@ -2365,17 +2372,21 @@ a.move-card:focus-visible {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--vermilion-ink);
+  overflow-wrap: anywhere;
 }
 
 .house-chat__message p {
+  grid-column: 1 / -1;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
+/* shares the name's row so a long name wraps beside it; the negative margins keep it in the card's corner */
 .house-chat__remove {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+  grid-row: 1;
+  grid-column: 2;
+  align-self: start;
+  margin: -8px -10px -8px 0;
   min-height: 32px;
   padding: 0 8px;
   border-color: transparent;
@@ -2704,9 +2715,16 @@ a.move-card:focus-visible {
 .night-edit label {
   display: grid;
   flex: 1 1 200px;
+  min-width: 0;
   gap: 6px;
   font-size: 0.85rem;
   color: var(--ink-2);
+}
+
+/* a date-time field at 16px is wider than a narrow phone's card, so let it shrink to the column */
+.night-host label > :is(input, select),
+.night-edit label > :is(input, select) {
+  min-width: 0;
 }
 
 .night-card > button {
@@ -2738,8 +2756,11 @@ a.move-card:focus-visible {
   border-top: 1px dashed var(--rule-2);
 }
 
+/* the padding gives a thumb-sized tap area; the matching negative margin keeps the layout */
 .night-card__manage summary {
   justify-self: start;
+  padding-block: 12px;
+  margin-block: -12px;
   font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 600;

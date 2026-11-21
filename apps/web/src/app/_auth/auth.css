@@ -36,7 +36,10 @@
   --mark-dot: var(--paper-card);
 }
 
+/* the padding gives a thumb-sized tap area; the matching negative margin keeps the layout */
 .auth-masthead__back {
+  padding-block: 12px;
+  margin-block: -12px;
   color: var(--ink-2);
   font-size: 0.9rem;
 }
