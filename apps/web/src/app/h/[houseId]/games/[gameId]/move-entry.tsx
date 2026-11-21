@@ -17,7 +17,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { Piece } from '../../../../_components/piece';
-import { applyOptimisticMove, parseFenPieces } from './board-model';
+import { parseFenPieces } from './board-model';
 import { useBoardSound } from './board-sound';
 import { boardStatus } from './board-status';
 import { ChessBoard, type BoardSlide, type PromotionPiece } from './chess-board';
@@ -27,7 +27,7 @@ import { GameActions } from './game-actions';
 import { GameEnd, type RematchOffer } from './game-end';
 import { endingHeadline } from './game-ending';
 import { moveLabel, replayPositions, STANDARD_START } from './game-review';
-import { legalMoves, proposalOutcome } from './legal-moves';
+import { legalMoves, proposalOutcome, turnState } from './legal-moves';
 import { LiveClocks } from './live/live-clocks';
 import { materialBalance } from './material';
 import {
@@ -58,9 +58,6 @@ type Selection =
 interface StagedMove {
   readonly command: SubmitCommand;
   readonly san: string;
-  /** The board after the staged Move, so its check mark follows the Move. */
-  readonly sideToMove: SideToMove;
-  readonly inCheck: boolean;
 }
 
 const noSelection: Selection = { kind: 'none' };
@@ -129,8 +126,12 @@ export function MoveEntry({
   const commandInFlight = useRef(false);
   const positionVersion = useRef(initial.version);
   const positionPly = useRef(initial.currentPly);
-  const [canonicalPieces, setCanonicalPieces] = useState(() => parseFenPieces(initial.currentFen));
-  const [shownPieces, setShownPieces] = useState(canonicalPieces);
+  const [canonicalFen, setCanonicalFen] = useState(initial.currentFen);
+  const canonicalPieces = useMemo(() => parseFenPieces(canonicalFen), [canonicalFen]);
+  // The board draws one position, so its pieces and its check mark always agree.
+  const [shownFen, setShownFen] = useState(initial.currentFen);
+  const shownPieces = useMemo(() => parseFenPieces(shownFen), [shownFen]);
+  const shownTurn = useMemo(() => turnState(shownFen), [shownFen]);
   const [selection, setSelection] = useState<Selection>(noSelection);
   const [staged, setStaged] = useState<StagedMove | null>(null);
   const stagedRef = useRef<StagedMove | null>(null);
@@ -252,15 +253,10 @@ export function MoveEntry({
       void sendMove(command);
       return;
     }
-    const next: StagedMove = {
-      command,
-      san,
-      sideToMove: position.sideToMove === 'white' ? 'black' : 'white',
-      inCheck: outcome?.inCheck ?? false,
-    };
+    const next = { command, san };
     stagedRef.current = next;
     setStaged(next);
-    setShownPieces(applyOptimisticMove(canonicalPieces, proposal));
+    setShownFen(outcome?.fen ?? canonicalFen);
     setMessage(`You played ${san}. It sends in five seconds unless you press Undo.`);
   }
 
@@ -271,7 +267,7 @@ export function MoveEntry({
     setStaged(null);
     ownSlidePly.current = null;
     setSlide(null);
-    setShownPieces(canonicalPieces);
+    setShownFen(canonicalFen);
     setMessage(`${current.san} taken back. Your move.`);
   }
 
@@ -331,7 +327,6 @@ export function MoveEntry({
           }
           if (controller.signal.aborted) return null;
           if (refreshed.version < positionVersion.current) throw new Error('Stale Game snapshot');
-          const pieces = parseFenPieces(refreshed.currentFen);
           if (!background || refreshed.version !== positionVersion.current) {
             setSelection(noSelection);
             setRetry(null);
@@ -353,8 +348,8 @@ export function MoveEntry({
           positionVersion.current = refreshed.version;
           positionPly.current = refreshed.currentPly;
           setPosition(refreshed);
-          setCanonicalPieces(pieces);
-          setShownPieces(pieces);
+          setCanonicalFen(refreshed.currentFen);
+          setShownFen(refreshed.currentFen);
           setCanonicalFresh(true);
           setAlert((current) =>
             current === 'The Move was saved, but the full Game could not be refreshed.' ||
@@ -509,7 +504,7 @@ export function MoveEntry({
     setPending(true);
     setAlert('');
     setRetry(null);
-    setShownPieces(applyOptimisticMove(canonicalPieces, command.proposal));
+    setShownFen(proposalOutcome(canonicalFen, command.proposal)?.fen ?? canonicalFen);
     setMessage(`Sending ${command.proposal.from} to ${command.proposal.to}.`);
     try {
       const response = await fetch(
@@ -529,9 +524,8 @@ export function MoveEntry({
       const accepted = response.ok ? acceptedMove(body) : null;
       if (accepted !== null) {
         positionVersion.current = accepted.version;
-        const pieces = parseFenPieces(accepted.fenAfter);
-        setCanonicalPieces(pieces);
-        setShownPieces(pieces);
+        setCanonicalFen(accepted.fenAfter);
+        setShownFen(accepted.fenAfter);
         setPosition((current) =>
           live
             ? current
@@ -564,7 +558,7 @@ export function MoveEntry({
       }
 
       if (response.ok && flagFall(body)) {
-        setShownPieces(canonicalPieces);
+        setShownFen(canonicalFen);
         clearSelection();
         setCanonicalFresh(false);
         const refreshed = await refreshCanonicalPosition();
@@ -580,12 +574,11 @@ export function MoveEntry({
         ownSlidePly.current = null;
         const conflict = conflictPosition(body);
         if (conflict !== null) {
-          const pieces = parseFenPieces(conflict.currentFen);
-          setCanonicalPieces(pieces);
-          setShownPieces(pieces);
+          setCanonicalFen(conflict.currentFen);
+          setShownFen(conflict.currentFen);
           setPosition((current) => (live ? current : { ...current, ...conflict }));
         } else {
-          setShownPieces(canonicalPieces);
+          setShownFen(canonicalFen);
         }
         clearSelection();
         setAlert(
@@ -598,7 +591,7 @@ export function MoveEntry({
         return;
       }
 
-      setShownPieces(canonicalPieces);
+      setShownFen(canonicalFen);
       clearSelection();
       ownSlidePly.current = null;
       setAlert(
@@ -607,7 +600,7 @@ export function MoveEntry({
           : "Something went wrong. Your last change wasn't saved — try again.",
       );
     } catch {
-      setShownPieces(canonicalPieces);
+      setShownFen(canonicalFen);
       setRetry(command);
       setAlert("Something went wrong. Your last change wasn't saved — try again.");
     } finally {
@@ -736,7 +729,7 @@ export function MoveEntry({
         <ChessBoard
           pieces={boardPieces}
           orientation={orientation}
-          sideToMove={staged?.sideToMove ?? position.sideToMove}
+          sideToMove={shownTurn.sideToMove}
           active={position.state === 'active'}
           lastMove={
             reviewing
@@ -747,7 +740,7 @@ export function MoveEntry({
                 ? lastMove
                 : `${staged.command.proposal.from}${staged.command.proposal.to}`
           }
-          inCheck={reviewing ? false : (staged?.inCheck ?? position.inCheck)}
+          inCheck={reviewing ? false : shownTurn.inCheck}
           selected={reviewing ? null : selectedFrom}
           targets={reviewing ? noSquares : targets}
           movable={reviewing ? noSquares : movable}

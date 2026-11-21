@@ -1,4 +1,4 @@
-import type { ChessMoveProposal, ChessSquare } from '@between-moves/domain';
+import type { ChessMoveProposal, ChessSquare, SideToMove } from '@between-moves/domain';
 import { Chess, type Move } from 'chess.js';
 
 /** Each piece that can move, mapped to its destinations; `true` marks a destination that promotes. */
@@ -25,16 +25,28 @@ export function legalMoves(fen: string): LegalMoves {
   return byFrom;
 }
 
-/** What a proposal will most likely play, for the Undo window before the server answers. */
+/** Where a proposal will most likely lead, for the board before the server answers. */
 export function proposalOutcome(
   fen: string,
   proposal: ChessMoveProposal,
-): { readonly san: string; readonly inCheck: boolean } | null {
+): { readonly san: string; readonly fen: string } | null {
   try {
-    const game = new Chess(fen, { skipValidation: true });
-    const { san } = game.move(proposal);
-    return { san, inCheck: game.inCheck() };
+    const { san, after } = new Chess(fen, { skipValidation: true }).move(proposal);
+    return { san, fen: after };
   } catch {
     return null;
+  }
+}
+
+/** Who moves next in a position, and whether that side is in check. */
+export function turnState(fen: string): {
+  readonly sideToMove: SideToMove;
+  readonly inCheck: boolean;
+} {
+  const sideToMove = fen.split(' ')[1] === 'b' ? 'black' : 'white';
+  try {
+    return { sideToMove, inCheck: new Chess(fen, { skipValidation: true }).inCheck() };
+  } catch {
+    return { sideToMove, inCheck: false };
   }
 }

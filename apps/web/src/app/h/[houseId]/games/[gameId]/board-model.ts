@@ -1,4 +1,4 @@
-import type { ChessMoveProposal, ChessSquare } from '@between-moves/domain';
+import type { ChessSquare } from '@between-moves/domain';
 
 export type PieceColor = 'white' | 'black';
 export type PieceKind = 'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn';
@@ -58,53 +58,4 @@ export function squareName(chessSquare: ChessSquare, piece?: BoardPiece): string
   return piece === undefined
     ? `${chessSquare}, empty`
     : `${chessSquare}, ${piece.color} ${piece.kind}`;
-}
-
-function promotionKind(promotion: ChessMoveProposal['promotion']): PieceKind | undefined {
-  switch (promotion) {
-    case 'q':
-      return 'queen';
-    case 'r':
-      return 'rook';
-    case 'b':
-      return 'bishop';
-    case 'n':
-      return 'knight';
-    case undefined:
-      return undefined;
-  }
-}
-
-/** Preview only. A response always replaces this with the server's canonical FEN. */
-export function applyOptimisticMove(current: BoardPieces, move: ChessMoveProposal): BoardPieces {
-  const next = { ...current };
-  const moving = current[move.from];
-  if (moving === undefined) return next;
-
-  delete next[move.from];
-  delete next[move.to];
-
-  const fromFile = move.from.charCodeAt(0);
-  const toFile = move.to.charCodeAt(0);
-  const fromRank = Number(move.from[1]);
-  const toRank = Number(move.to[1]);
-
-  if (moving.kind === 'pawn' && fromFile !== toFile && current[move.to] === undefined) {
-    delete next[`${move.to[0]}${fromRank}` as ChessSquare];
-  }
-
-  if (moving.kind === 'king' && Math.abs(fromFile - toFile) === 2) {
-    const kingSide = toFile > fromFile;
-    const rookFrom = `${kingSide ? 'h' : 'a'}${fromRank}` as ChessSquare;
-    const rookTo = `${kingSide ? 'f' : 'd'}${toRank}` as ChessSquare;
-    const rook = current[rookFrom];
-    if (rook !== undefined) {
-      delete next[rookFrom];
-      next[rookTo] = rook;
-    }
-  }
-
-  const promoted = promotionKind(move.promotion);
-  next[move.to] = promoted === undefined ? moving : { ...moving, kind: promoted };
-  return next;
 }
