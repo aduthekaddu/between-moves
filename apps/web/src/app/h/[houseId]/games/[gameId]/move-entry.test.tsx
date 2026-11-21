@@ -246,6 +246,41 @@ describe('live move entry', () => {
     );
   });
 
+  it('shows a live Move with its check and last-move marks while it sends and once accepted', async () => {
+    const live: MoveEntryPosition = { ...initial, currentFen: '4k3/8/8/8/8/8/8/R3K3 w - - 0 1' };
+    fetchMock.mockResolvedValue(json(live));
+    await mount(live);
+    let answer: (response: Response) => void = () => {};
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
+      options?.method === 'POST'
+        ? new Promise<Response>((resolve) => (answer = resolve))
+        : new Promise<Response>(() => {}),
+    );
+    await click('[data-square="a1"]');
+    await click('[data-square="a8"]');
+    const marks = () => ({
+      check: container.querySelector('[data-check]')?.getAttribute('data-square'),
+      lastMove: [...container.querySelectorAll('[data-last-move]')].map((node) =>
+        node.getAttribute('data-square'),
+      ),
+    });
+    expect(marks()).toEqual({ check: 'e8', lastMove: ['a8', 'a1'] });
+
+    await act(async () =>
+      answer(
+        json({
+          ply: 1,
+          uci: 'a1a8',
+          san: 'Ra8+',
+          fenAfter: 'R3k3/8/8/8/8/8/8/4K3 b - - 1 1',
+          sideToMove: 'black',
+          version: 1,
+        }),
+      ),
+    );
+    expect(marks()).toEqual({ check: 'e8', lastMove: ['a8', 'a1'] });
+  });
+
   it('confirms flag fall from the server before ending the game', async () => {
     await mount();
     fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
@@ -429,6 +464,14 @@ describe('correspondence move entry', () => {
     expect(container.querySelector('[data-check]')).toBeNull();
   });
 
+  it('asks for a refresh when the server sends a board it cannot read', async () => {
+    await mount(correspondence);
+    fetchMock.mockResolvedValue(json({ ...correspondence, version: 1, currentFen: 'not a board' }));
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    expect(container.textContent).toContain('Could not sync the Game. Refresh before moving.');
+    expect(square('e2')?.getAttribute('aria-label')).toBe('e2, white pawn');
+  });
+
   it('marks the check a staged Move gives', async () => {
     await mount({ ...correspondence, currentFen: '4k3/8/8/8/8/8/8/R3K3 w - - 0 1' });
     await click('[data-square="a1"]');
@@ -532,6 +575,9 @@ describe('reviewing a Game', () => {
     expect(square('e5')?.getAttribute('aria-label')).toBe('e5, empty');
     expect(square('e4')?.getAttribute('aria-label')).toBe('e4, white pawn');
     expect(container.textContent).toContain('After 1. e4');
+    expect(container.querySelector('[role="grid"]')?.getAttribute('aria-label')).toBe(
+      'Chessboard. black to move. Last move e2e4.',
+    );
     expect(container.querySelector('[data-movable]')).toBeNull();
 
     await act(async () => buttonNamed('Back to the game').click());
