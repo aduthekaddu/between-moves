@@ -1,0 +1,33 @@
+apps/web/src/app/h/[houseId]/games/[gameId]/legal-moves.test.ts
+  s_6d8786361a6a9a::t_18f985dd4c8893 45-49,61-68
+  s_6d8786361a6a9a::t_6c92f8aec909ad 2-3,41-44,50-60,69
+apps/web/src/app/h/[houseId]/games/[gameId]/move-entry.tsx
+  s_6d8786361a6a9a::t_ecd43680b5f354 129-132
+  s_6d8786361a6a9a::t_18f985dd4c8893 133-134,256,259,270,351-352,507,527-528,561,577-578,581,594,603,732,743
+  s_6d8786361a6a9a::t_487ad88a5acf69 30
+  s_6d8786361a6a9a::t_5f9bf7af5ef599 20
+apps/web/src/app/h/[houseId]/games/[gameId]/legal-moves.ts
+  s_6d8786361a6a9a::t_59c9b7f5286f38 1,28,32,34-35,40-41,46-50
+  s_6d8786361a6a9a::t_18f985dd4c8893 42-45
+  s_6d8786361a6a9a::t_bbe444dc4bb179 51-52
+apps/web/src/app/h/[houseId]/games/[gameId]/board-model.test.ts
+  s_6d8786361a6a9a::t_6c92f8aec909ad 2
+apps/web/src/app/h/[houseId]/games/[gameId]/board-model.ts
+  s_6d8786361a6a9a::t_6c92f8aec909ad 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75f00a04bf254c0849ee970649dc97c98859fba5",
+  "prompts": {},
+  "sessions": {
+    "s_6d8786361a6a9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5db39921-48f9-5376-bbb3-ec734dfec2f6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
