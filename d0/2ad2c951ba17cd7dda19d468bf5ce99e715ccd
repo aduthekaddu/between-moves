@@ -1,0 +1,21 @@
+apps/web/src/app/globals.css
+  s_7798ed40c49834::t_9f0414d8a080f4 2759,2762-2763
+apps/web/src/app/_auth/auth.css
+  s_7798ed40c49834::t_a0ee0071dff631 39,41-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d02ad2c951ba17cd7dda19d468bf5ce99e715ccd",
+  "prompts": {},
+  "sessions": {
+    "s_7798ed40c49834": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a623b61b-ace4-5b8d-819f-f0a367c91824",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
