@@ -1,0 +1,24 @@
+apps/web/src/server/nudge-delivery.integration.test.ts
+  s_6d8786361a6a9a::t_e95db440dfcece 153-155
+  s_6d8786361a6a9a::t_929c107da35539 149-152,156-209
+apps/web/src/app/h/[houseId]/games/[gameId]/move-entry.test.tsx
+  s_6d8786361a6a9a::t_3793734b11b4d2 389-484
+  s_6d8786361a6a9a::t_dc824a08f854a9 8-33
+  s_6d8786361a6a9a::t_d8845214ad460c 87-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e248b8ddd86fa3648ea149c09fb7f4c426d34089",
+  "prompts": {},
+  "sessions": {
+    "s_6d8786361a6a9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5db39921-48f9-5376-bbb3-ec734dfec2f6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
