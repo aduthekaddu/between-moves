@@ -464,6 +464,17 @@ describe('correspondence move entry', () => {
     expect(container.querySelector('[data-check]')).toBeNull();
   });
 
+  it('keeps a staged Move on the board when an earlier refresh lands', async () => {
+    await mount(correspondence);
+    let land: (response: Response) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise<Response>((resolve) => (land = resolve)));
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    await proposeMove();
+    await act(async () => land(json(correspondence)));
+    expect(square('e4')?.getAttribute('aria-label')).toBe('e4, white pawn');
+    expect(container.textContent).toContain('You played e4');
+  });
+
   it('asks for a refresh when the server sends a board it cannot read', async () => {
     await mount(correspondence);
     fetchMock.mockResolvedValue(json({ ...correspondence, version: 1, currentFen: 'not a board' }));
