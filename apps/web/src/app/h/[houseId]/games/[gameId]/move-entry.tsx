@@ -4,6 +4,7 @@ import {
   isGameRealtimeTopic,
   type ChessMoveProposal,
   type ChessSquare,
+  type GamePositionMove,
   type SideToMove,
 } from '@between-moves/domain';
 import { useRouter } from 'next/navigation';
@@ -17,7 +18,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { Piece } from '../../../../_components/piece';
-import { parseFenPieces } from './board-model';
+import { parseFenPieces, type BoardPieces } from './board-model';
 import { useBoardSound } from './board-sound';
 import { boardStatus } from './board-status';
 import { ChessBoard, type BoardSlide, type PromotionPiece } from './chess-board';
@@ -58,6 +59,31 @@ type Selection =
 interface StagedMove {
   readonly command: SubmitCommand;
   readonly san: string;
+}
+
+/** One position as the board draws it, so its pieces and marks always agree. */
+interface BoardView {
+  readonly fen: string;
+  readonly pieces: BoardPieces;
+  readonly sideToMove: SideToMove;
+  readonly inCheck: boolean;
+  /** The Move that led here, as its from and to squares. */
+  readonly lastMove: string | null;
+}
+
+/** Throws on a FEN it cannot read, so callers parse server boards inside their error handling. */
+function boardView(fen: string, lastMove: string | null): BoardView {
+  return { fen, pieces: parseFenPieces(fen), ...turnState(fen), lastMove };
+}
+
+function lastPlayed(moves: readonly GamePositionMove[]): string | null {
+  return moves.at(-1)?.uci.slice(0, 4) ?? null;
+}
+
+/** Where a pending Move most likely leads, until the server answers. */
+function pendingBoard(base: BoardView, proposal: ChessMoveProposal): BoardView {
+  const outcome = proposalOutcome(base.fen, proposal);
+  return outcome === null ? base : boardView(outcome.fen, `${proposal.from}${proposal.to}`);
 }
 
 const noSelection: Selection = { kind: 'none' };
@@ -126,12 +152,10 @@ export function MoveEntry({
   const commandInFlight = useRef(false);
   const positionVersion = useRef(initial.version);
   const positionPly = useRef(initial.currentPly);
-  const [canonicalFen, setCanonicalFen] = useState(initial.currentFen);
-  const canonicalPieces = useMemo(() => parseFenPieces(canonicalFen), [canonicalFen]);
-  // The board draws one position, so its pieces and its check mark always agree.
-  const [shownFen, setShownFen] = useState(initial.currentFen);
-  const shownPieces = useMemo(() => parseFenPieces(shownFen), [shownFen]);
-  const shownTurn = useMemo(() => turnState(shownFen), [shownFen]);
+  const [canonical, setCanonical] = useState(() =>
+    boardView(initial.currentFen, lastPlayed(initial.moves)),
+  );
+  const [shown, setShown] = useState(canonical);
   const [selection, setSelection] = useState<Selection>(noSelection);
   const [staged, setStaged] = useState<StagedMove | null>(null);
   const stagedRef = useRef<StagedMove | null>(null);
@@ -157,18 +181,17 @@ export function MoveEntry({
     position.viewerColor === position.sideToMove &&
     staged === null &&
     !offline;
-  const lastMove = position.moves.at(-1)?.uci.slice(0, 4) ?? null;
   const legal = useMemo(() => legalMoves(position.currentFen), [position.currentFen]);
   const movable = useMemo<ReadonlySet<ChessSquare>>(
     () =>
       canMove && !pending
         ? new Set(
             [...legal.keys()].filter(
-              (square) => canonicalPieces[square]?.color === position.viewerColor,
+              (square) => canonical.pieces[square]?.color === position.viewerColor,
             ),
           )
         : noSquares,
-    [canMove, canonicalPieces, legal, pending, position.viewerColor],
+    [canMove, canonical.pieces, legal, pending, position.viewerColor],
   );
   const selectedFrom = selection.kind === 'none' ? null : selection.from;
   const targets = useMemo<ReadonlySet<ChessSquare>>(
@@ -220,7 +243,7 @@ export function MoveEntry({
     }
     clearSelection();
     setMessage(
-      canonicalPieces[square]?.color === position.viewerColor
+      canonical.pieces[square]?.color === position.viewerColor
         ? `The piece on ${square} has no legal move.`
         : 'Choose one of your pieces.',
     );
@@ -256,7 +279,7 @@ export function MoveEntry({
     const next = { command, san };
     stagedRef.current = next;
     setStaged(next);
-    setShownFen(outcome?.fen ?? canonicalFen);
+    setShown(pendingBoard(canonical, proposal));
     setMessage(`You played ${san}. It sends in five seconds unless you press Undo.`);
   }
 
@@ -267,7 +290,7 @@ export function MoveEntry({
     setStaged(null);
     ownSlidePly.current = null;
     setSlide(null);
-    setShownFen(canonicalFen);
+    setShown(canonical);
     setMessage(`${current.san} taken back. Your move.`);
   }
 
@@ -327,6 +350,7 @@ export function MoveEntry({
           }
           if (controller.signal.aborted) return null;
           if (refreshed.version < positionVersion.current) throw new Error('Stale Game snapshot');
+          const board = boardView(refreshed.currentFen, lastPlayed(refreshed.moves));
           if (!background || refreshed.version !== positionVersion.current) {
             setSelection(noSelection);
             setRetry(null);
@@ -348,8 +372,8 @@ export function MoveEntry({
           positionVersion.current = refreshed.version;
           positionPly.current = refreshed.currentPly;
           setPosition(refreshed);
-          setCanonicalFen(refreshed.currentFen);
-          setShownFen(refreshed.currentFen);
+          setCanonical(board);
+          setShown(board);
           setCanonicalFresh(true);
           setAlert((current) =>
             current === 'The Move was saved, but the full Game could not be refreshed.' ||
@@ -504,7 +528,7 @@ export function MoveEntry({
     setPending(true);
     setAlert('');
     setRetry(null);
-    setShownFen(proposalOutcome(canonicalFen, command.proposal)?.fen ?? canonicalFen);
+    setShown(pendingBoard(canonical, command.proposal));
     setMessage(`Sending ${command.proposal.from} to ${command.proposal.to}.`);
     try {
       const response = await fetch(
@@ -524,8 +548,9 @@ export function MoveEntry({
       const accepted = response.ok ? acceptedMove(body) : null;
       if (accepted !== null) {
         positionVersion.current = accepted.version;
-        setCanonicalFen(accepted.fenAfter);
-        setShownFen(accepted.fenAfter);
+        const board = boardView(accepted.fenAfter, accepted.uci.slice(0, 4));
+        setCanonical(board);
+        setShown(board);
         setPosition((current) =>
           live
             ? current
@@ -558,7 +583,7 @@ export function MoveEntry({
       }
 
       if (response.ok && flagFall(body)) {
-        setShownFen(canonicalFen);
+        setShown(canonical);
         clearSelection();
         setCanonicalFresh(false);
         const refreshed = await refreshCanonicalPosition();
@@ -574,11 +599,12 @@ export function MoveEntry({
         ownSlidePly.current = null;
         const conflict = conflictPosition(body);
         if (conflict !== null) {
-          setCanonicalFen(conflict.currentFen);
-          setShownFen(conflict.currentFen);
+          const board = boardView(conflict.currentFen, null);
+          setCanonical(board);
+          setShown(board);
           setPosition((current) => (live ? current : { ...current, ...conflict }));
         } else {
-          setShownFen(canonicalFen);
+          setShown(canonical);
         }
         clearSelection();
         setAlert(
@@ -591,7 +617,7 @@ export function MoveEntry({
         return;
       }
 
-      setShownFen(canonicalFen);
+      setShown(canonical);
       clearSelection();
       ownSlidePly.current = null;
       setAlert(
@@ -600,7 +626,7 @@ export function MoveEntry({
           : "Something went wrong. Your last change wasn't saved — try again.",
       );
     } catch {
-      setShownFen(canonicalFen);
+      setShown(canonical);
       setRetry(command);
       setAlert("Something went wrong. Your last change wasn't saved — try again.");
     } finally {
@@ -612,12 +638,15 @@ export function MoveEntry({
   const orientation = position.viewerColor ?? 'white';
   const flipped: SideToMove = orientation === 'white' ? 'black' : 'white';
   const reviewing = reviewPly !== null && positions !== null && reviewPly < position.moves.length;
-  const boardPieces = reviewing
-    ? parseFenPieces(
-        reviewPly === 0 ? STANDARD_START : (positions[reviewPly - 1] ?? STANDARD_START),
-      )
-    : shownPieces;
-  const balance = materialBalance(boardPieces);
+  const board = reviewing
+    ? reviewPly === 0
+      ? boardView(STANDARD_START, null)
+      : boardView(
+          positions[reviewPly - 1] ?? STANDARD_START,
+          position.moves[reviewPly - 1]?.uci.slice(0, 4) ?? null,
+        )
+    : shown;
+  const balance = materialBalance(board.pieces);
   const status = boardStatus({
     position,
     fresh: canonicalFresh,
@@ -727,20 +756,12 @@ export function MoveEntry({
           </div>
         ) : null}
         <ChessBoard
-          pieces={boardPieces}
+          pieces={board.pieces}
           orientation={orientation}
-          sideToMove={shownTurn.sideToMove}
+          sideToMove={board.sideToMove}
           active={position.state === 'active'}
-          lastMove={
-            reviewing
-              ? reviewPly === 0
-                ? null
-                : (position.moves[reviewPly - 1]?.uci.slice(0, 4) ?? null)
-              : staged === null
-                ? lastMove
-                : `${staged.command.proposal.from}${staged.command.proposal.to}`
-          }
-          inCheck={reviewing ? false : shownTurn.inCheck}
+          lastMove={board.lastMove}
+          inCheck={board.inCheck}
           selected={reviewing ? null : selectedFrom}
           targets={reviewing ? noSquares : targets}
           movable={reviewing ? noSquares : movable}
