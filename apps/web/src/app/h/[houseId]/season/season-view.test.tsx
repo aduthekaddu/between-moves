@@ -52,6 +52,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         season={activeSeason}
       />,
@@ -64,10 +65,64 @@ describe('SeasonView', () => {
     expect(html).toContain('Friday');
   });
 
+  it('[BM-034] shows the running table with shared ranks and the viewer marked', () => {
+    const row = (membershipId: string, displayName: string, points: number, rank: number) => ({
+      membershipId,
+      displayName,
+      points,
+      rank,
+      isViewer: displayName === 'Nia',
+    });
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
+        membershipRole="member"
+        season={activeSeason}
+        standings={[row('m1', 'Max', 4, 1), row('m2', 'Olivia', 4, 1), row('m3', 'Nia', 3, 3)]}
+      />,
+    );
+
+    expect(html).toContain('<h2 id="season-live-title">Standings</h2>');
+    expect(html.match(/aria-label="Rank 1"/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="Rank 3"');
+    expect(html).toMatch(
+      /data-viewer="true"><span[^>]*>3<\/span><span class="season-final__name">Nia<span class="season-final__you">You<\/span>/,
+    );
+    expect(html.indexOf('Standings')).toBeLessThan(html.indexOf('Scheduled Between Moves Nights'));
+  });
+
+  it('[BM-034] says nobody has scored before the first points land', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
+        membershipRole="member"
+        season={activeSeason}
+      />,
+    );
+
+    expect(html).toContain('No points yet. Finish a game to get on the table.');
+  });
+
+  it('[BM-034] leaves a closing Season to its frozen standings', () => {
+    const html = renderToStaticMarkup(
+      <SeasonView
+        houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
+        membershipRole="member"
+        season={{ ...activeSeason, state: 'closing' }}
+      />,
+    );
+
+    expect(html).not.toContain('season-live');
+  });
+
   it('[BM-019] [UX-CMP-09] gives an Owner labeled Charter fields and a read-only points recipe', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         season={null}
       />,
@@ -78,9 +133,10 @@ describe('SeasonView', () => {
     expect(html).toContain('Correspondence pace');
     expect(html).toContain('Season starts');
     expect(html).toContain('Season ends');
+    expect(html).toContain('2 December 2026');
     expect(html).toContain('Between Moves Night');
-    expect(html).toContain('The MVP points recipe is fixed');
-    expect(html).toContain('Publish Charter');
+    expect(html).toContain('Every House scores the same way.');
+    expect(html).toContain('Open the Season');
     expect(html).not.toContain('name="completedGame"');
   });
 
@@ -88,12 +144,15 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         season={null}
       />,
     );
 
-    expect(html).toContain('Your House is quiet. Publish a Charter to start the season.');
+    expect(html).toContain(
+      'No Season is running yet. When an Owner or Steward opens one, games and points start.',
+    );
     expect(html).not.toContain('<form');
   });
 
@@ -101,6 +160,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         season={{ ...activeSeason, state: 'closing' }}
       />,
@@ -114,6 +174,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         nights={nights}
         season={activeSeason}
@@ -132,6 +193,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         nights={nights}
         season={activeSeason}
@@ -148,6 +210,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         nights={nights}
         hostCandidates={[
@@ -171,6 +234,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         nights={nights}
         season={activeSeason}
@@ -196,6 +260,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         nights={hosted}
         season={activeSeason}
@@ -212,6 +277,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="steward"
         nights={nights}
         season={activeSeason}
@@ -242,6 +308,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         season={activeSeason}
       />,
@@ -256,6 +323,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="steward"
         season={{ ...activeSeason, state: 'closing' }}
       />,
@@ -270,6 +338,7 @@ describe('SeasonView', () => {
       const html = renderToStaticMarkup(
         <SeasonView
           houseId="01941f29-7c00-7000-8000-000000000201"
+          today="2026-11-04"
           membershipRole="member"
           season={{ ...activeSeason, state }}
         />,
@@ -282,6 +351,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         season={null}
         lastClosed={lastClosed}
@@ -290,7 +360,7 @@ describe('SeasonView', () => {
 
     expect(html).toContain('Season closed · Final standings');
     expect(html).toContain('Summer tables');
-    expect(html).toContain('01/08/2026 – 29/08/2026 · closed 30/08/2026');
+    expect(html).toContain('1 Aug 2026 – 29 Aug 2026 · closed 30 Aug 2026');
     expect(html.match(/aria-label="Rank 1"/g)).toHaveLength(2);
     expect(html).toContain('aria-label="Rank 3"');
     expect(html.match(/season-final__row--leader/g)).toHaveLength(2);
@@ -302,6 +372,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         season={null}
         lastClosed={lastClosed}
@@ -318,6 +389,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         season={closing}
         lastClosed={{
@@ -340,6 +412,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         season={{ ...activeSeason, state: 'closing' }}
         lastClosed={lastClosed}
@@ -353,6 +426,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         season={null}
         lastClosed={{ ...lastClosed, standings: [] }}
@@ -367,6 +441,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         season={null}
         lastClosed={lastClosed}
@@ -382,6 +457,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         season={{ ...activeSeason, state: 'draft', startsAt: null, endsAt: null }}
         lastClosed={lastClosed}
@@ -389,7 +465,7 @@ describe('SeasonView', () => {
     );
 
     expectOutlineLedByH1(html);
-    expect(html).toContain('<h1>Publish a Charter</h1>');
+    expect(html).toContain('<h1>Open a Season</h1>');
     expect(html).toContain('<h2 id="season-final-title">Summer tables</h2>');
     expect(html.indexOf('Final standings')).toBeLessThan(html.indexOf('Season title'));
   });
@@ -399,6 +475,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         nights={nights}
         season={closing}
@@ -422,6 +499,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         season={null}
         lastClosed={lastClosed}
@@ -429,12 +507,12 @@ describe('SeasonView', () => {
     );
 
     expectOutlineLedByH1(html);
-    expect(html).toContain('The next Season</p><h1>Publish a Charter</h1>');
+    expect(html).toContain('The next Season</p><h1>Open a Season</h1>');
     expect(html).toContain(
       'Nothing carries over from Summer tables: points, standings and awards start again from zero.',
     );
     expect(html).toContain(
-      '<input id="charter-title" required="" maxLength="80" name="title" value=""/>',
+      '<input id="charter-title" required="" maxLength="80" name="title" value="November Season"/>',
     );
     expect(html).toContain('Season closed · Final standings');
   });
@@ -443,6 +521,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="steward"
         season={null}
       />,
@@ -457,6 +536,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         season={null}
         lastClosed={lastClosed}
@@ -464,9 +544,9 @@ describe('SeasonView', () => {
     );
 
     expect(html).toContain(
-      'Summer tables is closed. When an Owner or Steward publishes the next Charter, a new Season starts from zero.',
+      'Summer tables is closed. When an Owner or Steward opens the next Season, points start again from zero.',
     );
-    expect(html).not.toContain('Your House is quiet.');
+    expect(html).not.toContain('No Season is running yet.');
   });
 
   it.each(['owner', 'member'] as const)(
@@ -475,6 +555,7 @@ describe('SeasonView', () => {
       const html = renderToStaticMarkup(
         <SeasonView
           houseId="01941f29-7c00-7000-8000-000000000201"
+          today="2026-11-04"
           membershipRole={membershipRole}
           nights={nights}
           season={activeSeason}
@@ -495,6 +576,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="member"
         season={activeSeason}
       />,
@@ -508,6 +590,7 @@ describe('SeasonView', () => {
     const html = renderToStaticMarkup(
       <SeasonView
         houseId="01941f29-7c00-7000-8000-000000000201"
+        today="2026-11-04"
         membershipRole="owner"
         season={closing}
         lastClosed={{

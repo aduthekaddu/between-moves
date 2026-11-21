@@ -222,10 +222,10 @@ test.describe('BM-049 Season renewal', () => {
       .getByRole('button', { name: 'Close and finalize standings' })
       .click();
     await expect(ownerPage.getByText('Season closed · Final standings')).toBeVisible();
-    await expect(ownerPage.getByRole('heading', { level: 1 })).toHaveText('Publish a Charter');
+    await expect(ownerPage.getByRole('heading', { level: 1 })).toHaveText('Open a Season');
     await expect(ownerPage.getByText('The next Season', { exact: true })).toBeVisible();
     await expect(ownerPage.getByText('Nothing carries over from Autumn tables')).toBeVisible();
-    await expect(ownerPage.getByLabel('Season title')).toHaveValue('');
+    await expect(ownerPage.getByLabel('Season title')).toHaveValue(/^[A-Z][a-z]+ Season$/);
     await runClosingBookWorker();
 
     // Non-owner view: a Member reads the book from the final standings.
@@ -234,7 +234,7 @@ test.describe('BM-049 Season renewal', () => {
     await memberPage.goto(season);
     await expect(
       memberPage.getByText(
-        'Autumn tables is closed. When an Owner or Steward publishes the next Charter, a new Season starts from zero.',
+        'Autumn tables is closed. When an Owner or Steward opens the next Season, points start again from zero.',
       ),
     ).toBeVisible();
     await memberPage.getByRole('link', { name: 'Read the Closing Book' }).click();
@@ -243,7 +243,7 @@ test.describe('BM-049 Season renewal', () => {
     await expect(book.getByText('Finished first with 3 points.')).toBeVisible();
     await expect(book.getByText('Ada beat Bea by checkmate')).toBeVisible();
     const memberNext = memberPage.getByRole('region', { name: 'The table is open.' });
-    await expect(memberNext).toContainText('When an Owner or Steward publishes the next Charter');
+    await expect(memberNext).toContainText('When an Owner or Steward opens the next Season');
     await expect(memberNext.getByRole('link')).toHaveCount(0);
     await expectAccessible(memberPage);
 
@@ -256,15 +256,13 @@ test.describe('BM-049 Season renewal', () => {
     await expect(ownerPage).toHaveURL(season);
     await ownerPage.getByLabel('Season title').fill('Winter tables');
     await ownerPage.getByLabel('Season starts').fill(dateInput(7));
-    await ownerPage.getByLabel('Season ends').fill(dateInput(35));
     await ownerPage.getByLabel('Correspondence pace').fill('48');
     await ownerPage.getByLabel('Weekday').selectOption('2');
-    await ownerPage.getByRole('button', { name: 'Publish Charter' }).click();
-    const published = ownerPage.getByRole('status');
-    await expect(published.getByRole('heading', { level: 1 })).toHaveText('Winter tables');
-    await expect(published).toContainText('Charter version 1 is published.');
+    await ownerPage.getByRole('button', { name: 'Open the Season' }).click();
+    await expect(ownerPage.getByRole('heading', { level: 1 })).toHaveText('Winter tables');
+    await expect(ownerPage.getByText('Charter version 1', { exact: true })).toBeVisible();
     await expect(
-      published.getByRole('link', { name: 'Read the Autumn tables Closing Book' }),
+      ownerPage.getByRole('link', { name: 'Read the Autumn tables Closing Book' }),
     ).toBeVisible();
     await expect(ownerPage.getByText('Final standings')).toHaveCount(0);
 

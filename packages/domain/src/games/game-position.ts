@@ -1,7 +1,7 @@
 import type { Viewer } from '../identity';
 import type { AuthorizeHouseAction } from '../houses';
 import type { AuthorizationContext } from '../shared/authorization-context';
-import type { PendingDrawOffer } from './complete';
+import type { GameCompletionReason, PendingDrawOffer } from './complete';
 import type { SideToMove } from './rules-adapter';
 
 export type GamePositionState = 'active' | 'completed';
@@ -10,6 +10,13 @@ export type GamePositionResult = 'white_win' | 'black_win' | 'draw' | 'aborted';
 export interface GamePositionMember {
   readonly membershipId: string;
   readonly name: string;
+}
+
+/** Every finished Game these two Members have played against each other in this House. */
+export interface HeadToHead {
+  readonly whiteWins: number;
+  readonly blackWins: number;
+  readonly draws: number;
 }
 
 export interface GamePositionMove {
@@ -38,12 +45,16 @@ export interface GamePosition {
     readonly turnStartedAt: Date | null;
   };
   readonly result: GamePositionResult | null;
+  /** How a completed Game ended; null while it is still being played. */
+  readonly resultReason: GameCompletionReason | null;
   readonly inCheck: boolean;
   readonly moves: readonly GamePositionMove[];
   /** [BM-028] [DR-DRAW-02] An unanswered draw offer; the next Move withdraws it. */
   readonly pendingDrawOffer: PendingDrawOffer | null;
   /** [BM-028] An offer at the current ply was declined; the next offer waits for another Move. */
   readonly drawOfferDeclined: boolean;
+  /** Wins are counted for this Game's White and Black players, whatever colours they had. */
+  readonly headToHead: HeadToHead;
 }
 
 export interface GamePositionReadRepository {

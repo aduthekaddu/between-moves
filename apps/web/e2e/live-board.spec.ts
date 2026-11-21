@@ -98,10 +98,8 @@ async function openGame(
   const response = await page.goto(`/h/${seeded.first.houseId}/games/${gameId}/live`);
   await hydratedSnapshot;
   expect(response?.status()).toBe(200);
-  await expect(page.getByRole('button', { name: 'Submit Move' })).toBeVisible();
-  await expect(
-    page.getByText('Refreshing the canonical Game before Move entry resumes.'),
-  ).toHaveCount(0);
+  await expect(page.locator('[data-square][data-movable]').first()).toBeVisible();
+  await expect(page.getByText('Refreshing the board', { exact: true })).toHaveCount(0);
 }
 
 async function seedMoveThroughCommand(
@@ -146,12 +144,11 @@ async function submitE4(page: Page) {
   await page.keyboard.press('Enter');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: 'Submit Move' })).toBeFocused();
   await expect(page.getByTestId('white-clock')).toBeInViewport();
   await expect(page.getByTestId('black-clock')).toBeInViewport();
   await page.keyboard.press('Enter');
   await expect(page.getByText(/Move accepted: e4/)).toBeAttached();
+  await expect(page.getByRole('button', { name: 'Undo' })).toHaveCount(0);
 }
 
 test.use({ video: 'on' });
@@ -227,7 +224,7 @@ test.describe('[BM-042] live board', () => {
     expect((await tokenResponse).status()).toBe(200);
     expect((await streamResponse).status()).toBe(200);
     await expect(page.getByText("Only seated players can move. You're spectating.")).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Submit Move' })).toHaveCount(0);
+    await expect(page.locator('[data-movable]')).toHaveCount(0);
     await expect(page.locator('[role="gridcell"][aria-disabled="true"]')).toHaveCount(64);
     await page.screenshot({
       path: testInfo.outputPath('spectator-before-move.png'),
@@ -261,7 +258,7 @@ test.describe('[BM-042] live board', () => {
       'e4, white pawn',
       { timeout: 7000 },
     );
-    await expect(page.getByRole('button', { name: 'Submit Move' })).toHaveCount(0);
+    await expect(page.locator('[data-movable]')).toHaveCount(0);
     await page.screenshot({
       path: testInfo.outputPath('spectator-after-move.png'),
       fullPage: true,
@@ -355,10 +352,9 @@ test.describe('[BM-042] live board', () => {
         ),
       )
       .toBeLessThanOrEqual(1);
+    await expect(page.getByTestId('black-clock')).toBeInViewport();
     await page.locator('[data-square="e7"]').click();
     await page.locator('[data-square="e5"]').click();
-    await expect(page.getByTestId('black-clock')).toBeInViewport();
-    await page.getByRole('button', { name: 'Submit Move' }).click();
     await expect(page.getByText(/Move accepted: e5/)).toBeAttached();
     await expect(page.getByTestId('turn-status')).toHaveText('White to move');
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -478,7 +474,7 @@ test.describe('[BM-042] live board', () => {
     await page.setViewportSize({ width: 767, height: 900 });
     await expect(page.getByText(/Live play needs a screen/)).toBeVisible();
     await expect(page.locator('[role="gridcell"][aria-disabled="true"]')).toHaveCount(64);
-    await expect(page.getByRole('button', { name: 'Submit Move' })).toHaveCount(0);
+    await expect(page.locator('[data-movable]')).toHaveCount(0);
     await page.setViewportSize({ width: 768, height: 900 });
     await expect(page.getByText(/Live play needs a screen/)).toHaveCount(0);
     await submitE4(page);
@@ -493,9 +489,8 @@ test.describe('[BM-042] live board', () => {
     await expect(page.getByTestId('turn-status')).toHaveText('White to move');
     await page.locator('[data-square="e2"]').click();
     await page.locator('[data-square="e4"]').click();
-    await page.getByRole('button', { name: 'Submit Move' }).click();
     await expect(page.getByTestId('turn-status')).toHaveText('Game complete');
-    await expect(page.getByText('Bea won', { exact: true })).toBeVisible();
+    await expect(page.getByText('You ran out of time. Bea won', { exact: true })).toBeVisible();
     await expect(page.getByTestId('white-clock')).toHaveText('0:00');
     await expect(page.locator('.live-clock[data-running="true"]')).toHaveCount(0);
     await expectNoBlockingAxeViolations(page);

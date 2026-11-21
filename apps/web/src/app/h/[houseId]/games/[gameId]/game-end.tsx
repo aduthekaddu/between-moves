@@ -1,0 +1,127 @@
+'use client';
+
+import type { GamePositionMove, SideToMove } from '@between-moves/domain';
+import { useRef, useState } from 'react';
+import {
+  newIdempotencyKey,
+  postHouseCommand,
+  problemDetail,
+} from '../../../../_components/house-command';
+import { AcceptSeatButton } from '../../accept-seat-button';
+import { shareResult } from './share-result';
+
+export interface RematchOffer {
+  /** The waiting Game the opponent opened for the viewer. */
+  readonly gameId: string;
+}
+
+/** What a finished Game can lead to: the next Game against the same person. */
+export function GameEnd({
+  houseId,
+  player,
+  perMoveHours,
+  incomingRematch,
+  share,
+}: {
+  readonly houseId: string;
+  /** The viewer's colour and opponent; null for a spectator, who can share but not rematch. */
+  readonly player: {
+    readonly color: SideToMove;
+    readonly opponent: { readonly name: string; readonly membershipId?: string | undefined };
+  } | null;
+  /** The active Season's pace, or null when no Season is open for a new Game. */
+  readonly perMoveHours: number | null;
+  readonly incomingRematch: RematchOffer | null;
+  /** The finished Game as others should read it, for the share sheet or the clipboard. */
+  readonly share?: { readonly headline: string; readonly moves: readonly GamePositionMove[] };
+}) {
+  const idempotencyKey = useRef(newIdempotencyKey());
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const house = `/h/${encodeURIComponent(houseId)}`;
+
+  async function shareGame() {
+    if (share === undefined) return;
+    const text = shareResult({
+      ...share,
+      url: new URL(window.location.pathname, window.location.origin).toString(),
+    });
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (failure) {
+        if (failure instanceof DOMException && failure.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setError('Sharing is not available here.');
+    }
+  }
+
+  async function sendRematch() {
+    if (state !== 'idle' || player === null || perMoveHours === null) return;
+    setState('sending');
+    setError('');
+    const outcome = await postHouseCommand(`/api/houses/${encodeURIComponent(houseId)}/games`, {
+      idempotencyKey: idempotencyKey.current,
+      body: {
+        mode: 'correspondence',
+        clockPolicy: { kind: 'correspondence', perMoveHours },
+        // The seat's colour is the one the taker plays: the opponent gets the viewer's old colour.
+        offeredColor: player.color,
+        intendedMembershipId: player.opponent.membershipId,
+      },
+    });
+    if (outcome.ok) {
+      setState('sent');
+      return;
+    }
+    setState('idle');
+    if (outcome.status !== 0) idempotencyKey.current = newIdempotencyKey();
+    setError(problemDetail(outcome.body) ?? 'The rematch could not be sent. Try again.');
+  }
+
+  const canChallenge =
+    player !== null && perMoveHours !== null && player.opponent.membershipId !== undefined;
+  return (
+    <div className="game-end">
+      {player !== null && incomingRematch !== null ? (
+        <AcceptSeatButton
+          houseId={houseId}
+          gameId={incomingRematch.gameId}
+          mode="correspondence"
+          label={`Accept ${player.opponent.name}’s rematch`}
+        />
+      ) : canChallenge ? (
+        state === 'sent' ? (
+          <p className="game-end__sent" role="status">
+            Rematch sent. {player.opponent.name} will see it on the House page.
+          </p>
+        ) : (
+          <button
+            type="button"
+            className="game-end__rematch"
+            disabled={state === 'sending'}
+            onClick={() => void sendRematch()}
+          >
+            {state === 'sending' ? 'Sending…' : `Rematch ${player.opponent.name}`}
+          </button>
+        )
+      ) : null}
+      {share === undefined ? null : (
+        <button type="button" className="game-end__share" onClick={() => void shareGame()}>
+          {copied ? 'Copied' : 'Share result'}
+        </button>
+      )}
+      {error === '' ? null : <p role="alert">{error}</p>}
+      <a className="game-end__home" href={house}>
+        Back to the House
+      </a>
+    </div>
+  );
+}

@@ -1,8 +1,21 @@
-import type { HouseHome, MembershipRole, MoveShelf, OpenSeatListing } from '@between-moves/domain';
+import type {
+  HouseHome,
+  HouseRoster,
+  HouseSeasonView,
+  MembershipRole,
+  MoveShelf,
+  OpenSeatListing,
+} from '@between-moves/domain';
+import type { StandingRow } from '../../../modules/seasons/standing-rows';
 import { AppMasthead } from '../../_components/app-masthead';
 import { HouseEmblem } from '../../_components/house-emblem';
+import { houseGuide, welcomeLines } from './house-guide';
+import { HouseSetup } from './house-setup';
+import { HouseWelcome } from './house-welcome';
 import { MoveShelfView } from './move-shelf-view';
 import { OpenSeatsView } from './open-seats-view';
+import { seasonOpeningFor } from './season/season-opening';
+import { SeasonTableCard } from './season-table-card';
 
 function roleLabel(role: MembershipRole): string {
   switch (role) {
@@ -19,6 +32,37 @@ function roleLabel(role: MembershipRole): string {
   }
 }
 
+/**
+ * A challenge already waiting comes first, so the newcomer answers it instead of opening a
+ * second Game. Otherwise a lone other Member gets challenged by name.
+ */
+function welcomeAction(
+  roster: HouseRoster,
+  openSeats: readonly OpenSeatListing[],
+  base: string,
+): { label: string; href: string } {
+  const waiting = openSeats.find((seat) => seat.viewerMayAccept);
+  if (waiting !== undefined) {
+    return {
+      label:
+        waiting.intended === null
+          ? `Take ${waiting.creator.name}’s open seat`
+          : `Answer ${waiting.creator.name}’s challenge`,
+      href: '#open-seats',
+    };
+  }
+  const others = roster.members.filter(
+    (member) => member.membershipId !== roster.viewerMembershipId,
+  );
+  const only = others.length === 1 ? others[0] : undefined;
+  return only === undefined
+    ? { label: 'Start a game', href: `${base}/games/new` }
+    : {
+        label: `Challenge ${only.displayName}`,
+        href: `${base}/games/new?opponent=${encodeURIComponent(only.membershipId)}`,
+      };
+}
+
 /** [BM-013] [UX-IA-01] Member-visible, narrow-first House home shell. */
 export function HouseHomeView({
   home,
@@ -26,14 +70,28 @@ export function HouseHomeView({
   viewedAt,
   openSeats = [],
   liveNightId = null,
+  roster,
+  season,
+  standings,
+  welcomeDismissed,
+  today,
 }: {
   readonly home: HouseHome;
   readonly shelf: MoveShelf;
   readonly viewedAt: Date;
   readonly openSeats?: readonly OpenSeatListing[];
   readonly liveNightId?: string | null;
+  readonly roster: HouseRoster;
+  readonly season: HouseSeasonView | null;
+  /** The active Season's ranked table; ignored when no Season is active. */
+  readonly standings: readonly StandingRow[];
+  readonly welcomeDismissed: boolean;
+  /** The House's calendar date, which a one-press Season starts on. */
+  readonly today: string;
 }) {
   const base = `/h/${encodeURIComponent(home.houseId)}`;
+  const guide = houseGuide({ roster, season, shelf, openSeats, welcomeDismissed });
+  const opening = seasonOpeningFor(season?.state === 'draft' ? season : null, today);
   return (
     <div className="house-shell">
       <AppMasthead houseId={home.houseId} houseName={home.name} current="shelf" />
@@ -74,47 +132,74 @@ export function HouseHomeView({
 
         <div className="house-home__grid">
           <div className="house-home__main">
+            {guide.kind === 'setup' ? (
+              <HouseSetup
+                houseId={home.houseId}
+                houseName={home.name}
+                steps={guide.steps}
+                opening={opening.initial}
+                progress={opening.progress}
+              />
+            ) : guide.kind === 'welcome' ? (
+              <HouseWelcome
+                houseId={home.houseId}
+                houseName={home.name}
+                lines={welcomeLines(season)}
+                action={welcomeAction(roster, openSeats, base)}
+              />
+            ) : null}
             <OpenSeatsView houseId={home.houseId} seats={openSeats} viewedAt={viewedAt} />
             <MoveShelfView houseId={home.houseId} shelf={shelf} viewedAt={viewedAt} />
           </div>
 
-          <aside className="house-status" aria-labelledby="house-status-title">
-            <p className="house-home__eyebrow">House status</p>
-            <h2 id="house-status-title" className="house-status__title">
-              The table is set.
-            </h2>
-            <p className="house-status__copy">
-              This is the shared front door for your House. It stays private to active Members.
-            </p>
-            <dl className="house-details">
-              <div>
-                <dt>Your place</dt>
-                <dd>{roleLabel(home.membershipRole)}</dd>
-              </div>
-              <div>
-                <dt>House time</dt>
-                <dd>{home.timeZone}</dd>
-              </div>
-            </dl>
-            <a className="house-status__action" href={`${base}/games/new`}>
-              Start a game
-            </a>
-            <a className="house-status__action house-status__action--quiet" href={`${base}/season`}>
-              Open the Season table
-            </a>
-            <a
-              className="house-status__action house-status__action--quiet"
-              href={`${base}/members`}
-            >
-              {home.membershipRole === 'member' ? 'Members' : 'Members and invitations'}
-            </a>
-            <a
-              className="house-status__action house-status__action--quiet"
-              href={`${base}/puzzles`}
-            >
-              House Puzzles
-            </a>
-          </aside>
+          <div className="house-home__side">
+            {season?.state === 'active' ? (
+              <SeasonTableCard houseId={home.houseId} rows={standings} />
+            ) : null}
+            <aside className="house-status" aria-labelledby="house-status-title">
+              <h2 id="house-status-title" className="house-status__title">
+                Around the House
+              </h2>
+              <dl className="house-details">
+                <div>
+                  <dt>Your place</dt>
+                  <dd>{roleLabel(home.membershipRole)}</dd>
+                </div>
+                <div>
+                  <dt>House time</dt>
+                  <dd>{home.timeZone}</dd>
+                </div>
+              </dl>
+              <a
+                className={
+                  guide.kind === 'setup'
+                    ? 'house-status__action house-status__action--quiet'
+                    : 'house-status__action'
+                }
+                href={`${base}/games/new`}
+              >
+                Start a game
+              </a>
+              <a
+                className="house-status__action house-status__action--quiet"
+                href={`${base}/season`}
+              >
+                Open the Season table
+              </a>
+              <a
+                className="house-status__action house-status__action--quiet"
+                href={`${base}/members`}
+              >
+                {home.membershipRole === 'member' ? 'Members' : 'Members and invitations'}
+              </a>
+              <a
+                className="house-status__action house-status__action--quiet"
+                href={`${base}/puzzles`}
+              >
+                House Puzzles
+              </a>
+            </aside>
+          </div>
         </div>
       </main>
     </div>

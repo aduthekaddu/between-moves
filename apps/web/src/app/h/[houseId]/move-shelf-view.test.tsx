@@ -43,6 +43,7 @@ describe('Move Shelf view', () => {
       <MoveShelfView houseId={houseId} shelf={shelf} viewedAt={viewedAt} />,
     );
 
+    expect(html).toContain('<h2 id="move-shelf-title">Your games</h2>');
     expect(html.indexOf('Your move (2)')).toBeLessThan(html.indexOf('Waiting (1)'));
     expect(html.indexOf('Waiting (1)')).toBeLessThan(html.indexOf('Recently completed (1)'));
     expect(html.indexOf('Against Ada')).toBeLessThan(html.indexOf('Against Bea'));
@@ -63,7 +64,7 @@ describe('Move Shelf view', () => {
       />,
     );
 
-    expect(html).toContain('No games yet. Challenge a member or take an open seat.');
+    expect(html).toContain('No games yet.');
     // the only control points at the real seat form (apps/web/src/app/h/[houseId]/games/new)
     expect(html).toContain(`href="/h/${houseId}/games/new"`);
     expect(html.match(/<a /g)).toHaveLength(1);

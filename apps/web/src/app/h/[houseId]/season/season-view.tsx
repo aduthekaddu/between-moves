@@ -6,13 +6,17 @@ import type {
   NightHostCandidate,
   NightRecurrence,
 } from '@between-moves/domain';
+import { seasonDayLabel } from './season-opening';
 import type { ReactNode } from 'react';
 import { CharterAuthoringForm } from './charter-authoring-form';
 import { CloseSeasonPanel } from './close-season-panel';
 import { FinalStandings } from './final-standings';
+import { LiveStandings } from './live-standings';
 import { NightSchedule } from './night-schedule';
 import { PointsRecipe } from './points-recipe';
 import { PreviousSeason } from './previous-season';
+import { seasonOpeningFor } from './season-opening';
+import type { StandingRow } from '../../../../modules/seasons/standing-rows';
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -34,6 +38,7 @@ function ActiveSeason({
   recap,
   previous,
   timeZone,
+  standings,
 }: {
   readonly houseId: string;
   readonly membershipRole: MembershipRole;
@@ -43,6 +48,7 @@ function ActiveSeason({
   readonly recap: ReactNode;
   readonly previous: ReactNode;
   readonly timeZone: string;
+  readonly standings: readonly StandingRow[];
 }) {
   const charter = season.charter;
   if (charter === null || season.startsAt === null || season.endsAt === null) return recap;
@@ -57,8 +63,7 @@ function ActiveSeason({
         <div>
           <dt>Dates</dt>
           <dd>
-            {season.startsAt.toLocaleDateString('en-GB')} –{' '}
-            {season.endsAt.toLocaleDateString('en-GB')}
+            {seasonDayLabel(season.startsAt)} – {seasonDayLabel(season.endsAt)}
           </dd>
         </div>
         <div>
@@ -71,6 +76,7 @@ function ActiveSeason({
         </div>
       </dl>
       {previous}
+      {season.state === 'active' ? <LiveStandings rows={standings} /> : null}
       <PointsRecipe recipe={charter.pointsRecipe} />
       <NightSchedule
         houseId={houseId}
@@ -102,6 +108,8 @@ export function SeasonView({
   season,
   lastClosed = null,
   timeZone = 'UTC',
+  today,
+  standings = [],
 }: {
   readonly houseId: string;
   readonly membershipRole: MembershipRole;
@@ -110,6 +118,10 @@ export function SeasonView({
   readonly season: HouseSeasonView | null;
   readonly lastClosed?: ClosedSeasonView | null;
   readonly timeZone?: string;
+  /** The House's calendar date, from the server so the form hydrates with the same value. */
+  readonly today: string;
+  /** The active Season's ranked table; empty until someone scores. */
+  readonly standings?: readonly StandingRow[];
 }) {
   const recap =
     lastClosed === null ? null : <FinalStandings houseId={houseId} season={lastClosed} />;
@@ -130,6 +142,7 @@ export function SeasonView({
         recap={frozen}
         previous={previous}
         timeZone={timeZone}
+        standings={standings}
       />
     );
   }
@@ -141,8 +154,8 @@ export function SeasonView({
           <h1 id="season-passive-title">The table is waiting.</h1>
           <p>
             {lastClosed === null
-              ? 'Your House is quiet. Publish a Charter to start the season.'
-              : `${lastClosed.title} is closed. When an Owner or Steward publishes the next Charter, a new Season starts from zero.`}
+              ? 'No Season is running yet. When an Owner or Steward opens one, games and points start.'
+              : `${lastClosed.title} is closed. When an Owner or Steward opens the next Season, points start again from zero.`}
           </p>
         </section>
         {recap}
@@ -152,12 +165,7 @@ export function SeasonView({
   return (
     <CharterAuthoringForm
       houseId={houseId}
-      draftSeasonId={season?.seasonId}
-      initialTitle={season?.title}
-      initialPaceHours={season?.charter?.correspondencePaceHours}
-      initialWeekday={season?.charter?.nightRecurrence.weekday}
-      initialLocalTime={season?.charter?.nightRecurrence.localTime}
-      initialCharterVersioned={season?.charter !== null && season?.charter !== undefined}
+      {...seasonOpeningFor(season, today)}
       previousSeasonTitle={lastClosed?.title}
       recap={recap}
     />

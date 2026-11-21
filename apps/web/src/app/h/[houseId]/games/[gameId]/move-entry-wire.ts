@@ -1,4 +1,5 @@
-import type { GamePositionMove, SideToMove } from '@between-moves/domain';
+import type { GameCompletionReason, GamePositionMove, SideToMove } from '@between-moves/domain';
+import { isGameCompletionReason } from './game-ending';
 
 export interface MoveEntryPosition {
   readonly mode?: 'correspondence' | 'live';
@@ -18,6 +19,8 @@ export interface MoveEntryPosition {
   readonly black: { readonly name: string; readonly membershipId?: string };
   readonly moveDueAt: Date | string | null;
   readonly result: 'white_win' | 'black_win' | 'draw' | 'aborted' | null;
+  /** Absent from older snapshots; `null` until the Game ends. */
+  readonly resultReason?: GameCompletionReason | null;
   readonly inCheck: boolean;
   readonly moves: readonly GamePositionMove[];
   /** [BM-028] Absent from older snapshots; `null` when no offer is waiting. */
@@ -171,6 +174,13 @@ export function moveEntryPosition(value: unknown): MoveEntryPosition | null {
     return null;
   }
   if (body.drawOfferDeclined !== undefined && typeof body.drawOfferDeclined !== 'boolean') {
+    return null;
+  }
+  if (
+    body.resultReason !== undefined &&
+    body.resultReason !== null &&
+    !isGameCompletionReason(body.resultReason)
+  ) {
     return null;
   }
   return { ...(body as unknown as MoveEntryPosition), moves: moves as GamePositionMove[] };

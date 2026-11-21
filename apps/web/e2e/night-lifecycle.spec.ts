@@ -132,6 +132,7 @@ test.describe('Night lifecycle', () => {
 
     await page.goto(`/h/${seeded.first.houseId}/season`);
     const firstNight = page.locator('.night-card').nth(0);
+    await firstNight.getByText('Manage Night 1').click();
     await firstNight.getByLabel('Night host for Night 1').selectOption({ label: 'Bea' });
     await firstNight.getByRole('button', { name: 'Assign Night host' }).click();
     await expectNoBlockingAxeViolations(page);

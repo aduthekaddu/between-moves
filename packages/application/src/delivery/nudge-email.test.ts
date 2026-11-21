@@ -29,10 +29,14 @@ function harness(send: NudgeEmailSender['sendNudge'], clock = new FakeClock(even
   const reader: NudgeEmailReader = {
     readForDelivery: vi.fn(async () => ({
       email: 'member@example.test',
+      houseId: '01941f29-7c00-7000-8000-000000000601',
       houseName: 'Knights at Dusk',
       gameId: event.aggregateId,
       ply: 7,
       stage: 'overdue' as const,
+      opponentName: 'Bea',
+      lastMoveSan: 'Nf3',
+      moveDueAt: new Date('2026-09-15T00:00:00.000Z'),
     })),
   };
   const metrics: NudgeMetrics = {

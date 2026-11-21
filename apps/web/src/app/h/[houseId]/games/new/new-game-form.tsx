@@ -49,18 +49,31 @@ export function NewGameForm({
   perMoveHours,
   liveNightId,
   opponents,
+  requestedOpponentId,
+  requestedLive = false,
 }: {
   readonly houseId: string;
   readonly perMoveHours: number;
   readonly liveNightId: string | null;
   readonly opponents: readonly Opponent[];
+  /** From a "Challenge {name}" link; ignored unless it names one of `opponents`. */
+  readonly requestedOpponentId?: string | undefined;
+  /** From the Night's "Start a live game" link; ignored unless a Night is live. */
+  readonly requestedLive?: boolean;
 }) {
   const router = useRouter();
   const id = useId();
-  const [mode, setMode] = useState<Mode>('correspondence');
+  const requested = opponents.some((opponent) => opponent.membershipId === requestedOpponentId)
+    ? requestedOpponentId
+    : undefined;
+  const [mode, setMode] = useState<Mode>(
+    requestedLive && liveNightId !== null ? 'live' : 'correspondence',
+  );
   const [timeControl, setTimeControl] = useState<TimeControlId>('10+5');
-  const [seatKind, setSeatKind] = useState<SeatKind>('open');
-  const [opponentId, setOpponentId] = useState('');
+  const [seatKind, setSeatKind] = useState<SeatKind>(
+    requested === undefined ? 'open' : 'challenge',
+  );
+  const [opponentId, setOpponentId] = useState(requested ?? '');
   const [side, setSide] = useState<Side>('either');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');

@@ -1,7 +1,9 @@
 import type { GameNotesView, GamePosition, GameReactionValue } from '@between-moves/domain';
 import { AppMasthead } from '../../../../_components/app-masthead';
+import type { RematchOffer } from './game-end';
 import { GameNotes } from './game-notes';
 import { MoveEntry } from './move-entry';
+import { rivalryLine } from './rivalry';
 import { ReactionControl } from './reaction-control';
 
 /** House-scoped Game page for both modes with server-anchored live clocks. */
@@ -10,11 +12,16 @@ export function GameView({
   position,
   currentReaction = null,
   gameNotes = null,
+  afterGame,
 }: {
   readonly houseId: string;
   readonly position: GamePosition;
   readonly currentReaction?: GameReactionValue | null;
   readonly gameNotes?: GameNotesView | null;
+  readonly afterGame?: {
+    readonly perMoveHours: number | null;
+    readonly incomingRematch: RematchOffer | null;
+  };
 }) {
   return (
     <div className={position.mode === 'live' ? 'game-shell game-shell--live' : 'game-shell'}>
@@ -40,7 +47,15 @@ export function GameView({
               {position.black.name}
             </span>
           </h1>
-          <p className="game-title__seats">
+          <p className="game-title__rivalry">
+            {rivalryLine({
+              headToHead: position.headToHead,
+              white: position.white.name,
+              black: position.black.name,
+              viewer: position.viewerColor,
+            })}
+          </p>
+          <p className="game-title__seats visually-hidden">
             {position.white.name} plays White. {position.black.name} plays Black.
           </p>
           <p className="game-title__mode" data-mode={position.mode}>
@@ -50,6 +65,7 @@ export function GameView({
         <MoveEntry
           houseId={houseId}
           gameId={position.gameId}
+          {...(afterGame === undefined ? {} : { afterGame })}
           initial={{
             ...position,
             ...(position.mode === 'live' ? { serverNow: new Date().toISOString() } : {}),

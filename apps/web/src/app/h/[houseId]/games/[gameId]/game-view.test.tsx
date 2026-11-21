@@ -1,7 +1,9 @@
 import type { GamePosition } from '@between-moves/domain';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GameView } from './game-view';
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const position: GamePosition = {
   gameId: '01941f29-7c00-7000-8000-000000000702',
@@ -17,10 +19,12 @@ const position: GamePosition = {
   canMove: true,
   moveDueAt: new Date('2026-09-10T08:00:00.000Z'),
   result: null,
+  resultReason: null,
   inCheck: false,
   moves: [],
   pendingDrawOffer: null,
   drawOfferDeclined: false,
+  headToHead: { whiteWins: 0, blackWins: 0, draws: 0 },
 };
 
 describe('Game view', () => {
@@ -45,7 +49,7 @@ describe('Game view', () => {
     expect(html.match(/role="timer"/g)).toHaveLength(2);
     expect(html).toContain('aria-label="White time remaining"');
     expect(html).toContain('aria-live="off"');
-    expect(html).toContain('Submit Move');
+    expect(html).toContain('data-square="e2" data-color="light" data-movable="true"');
   });
 
   it('[BM-027] [UX-CMP-01] renders an accessible canonical board and move controls', () => {
@@ -57,7 +61,9 @@ describe('Game view', () => {
     expect(html).toContain('aria-label="e2, white pawn"');
     expect(html).toContain('aria-label="a8, empty"');
     expect(html).toContain('White to move');
-    expect(html).toContain('Submit Move');
+    expect(html).toContain('<p class="move-entry__status">Your move</p>');
+    expect(html).toContain('Ada<span class="player-strip__you"> · you</span>');
+    expect(html).not.toContain('Submit Move');
     expect(html).toContain('Move list (0)');
     expect(html).toContain('Ada plays White. Bea plays Black.');
   });

@@ -19,10 +19,12 @@ const position: GamePosition = {
   canMove: true,
   moveDueAt: new Date('2026-09-10T08:00:00.000Z'),
   result: null,
+  resultReason: null,
   inCheck: false,
   moves: [],
   pendingDrawOffer: null,
   drawOfferDeclined: false,
+  headToHead: { whiteWins: 0, blackWins: 0, draws: 0 },
 };
 
 describe('GET /api/houses/{houseId}/games/{gameId}', () => {

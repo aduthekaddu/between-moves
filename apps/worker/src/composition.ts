@@ -103,6 +103,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
         apiKey,
         from,
         metrics,
+        appOrigin: process.env.APP_ORIGIN || undefined,
       }),
       metrics,
     });

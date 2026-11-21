@@ -17,6 +17,10 @@ export const metadata: Metadata = {
 
 interface NewGamePageProps {
   readonly params: Promise<{ readonly houseId: string }>;
+  readonly searchParams: Promise<{
+    readonly opponent?: string | string[] | undefined;
+    readonly mode?: string | string[] | undefined;
+  }>;
 }
 
 const houseIdSchema = z.string().uuid();
@@ -25,8 +29,9 @@ const houseIdSchema = z.string().uuid();
  * [BM-022] Open a seat or challenge one Member. Correspondence takes the active Charter's pace;
  * a live Game needs tonight's Night to be live.
  */
-export default async function NewGamePage({ params }: NewGamePageProps) {
+export default async function NewGamePage({ params, searchParams }: NewGamePageProps) {
   const { houseId } = await params;
+  const { opponent, mode } = await searchParams;
   if (!houseIdSchema.safeParse(houseId).success) notFound();
 
   const url = new URL(`/h/${encodeURIComponent(houseId)}/games/new`, getConfig().appOrigin);
@@ -61,6 +66,8 @@ export default async function NewGamePage({ params }: NewGamePageProps) {
         .filter((member) => member.membershipId !== roster.viewerMembershipId)
         .map((member) => ({ membershipId: member.membershipId, displayName: member.displayName }))}
       canPublishCharter={roster.viewerRole !== 'member'}
+      requestedOpponentId={typeof opponent === 'string' ? opponent : undefined}
+      requestedLive={mode === 'live'}
     />
   );
 }

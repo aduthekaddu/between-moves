@@ -154,3 +154,29 @@ describe('[BM-028] draw offer on the repair snapshot', () => {
     expect(parsed === null ? 'invalid' : viewerMembershipId(parsed)).toBeNull();
   });
 });
+
+describe('result reason on the repair snapshot', () => {
+  const finished = {
+    currentFen: '8/8/8/8/8/8/8/8 w - - 0 1',
+    currentPly: 4,
+    sideToMove: 'white',
+    version: 4,
+    state: 'completed',
+    viewerColor: 'white',
+    white: { name: 'Ada' },
+    black: { name: 'Bea' },
+    moveDueAt: null,
+    result: 'black_win',
+    inCheck: true,
+    moves: [],
+  };
+
+  it('carries how the Game ended and rejects an unknown reason', () => {
+    expect(moveEntryPosition({ ...finished, resultReason: 'checkmate' })?.resultReason).toBe(
+      'checkmate',
+    );
+    expect(moveEntryPosition({ ...finished, resultReason: null })?.resultReason).toBeNull();
+    expect(moveEntryPosition(finished)).not.toBeNull();
+    expect(moveEntryPosition({ ...finished, resultReason: 'boredom' })).toBeNull();
+  });
+});

@@ -37,11 +37,14 @@ integration('Better Auth PostgreSQL sessions', () => {
     logger: { log: vi.fn() },
     queueMagicLink: vi.fn(),
   });
-  const auth = betterAuth(options);
+  const createAuth = () => betterAuth(options);
+  // Built after migrateUp: Better Auth checks the schema once at construction and keeps a mismatch.
+  let auth: ReturnType<typeof createAuth>;
 
   beforeAll(async () => {
     await migrateDown(database.pool, { migrationsDirectory, all: true });
     await migrateUp(database.pool, { migrationsDirectory });
+    auth = createAuth();
   });
 
   afterAll(async () => {

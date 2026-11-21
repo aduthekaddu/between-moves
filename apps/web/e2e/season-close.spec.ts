@@ -128,7 +128,7 @@ test.describe('BM-047 Season close', () => {
     await expect(ownerPage.getByText('Season closed · Final standings')).toBeVisible();
     await expect(ownerPage.getByRole('heading', { name: 'Autumn tables' })).toBeVisible();
     await expect(ownerPage.locator('.season-final__table li')).toHaveCount(3);
-    await expect(ownerPage.getByRole('heading', { level: 1 })).toHaveText('Publish a Charter');
+    await expect(ownerPage.getByRole('heading', { level: 1 })).toHaveText('Open a Season');
     await expectAccessibleNarrowLayout(ownerPage);
 
     await memberPage.reload();

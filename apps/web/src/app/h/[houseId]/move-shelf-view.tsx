@@ -125,12 +125,12 @@ export function MoveShelfView({
     <section className="move-shelf" aria-labelledby="move-shelf-title">
       <div className="move-shelf__heading">
         <p className="house-home__eyebrow">Correspondence games</p>
-        <h2 id="move-shelf-title">Move shelf</h2>
+        <h2 id="move-shelf-title">Your games</h2>
       </div>
 
       {empty ? (
         <div className="move-shelf__empty">
-          <p>No games yet. Challenge a member or take an open seat.</p>
+          <p>No games yet.</p>
           <a className="move-shelf__start" href={`/h/${encodeURIComponent(houseId)}/games/new`}>
             Start a game
           </a>

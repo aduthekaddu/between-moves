@@ -7,6 +7,8 @@ import { getNightHostCandidates } from '../../../../modules/nights/lifecycle';
 import { getHouseHome } from '../../../../server/house-home';
 import { getHouseSeason, getLastClosedSeason } from '../../../../server/seasons';
 import { getScheduledNights } from '../../../../server/nights';
+import { readStandingRows } from '../../../../modules/seasons/standings';
+import { houseLocalDate } from './season-opening';
 import { SeasonView } from './season-view';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +38,8 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
   const nights = await getScheduledNights(request, houseId);
   const hostCandidates =
     home.membershipRole === 'member' ? [] : await getNightHostCandidates(request, houseId);
+  const standings =
+    season?.state === 'active' ? await readStandingRows(request, houseId, season.seasonId) : [];
   return (
     <div className="season-shell">
       <AppMasthead houseId={houseId} houseName={home.name} current="season" />
@@ -48,6 +52,8 @@ export default async function SeasonPage({ params }: SeasonPageProps) {
           season={season}
           lastClosed={lastClosed}
           timeZone={home.timeZone}
+          today={houseLocalDate(new Date(), home.timeZone)}
+          standings={standings}
         />
       </main>
     </div>

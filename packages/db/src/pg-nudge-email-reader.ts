@@ -9,7 +9,11 @@ import type { Pool, QueryResultRow } from 'pg';
 
 interface NudgeEmailRow extends QueryResultRow {
   email: string;
+  house_id: string;
   house_name: string;
+  opponent_name: string;
+  last_move_san: string | null;
+  move_due_at: Date;
 }
 
 function eventPayload(event: ClaimedOutboxEvent): {
@@ -37,12 +41,25 @@ export class PgNudgeEmailReader implements NudgeEmailReader {
   async readForDelivery(event: ClaimedOutboxEvent): Promise<NudgeEmail | null> {
     const payload = eventPayload(event);
     const result = await this.database.query<NudgeEmailRow>(
-      `select u.email::text, h.name as house_name
+      `select u.email::text, h.id::text as house_id, h.name as house_name,
+              coalesce(opponent.display_name_snapshot, opponent_user.display_name) as opponent_name,
+              (select mv.san from moves mv
+                where mv.house_id = g.house_id and mv.game_id = g.id
+                  and mv.ply = delivery.ply) as last_move_san,
+              delivery.move_due_at
          from nudge_deliveries delivery
          join houses h on h.id = delivery.house_id and h.status = 'active'
          join memberships m on m.id = delivery.recipient_membership_id
                            and m.house_id = delivery.house_id and m.status = 'active'
          join users u on u.id = m.user_id and u.status = 'active'
+         -- The Nudge is about one turn. Once that turn is over, its email would be wrong.
+         join games g on g.id = delivery.game_id and g.house_id = delivery.house_id
+                     and g.state = 'active' and g.current_ply = delivery.ply
+         join memberships opponent
+           on opponent.house_id = g.house_id
+          and opponent.id = case when g.white_membership_id = delivery.recipient_membership_id
+                                 then g.black_membership_id else g.white_membership_id end
+         join users opponent_user on opponent_user.id = opponent.user_id
         where delivery.outbox_event_id = $1 and delivery.game_id = $2
           and delivery.house_id = $3 and delivery.ply = $4
           and delivery.recipient_membership_id = $5 and delivery.stage = $6`,
@@ -57,13 +74,19 @@ export class PgNudgeEmailReader implements NudgeEmailReader {
     );
     const row = result.rows[0];
     if (row === undefined) return null;
-    if (!row.email || !row.house_name) throw new Error('Invalid Nudge email row');
+    if (!row.email || !row.house_name || !row.opponent_name) {
+      throw new Error('Invalid Nudge email row');
+    }
     return {
       email: row.email,
+      houseId: row.house_id,
       houseName: row.house_name,
       gameId: event.aggregateId,
       ply: payload.ply,
       stage: payload.stage,
+      opponentName: row.opponent_name,
+      lastMoveSan: row.last_move_san,
+      moveDueAt: row.move_due_at,
     };
   }
 }

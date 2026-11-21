@@ -123,6 +123,15 @@ integration('Nudge scheduling and delivery flow', () => {
 
     clock.advance(1_000);
     await expect(outbox.dispatchBatch()).resolves.toMatchObject({ retried: 0, sent: 1 });
+    expect(sendNudge).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        houseId: world.first.houseId,
+        opponentName: 'Bea',
+        lastMoveSan: null,
+        moveDueAt: new Date('2026-09-16T00:00:00.000Z'),
+      }),
+      expect.anything(),
+    );
     await expect(outbox.dispatchBatch()).resolves.toMatchObject({ claimed: 0, sent: 0 });
     expect(successfulSender.deliveries()).toHaveLength(1);
     expect(sendNudge).toHaveBeenCalledTimes(2);
@@ -136,5 +145,72 @@ integration('Nudge scheduling and delivery flow', () => {
               (select count(*)::int from outbox_events where topic = 'nudge.due') events`,
     );
     expect(counts.rows).toEqual([{ nudges: 1, events: 1 }]);
+  });
+
+  async function playMove(ply: number, actor: string, uci: string, san: string): Promise<void> {
+    await database.query(
+      `insert into moves
+        (id, game_id, house_id, ply, actor_membership_id, uci, san, fen_after, client_command_id,
+         accepted_version)
+       values ($1,$2,$3,$4,$5,$6,$7,'8/8/8/8/8/8/8/8 w - - 0 1',$1,$4)`,
+      [id(900 + ply), id(711), world.first.houseId, ply, actor, uci, san],
+    );
+  }
+
+  it.each([
+    [
+      'the recipient already replied',
+      async () => {
+        await playMove(8, world.first.member.membershipId, 'e4e5', 'e5');
+        await database.query(
+          `update games set current_ply = 8, side_to_move = 'black', version = 8,
+                  move_due_at = '2026-09-17T00:00:00.000Z' where id = $1`,
+          [id(711)],
+        );
+      },
+    ],
+    [
+      'the Game ended',
+      async () => {
+        await database.query(
+          `update games set state = 'completed', result = 'black_win', result_reason = 'resign',
+                  version = 8, move_due_at = null, completed_at = $2 where id = $1`,
+          [id(711), NOW],
+        );
+      },
+    ],
+  ])('[BM-029] sends no Nudge when %s before delivery', async (_case, endTurn) => {
+    await playMove(7, world.first.nonOwner.membershipId, 'g8f6', 'Nf6');
+    const clock = new FakeClock(NOW);
+    const metrics = createDeliveryMetricStubs();
+    const schedule = createNudgeDispatcher({
+      clock,
+      generateId: () => id(801),
+      repository: new PgNudgeRepository(database),
+      metrics,
+    });
+    await expect(schedule.dispatch()).resolves.toMatchObject({ enqueued: 1 });
+
+    await endTurn();
+    const sendNudge = vi.fn<NudgeEmailSender['sendNudge']>(async () => 'sent');
+    const outbox = createOutboxDispatcher({
+      clock,
+      repository: new PgOutboxRepository(database),
+      consumer: createNudgeEmailConsumer({
+        clock,
+        reader: new PgNudgeEmailReader(database),
+        sender: { sendNudge },
+        metrics,
+      }),
+      metrics,
+    });
+    // A skipped Nudge settles its event like a sent one; a reader error would retry it.
+    await expect(outbox.dispatchBatch()).resolves.toEqual({
+      claimed: 1,
+      sent: 1,
+      retried: 0,
+      failed: 0,
+    });
+    expect(sendNudge).not.toHaveBeenCalled();
   });
 });

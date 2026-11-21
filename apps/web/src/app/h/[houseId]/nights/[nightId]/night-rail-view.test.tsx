@@ -125,6 +125,9 @@ describe('Night rail view', () => {
     expect(html).toContain('role="img"');
     expect(html).toContain('Boards in play');
     expect(html).toContain('Recent results');
+    expect(html).toContain(
+      'href="/h/01941f29-7c00-7000-8000-000000000201/games/new?mode=live">Start a live game</a>',
+    );
   });
 
   it('[BM-039] renders the quiet rail when no presence lease exists', () => {

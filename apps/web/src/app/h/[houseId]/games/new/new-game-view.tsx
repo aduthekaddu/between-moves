@@ -11,12 +11,17 @@ export function NewGameView({
   liveNightId,
   opponents,
   canPublishCharter,
+  requestedOpponentId,
+  requestedLive = false,
 }: {
   readonly home: HouseHome;
   readonly season: { readonly title: string; readonly perMoveHours: number } | null;
   readonly liveNightId: string | null;
   readonly opponents: readonly Opponent[];
   readonly canPublishCharter: boolean;
+  readonly requestedOpponentId?: string | undefined;
+  /** From the Night's "Start a live game" link. */
+  readonly requestedLive?: boolean;
 }) {
   const base = `/h/${encodeURIComponent(home.houseId)}`;
   return (
@@ -46,11 +51,11 @@ export function NewGameView({
             <p>
               Games count toward a Season, so one has to be running before anyone can play.{' '}
               {canPublishCharter
-                ? 'Write the Season’s Charter and publish it to open the table.'
-                : 'Ask the Owner or a Steward to publish the next Charter.'}
+                ? 'Open a Season to set the table.'
+                : 'Ask the Owner or a Steward to open the next Season.'}
             </p>
             <a className="house-status__action new-game-closed__action" href={`${base}/season`}>
-              {canPublishCharter ? 'Write the Charter' : 'See the Season'}
+              {canPublishCharter ? 'Open a Season' : 'See the Season'}
             </a>
           </section>
         ) : opponents.length === 0 ? (
@@ -67,6 +72,8 @@ export function NewGameView({
             perMoveHours={season.perMoveHours}
             liveNightId={liveNightId}
             opponents={opponents}
+            requestedOpponentId={requestedOpponentId}
+            requestedLive={requestedLive}
           />
         )}
       </main>
