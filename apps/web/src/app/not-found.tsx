@@ -8,11 +8,13 @@ export default function NotFound() {
   return (
     <main className="house-unavailable house-unavailable--night lost-page">
       <figure className="lost-page__photo">
+        {/* Next.js puts this page in every route's payload; without lazy, React preloads the photo on every page. */}
         <img
           src={lostKnight.src}
           alt="A folded-paper knight alone at the edge of an empty paper chess board, a blank signpost beside it under a lamp."
           width={lostKnight.width}
           height={lostKnight.height}
+          loading="lazy"
         />
       </figure>
       <section className="house-unavailable__sheet" aria-labelledby="not-found-title">
