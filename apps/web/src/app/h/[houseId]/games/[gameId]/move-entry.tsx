@@ -276,6 +276,9 @@ export function MoveEntry({
       void sendMove(command);
       return;
     }
+    // A refresh already on its way would redraw the board without the staged Move.
+    refreshRequest.current?.controller.abort();
+    refreshRequest.current = null;
     const next = { command, san };
     stagedRef.current = next;
     setStaged(next);
