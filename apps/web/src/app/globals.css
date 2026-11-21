@@ -2756,8 +2756,11 @@ a.move-card:focus-visible {
   border-top: 1px dashed var(--rule-2);
 }
 
+/* the padding gives a thumb-sized tap area; the matching negative margin keeps the layout */
 .night-card__manage summary {
   justify-self: start;
+  padding-block: 12px;
+  margin-block: -12px;
   font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 600;
