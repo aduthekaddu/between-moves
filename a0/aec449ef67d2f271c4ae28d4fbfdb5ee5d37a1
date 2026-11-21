@@ -1,0 +1,21 @@
+apps/web/src/app/h/[houseId]/games/[gameId]/move-entry.test.tsx
+  s_6d8786361a6a9a::t_fe25785a191eb1 578-580
+  s_6d8786361a6a9a::t_2aa09d18407106 249-283
+  s_6d8786361a6a9a::t_f8b179c35c500c 467-474
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a0aec449ef67d2f271c4ae28d4fbfdb5ee5d37a1",
+  "prompts": {},
+  "sessions": {
+    "s_6d8786361a6a9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5db39921-48f9-5376-bbb3-ec734dfec2f6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
