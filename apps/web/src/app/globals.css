@@ -2335,8 +2335,8 @@ a.move-card:focus-visible {
 }
 
 .house-chat__message {
-  position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 4px;
   padding: 12px 14px;
   background: #f6efe0;
@@ -2365,17 +2365,21 @@ a.move-card:focus-visible {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--vermilion-ink);
+  overflow-wrap: anywhere;
 }
 
 .house-chat__message p {
+  grid-column: 1 / -1;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
+/* shares the name's row so a long name wraps beside it; the negative margins keep it in the card's corner */
 .house-chat__remove {
-  position: absolute;
-  top: 4px;
-  right: 4px;
+  grid-row: 1;
+  grid-column: 2;
+  align-self: start;
+  margin: -8px -10px -8px 0;
   min-height: 32px;
   padding: 0 8px;
   border-color: transparent;
