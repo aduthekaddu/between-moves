@@ -5,6 +5,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MoveEntry, UNDO_WINDOW_MS } from './move-entry';
 import type { MoveEntryPosition } from './move-entry-wire';
 
+const refresh = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
+
+const played: string[] = [];
+vi.mock('../../../../_components/paper-sound', () => ({
+  PaperSound: class {
+    on = false;
+    enable() {
+      this.on = true;
+    }
+    disable() {
+      this.on = false;
+    }
+    dispose() {}
+    tock() {
+      played.push('tock');
+    }
+    tap() {
+      played.push('tap');
+    }
+    stamp() {
+      played.push('stamp');
+    }
+  },
+}));
+
 const initial: MoveEntryPosition = {
   mode: 'live',
   currentFen: '8/8/8/8/8/8/4P3/8 w - - 0 1',
@@ -58,6 +84,8 @@ function json(body: unknown, status = 200): Response {
 }
 
 beforeEach(() => {
+  refresh.mockClear();
+  played.length = 0;
   FakeEventSource.instances = [];
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   matches = true;
@@ -357,6 +385,102 @@ describe('correspondence move entry', () => {
     visibility.mockRestore();
     expect(posts()).toHaveLength(1);
     expect((posts()[0]?.[1] as RequestInit).keepalive).toBe(true);
+  });
+
+  it('drops the check mark when the staged Move leaves check', async () => {
+    await mount({ ...correspondence, currentFen: 'k3r3/8/8/8/8/8/8/4K3 w - - 0 1', inCheck: true });
+    expect(square('e1')?.getAttribute('aria-label')).toBe('e1, white king, in check');
+    await click('[data-square="e1"]');
+    await click('[data-square="d1"]');
+    expect(container.textContent).toContain('You played Kd1');
+    expect(container.querySelector('[data-check]')).toBeNull();
+
+    await act(async () => buttonNamed('Undo').click());
+    expect(square('e1')?.getAttribute('aria-label')).toBe('e1, white king, in check');
+  });
+
+  it('marks the check a staged Move gives', async () => {
+    await mount({ ...correspondence, currentFen: '4k3/8/8/8/8/8/8/R3K3 w - - 0 1' });
+    await click('[data-square="a1"]');
+    await click('[data-square="a8"]');
+    expect(container.textContent).toContain('You played Ra8+');
+    expect(square('e8')?.getAttribute('aria-label')).toBe('e8, black king, in check');
+  });
+
+  it('slides and sounds only a Move the board has not shown yet', async () => {
+    vi.stubGlobal('AudioContext', class {});
+    const opened: MoveEntryPosition = {
+      ...correspondence,
+      currentFen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
+      currentPly: 2,
+      version: 2,
+      moves: [
+        { ply: 1, uci: 'e2e4', san: 'e4' },
+        { ply: 2, uci: 'e7e5', san: 'e5' },
+      ],
+    };
+    await mount(opened);
+    await click('[data-square="a3"]');
+
+    // A draw offer or a resignation moves the version on, not the board.
+    fetchMock.mockResolvedValue(json({ ...opened, version: 3 }));
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    expect(played).toEqual([]);
+
+    fetchMock.mockResolvedValue(
+      json({
+        ...opened,
+        currentFen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3',
+        currentPly: 4,
+        version: 5,
+        moves: [
+          ...opened.moves,
+          { ply: 3, uci: 'g1f3', san: 'Nf3' },
+          { ply: 4, uci: 'b8c6', san: 'Nc6' },
+        ],
+      }),
+    );
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    expect(played).toEqual(['tock']);
+  });
+});
+
+describe('a finished Game', () => {
+  const seated: MoveEntryPosition = {
+    ...correspondence,
+    white: { name: 'Ada', membershipId: '01941f29-7c00-7000-8000-000000000621' },
+    black: { name: 'Bea', membershipId: '01941f29-7c00-7000-8000-000000000623' },
+  };
+  const finished: MoveEntryPosition = {
+    ...seated,
+    state: 'completed',
+    version: 1,
+    result: 'black_win',
+    resultReason: 'resign',
+  };
+
+  it('lets a spectator share the result, with no rematch', async () => {
+    await act(async () =>
+      root.render(
+        <MoveEntry
+          houseId="house"
+          gameId="game"
+          initial={{ ...finished, viewerColor: null }}
+          afterGame={{ perMoveHours: 24, incomingRematch: null }}
+        />,
+      ),
+    );
+    expect(buttonNamed('Share result')).toBeDefined();
+    expect(container.textContent).not.toContain('Rematch');
+  });
+
+  it('re-reads the page around the board when the Game ends here', async () => {
+    await mount(seated);
+    expect(refresh).not.toHaveBeenCalled();
+    fetchMock.mockResolvedValue(json(finished));
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    expect(container.textContent).toContain('Game complete');
+    expect(refresh).toHaveBeenCalledOnce();
   });
 });
 
