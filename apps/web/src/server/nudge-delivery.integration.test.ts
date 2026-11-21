@@ -204,7 +204,13 @@ integration('Nudge scheduling and delivery flow', () => {
       }),
       metrics,
     });
-    await outbox.dispatchBatch();
+    // A skipped Nudge settles its event like a sent one; a reader error would retry it.
+    await expect(outbox.dispatchBatch()).resolves.toEqual({
+      claimed: 1,
+      sent: 1,
+      retried: 0,
+      failed: 0,
+    });
     expect(sendNudge).not.toHaveBeenCalled();
   });
 });
