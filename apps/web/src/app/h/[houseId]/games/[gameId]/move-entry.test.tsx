@@ -475,6 +475,26 @@ describe('correspondence move entry', () => {
     expect(container.textContent).toContain('You played e4');
   });
 
+  it('keeps what a refresh brings during the Undo window, and shows it after Undo', async () => {
+    await mount(correspondence);
+    let land: (response: Response) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise<Response>((resolve) => (land = resolve)));
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    await proposeMove();
+    await act(async () =>
+      land(json({ ...correspondence, version: 1, state: 'completed', result: 'black_win' })),
+    );
+    expect(container.querySelector('[data-testid="turn-status"]')?.textContent).toBe(
+      'Game complete',
+    );
+
+    await act(async () => buttonNamed('Undo').click());
+    expect(square('e4')?.getAttribute('aria-label')).toBe('e4, empty');
+    expect(container.querySelector('[data-testid="turn-status"]')?.textContent).toBe(
+      'Game complete',
+    );
+  });
+
   it('asks for a refresh when the server sends a board it cannot read', async () => {
     await mount(correspondence);
     fetchMock.mockResolvedValue(json({ ...correspondence, version: 1, currentFen: 'not a board' }));
