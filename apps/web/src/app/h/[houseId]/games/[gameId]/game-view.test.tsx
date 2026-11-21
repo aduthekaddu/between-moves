@@ -1,7 +1,9 @@
 import type { GamePosition } from '@between-moves/domain';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GameView } from './game-view';
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const position: GamePosition = {
   gameId: '01941f29-7c00-7000-8000-000000000702',

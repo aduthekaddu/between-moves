@@ -39,8 +39,7 @@ describe('after a finished Game', () => {
       root.render(
         <GameEnd
           houseId="house"
-          viewerColor="white"
-          opponent={opponent}
+          player={{ color: 'white', opponent }}
           perMoveHours={24}
           incomingRematch={null}
         />,
@@ -63,8 +62,7 @@ describe('after a finished Game', () => {
       root.render(
         <GameEnd
           houseId="house"
-          viewerColor="black"
-          opponent={opponent}
+          player={{ color: 'black', opponent }}
           perMoveHours={24}
           incomingRematch={{ gameId: 'waiting-game' }}
         />,
@@ -81,8 +79,7 @@ describe('after a finished Game', () => {
       root.render(
         <GameEnd
           houseId="house"
-          viewerColor="white"
-          opponent={opponent}
+          player={{ color: 'white', opponent }}
           perMoveHours={24}
           incomingRematch={null}
           share={{
@@ -107,8 +104,7 @@ describe('after a finished Game', () => {
       root.render(
         <GameEnd
           houseId="house"
-          viewerColor="white"
-          opponent={opponent}
+          player={{ color: 'white', opponent }}
           perMoveHours={null}
           incomingRematch={null}
         />,

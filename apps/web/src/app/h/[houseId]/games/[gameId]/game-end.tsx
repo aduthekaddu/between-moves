@@ -18,15 +18,17 @@ export interface RematchOffer {
 /** What a finished Game can lead to: the next Game against the same person. */
 export function GameEnd({
   houseId,
-  viewerColor,
-  opponent,
+  player,
   perMoveHours,
   incomingRematch,
   share,
 }: {
   readonly houseId: string;
-  readonly viewerColor: SideToMove | null;
-  readonly opponent: { readonly name: string; readonly membershipId?: string | undefined };
+  /** The viewer's colour and opponent; null for a spectator, who can share but not rematch. */
+  readonly player: {
+    readonly color: SideToMove;
+    readonly opponent: { readonly name: string; readonly membershipId?: string | undefined };
+  } | null;
   /** The active Season's pace, or null when no Season is open for a new Game. */
   readonly perMoveHours: number | null;
   readonly incomingRematch: RematchOffer | null;
@@ -62,7 +64,7 @@ export function GameEnd({
   }
 
   async function sendRematch() {
-    if (state !== 'idle' || viewerColor === null || perMoveHours === null) return;
+    if (state !== 'idle' || player === null || perMoveHours === null) return;
     setState('sending');
     setError('');
     const outcome = await postHouseCommand(`/api/houses/${encodeURIComponent(houseId)}/games`, {
@@ -71,8 +73,8 @@ export function GameEnd({
         mode: 'correspondence',
         clockPolicy: { kind: 'correspondence', perMoveHours },
         // The seat's colour is the one the taker plays: the opponent gets the viewer's old colour.
-        offeredColor: viewerColor,
-        intendedMembershipId: opponent.membershipId,
+        offeredColor: player.color,
+        intendedMembershipId: player.opponent.membershipId,
       },
     });
     if (outcome.ok) {
@@ -85,20 +87,20 @@ export function GameEnd({
   }
 
   const canChallenge =
-    viewerColor !== null && perMoveHours !== null && opponent.membershipId !== undefined;
+    player !== null && perMoveHours !== null && player.opponent.membershipId !== undefined;
   return (
     <div className="game-end">
-      {viewerColor !== null && incomingRematch !== null ? (
+      {player !== null && incomingRematch !== null ? (
         <AcceptSeatButton
           houseId={houseId}
           gameId={incomingRematch.gameId}
           mode="correspondence"
-          label={`Accept ${opponent.name}’s rematch`}
+          label={`Accept ${player.opponent.name}’s rematch`}
         />
       ) : canChallenge ? (
         state === 'sent' ? (
           <p className="game-end__sent" role="status">
-            Rematch sent. {opponent.name} will see it on the House page.
+            Rematch sent. {player.opponent.name} will see it on the House page.
           </p>
         ) : (
           <button
@@ -107,7 +109,7 @@ export function GameEnd({
             disabled={state === 'sending'}
             onClick={() => void sendRematch()}
           >
-            {state === 'sending' ? 'Sending…' : `Rematch ${opponent.name}`}
+            {state === 'sending' ? 'Sending…' : `Rematch ${player.opponent.name}`}
           </button>
         )
       ) : null}

@@ -6,6 +6,7 @@ import {
   type ChessSquare,
   type SideToMove,
 } from '@between-moves/domain';
+import { useRouter } from 'next/navigation';
 import {
   useCallback,
   useEffect,
@@ -26,7 +27,7 @@ import { GameActions } from './game-actions';
 import { GameEnd, type RematchOffer } from './game-end';
 import { endingHeadline } from './game-ending';
 import { moveLabel, replayPositions, STANDARD_START } from './game-review';
-import { legalMoves, proposalSan } from './legal-moves';
+import { legalMoves, proposalOutcome } from './legal-moves';
 import { LiveClocks } from './live/live-clocks';
 import { materialBalance } from './material';
 import {
@@ -57,6 +58,9 @@ type Selection =
 interface StagedMove {
   readonly command: SubmitCommand;
   readonly san: string;
+  /** The board after the staged Move, so its check mark follows the Move. */
+  readonly sideToMove: SideToMove;
+  readonly inCheck: boolean;
 }
 
 const noSelection: Selection = { kind: 'none' };
@@ -103,6 +107,8 @@ export function MoveEntry({
   };
 }) {
   const [position, setPosition] = useState(initial);
+  const [startedActive] = useState(initial.state === 'active');
+  const router = useRouter();
   const sound = useBoardSound();
   const now = useMinuteClock();
   const [reviewPly, setReviewPly] = useState<number | null>(null);
@@ -122,6 +128,7 @@ export function MoveEntry({
   } | null>(null);
   const commandInFlight = useRef(false);
   const positionVersion = useRef(initial.version);
+  const positionPly = useRef(initial.currentPly);
   const [canonicalPieces, setCanonicalPieces] = useState(() => parseFenPieces(initial.currentFen));
   const [shownPieces, setShownPieces] = useState(canonicalPieces);
   const [selection, setSelection] = useState<Selection>(noSelection);
@@ -230,7 +237,8 @@ export function MoveEntry({
       expectedPly: position.currentPly,
       clientCommandId: generateClientCommandId(),
     };
-    const san = proposalSan(position.currentFen, proposal) ?? `${proposal.from}-${proposal.to}`;
+    const outcome = proposalOutcome(position.currentFen, proposal);
+    const san = outcome?.san ?? `${proposal.from}-${proposal.to}`;
     clearSelection();
     setReviewPly(null);
     sound.play(san);
@@ -244,7 +252,12 @@ export function MoveEntry({
       void sendMove(command);
       return;
     }
-    const next = { command, san };
+    const next: StagedMove = {
+      command,
+      san,
+      sideToMove: position.sideToMove === 'white' ? 'black' : 'white',
+      inCheck: outcome?.inCheck ?? false,
+    };
     stagedRef.current = next;
     setStaged(next);
     setShownPieces(applyOptimisticMove(canonicalPieces, proposal));
@@ -324,9 +337,10 @@ export function MoveEntry({
             setRetry(null);
           }
           const arrived = refreshed.moves.at(-1);
+          // Draw offers and resignations move the version too; only a new ply is an arrival.
           if (
             arrived !== undefined &&
-            refreshed.version !== positionVersion.current &&
+            arrived.ply > positionPly.current &&
             arrived.ply !== ownSlidePly.current
           ) {
             setSlide({
@@ -337,6 +351,7 @@ export function MoveEntry({
             });
           }
           positionVersion.current = refreshed.version;
+          positionPly.current = refreshed.currentPly;
           setPosition(refreshed);
           setCanonicalPieces(pieces);
           setShownPieces(pieces);
@@ -480,6 +495,12 @@ export function MoveEntry({
     };
   }, [gameId, houseId, live]);
 
+  const endedHere = startedActive && position.state === 'completed';
+  useEffect(() => {
+    // The server read the page around the board, such as the head-to-head line, before the end.
+    if (endedHere) router.refresh();
+  }, [endedHere, router]);
+
   async function sendMove(command: SubmitCommand, keepalive = false) {
     if (commandInFlight.current || (live && !liveViewport)) return;
     commandInFlight.current = true;
@@ -612,9 +633,14 @@ export function MoveEntry({
   });
   const viewerWon =
     position.viewerColor !== null && position.result === `${position.viewerColor}_win`;
-  const celebrate = initial.state === 'active' && position.state === 'completed' && viewerWon;
-  const opponentColor: SideToMove | null =
-    position.viewerColor === null ? null : position.viewerColor === 'white' ? 'black' : 'white';
+  const celebrate = endedHere && viewerWon;
+  const player =
+    position.viewerColor === null
+      ? null
+      : {
+          color: position.viewerColor,
+          opponent: position[position.viewerColor === 'white' ? 'black' : 'white'],
+        };
 
   function strip(color: SideToMove) {
     const side = balance[color];
@@ -710,7 +736,7 @@ export function MoveEntry({
         <ChessBoard
           pieces={boardPieces}
           orientation={orientation}
-          sideToMove={position.sideToMove}
+          sideToMove={staged?.sideToMove ?? position.sideToMove}
           active={position.state === 'active'}
           lastMove={
             reviewing
@@ -721,7 +747,7 @@ export function MoveEntry({
                 ? lastMove
                 : `${staged.command.proposal.from}${staged.command.proposal.to}`
           }
-          inCheck={reviewing ? false : position.inCheck}
+          inCheck={reviewing ? false : (staged?.inCheck ?? position.inCheck)}
           selected={reviewing ? null : selectedFrom}
           targets={reviewing ? noSquares : targets}
           movable={reviewing ? noSquares : movable}
@@ -797,11 +823,10 @@ export function MoveEntry({
         ) : selection.kind === 'promotion' ? (
           <p className="move-entry__note">Choose the piece your pawn becomes.</p>
         ) : null}
-        {position.state === 'completed' && opponentColor !== null ? (
+        {position.state === 'completed' ? (
           <GameEnd
             houseId={houseId}
-            viewerColor={position.viewerColor}
-            opponent={position[opponentColor]}
+            player={player}
             perMoveHours={live ? null : (afterGame?.perMoveHours ?? null)}
             incomingRematch={afterGame?.incomingRematch ?? null}
             share={{

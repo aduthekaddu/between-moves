@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { legalMoves, proposalSan } from './legal-moves';
+import { legalMoves, proposalOutcome } from './legal-moves';
 
 const start = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -30,10 +30,11 @@ describe('board legal-move hints', () => {
   });
 
   it('names a proposal the way the scoresheet will', () => {
-    expect(proposalSan(start, { from: 'g1', to: 'f3' })).toBe('Nf3');
+    expect(proposalOutcome(start, { from: 'g1', to: 'f3' })?.san).toBe('Nf3');
     expect(
-      proposalSan('8/4P3/8/8/8/8/8/k6K w - - 0 1', { from: 'e7', to: 'e8', promotion: 'n' }),
+      proposalOutcome('8/4P3/8/8/8/8/8/k6K w - - 0 1', { from: 'e7', to: 'e8', promotion: 'n' })
+        ?.san,
     ).toBe('e8=N');
-    expect(proposalSan(start, { from: 'e2', to: 'e5' })).toBeNull();
+    expect(proposalOutcome(start, { from: 'e2', to: 'e5' })).toBeNull();
   });
 });

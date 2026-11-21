@@ -25,10 +25,15 @@ export function legalMoves(fen: string): LegalMoves {
   return byFrom;
 }
 
-/** The SAN a proposal will most likely get, for the Undo bar before the server answers. */
-export function proposalSan(fen: string, proposal: ChessMoveProposal): string | null {
+/** What a proposal will most likely play, for the Undo window before the server answers. */
+export function proposalOutcome(
+  fen: string,
+  proposal: ChessMoveProposal,
+): { readonly san: string; readonly inCheck: boolean } | null {
   try {
-    return new Chess(fen, { skipValidation: true }).move(proposal).san;
+    const game = new Chess(fen, { skipValidation: true });
+    const { san } = game.move(proposal);
+    return { san, inCheck: game.inCheck() };
   } catch {
     return null;
   }
