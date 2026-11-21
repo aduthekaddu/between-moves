@@ -131,6 +131,13 @@ textarea {
   color: inherit;
 }
 
+/* iOS Safari zooms the page into any field whose text is under 16px, so a small label never shrinks its field */
+input,
+select,
+textarea {
+  font-size: max(1rem, 1em);
+}
+
 :where(
     .house-shell,
     .game-shell,
@@ -2708,9 +2715,16 @@ a.move-card:focus-visible {
 .night-edit label {
   display: grid;
   flex: 1 1 200px;
+  min-width: 0;
   gap: 6px;
   font-size: 0.85rem;
   color: var(--ink-2);
+}
+
+/* a date-time field at 16px is wider than a narrow phone's card, so let it shrink to the column */
+.night-host label > :is(input, select),
+.night-edit label > :is(input, select) {
+  min-width: 0;
 }
 
 .night-card > button {

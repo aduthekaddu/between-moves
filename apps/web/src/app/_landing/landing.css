@@ -1940,7 +1940,7 @@
   background: rgba(241, 232, 214, 0.06);
   color: var(--lp-paper);
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .lp-door__field input::placeholder {
