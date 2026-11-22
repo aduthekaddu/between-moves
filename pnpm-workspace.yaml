@@ -1,4 +1,3 @@
-# pnpm refuses to run on a Node outside engines.node in package.json. Without this it only warns.
 engineStrict: true
 packages:
   - 'apps/*'
