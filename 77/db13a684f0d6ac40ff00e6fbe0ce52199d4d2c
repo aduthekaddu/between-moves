@@ -1,0 +1,23 @@
+ARCHITECTURE.md
+  s_0648395c8fc9bf::t_65618145818cff 9-10
+CONTRIBUTING.md
+  s_0648395c8fc9bf::t_709fe0098bbb3f 34-36
+tooling/doc-claims.test.mjs
+  s_0648395c8fc9bf::t_3c7790605bff81 3,8-13,25,38-39,58,97,100,103,109-115,118,122-135,137,161-163,165,167-173,175,179,182-205,208-211,213,215-241,246,264-266,271-274,338-339,341-347,353,358,363-392,400-402,405-412,417-418,440-442,446-482,532,556,559-568,570-578,587-589,624-635,637-642,645-652,686-690,713,735,750,771-772,786-1043
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77db13a684f0d6ac40ff00e6fbe0ce52199d4d2c",
+  "prompts": {},
+  "sessions": {
+    "s_0648395c8fc9bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7adefb7a-8a2b-4a7f-aff2-6e8c1dfd6235",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
