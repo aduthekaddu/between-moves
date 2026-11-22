@@ -1,0 +1,190 @@
+packages/db/src/test-database/index.ts
+  s_0648395c8fc9bf::t_3bee825f5ca92f 1-76
+  s_0648395c8fc9bf::t_3eb752539e5b44 77-78
+scripts/test-database.sh
+  s_0648395c8fc9bf::t_f3ccee4fcf97d9 1-93
+.github/workflows/ci.yml
+  s_0648395c8fc9bf::t_d0e036dcfe9f30 107-109,128-130,132-134,139,149-152
+.gitignore
+  s_0648395c8fc9bf::t_a01aff32b1abfc 56-58
+.prettierignore
+  s_0648395c8fc9bf::t_2e863757c91d56 11
+apps/web/e2e/account-deletion.spec.ts
+  s_0648395c8fc9bf::t_bc55d6a6e606c0 11,13,93
+apps/web/e2e/charter-publish.spec.ts
+  s_0648395c8fc9bf::t_93398f404975b9 10,12,37
+apps/web/e2e/closing-book.spec.ts
+  s_0648395c8fc9bf::t_0f2a9b57357a7f 13,15,278
+apps/web/e2e/environment.ts
+  s_0648395c8fc9bf::t_5b942697edd8c1 1-3,10-11
+apps/web/e2e/game-notes.spec.ts
+  s_0648395c8fc9bf::t_cf56e12c611707 10,12,61
+apps/web/e2e/game-reactions.spec.ts
+  s_0648395c8fc9bf::t_f608d742ad9ca0 10,12,61
+apps/web/e2e/game-seat-acceptance.spec.ts
+  s_0648395c8fc9bf::t_234574317482ed 9,11,29
+apps/web/e2e/global-setup.ts
+  s_0648395c8fc9bf::t_01d7667f441700 1-3
+apps/web/e2e/house-chat.spec.ts
+  s_0648395c8fc9bf::t_06dcb70a93802d 10,12,101
+apps/web/e2e/house-home.spec.ts
+  s_0648395c8fc9bf::t_2ed04243f12e86 10,12,146
+apps/web/e2e/invitation-redemption.spec.ts
+  s_0648395c8fc9bf::t_a158b2145d7686 9,11,69
+apps/web/e2e/live-board.spec.ts
+  s_0648395c8fc9bf::t_cb38f98a118ba8 10,12,159
+apps/web/e2e/move-entry.spec.ts
+  s_0648395c8fc9bf::t_934e46d6a17c63 10,12,126
+apps/web/e2e/night-lifecycle.spec.ts
+  s_0648395c8fc9bf::t_f188b811f34d3f 10,12,112
+apps/web/e2e/night-rail.spec.ts
+  s_0648395c8fc9bf::t_cb758da1e5c76a 10,12,163
+apps/web/e2e/pilot-accessibility.spec.ts
+  s_0648395c8fc9bf::t_dbd359a021fbf6 10,12,22
+apps/web/e2e/puzzle-publish.spec.ts
+  s_0648395c8fc9bf::t_9cab5c9c3da8a4 10,12,20
+apps/web/e2e/season-close.spec.ts
+  s_0648395c8fc9bf::t_f25a26abdaf008 10,12,42
+apps/web/e2e/season-renewal.spec.ts
+  s_0648395c8fc9bf::t_5e03cab9be479a 13,15,177
+apps/web/e2e/support/closing-book-worker.ts
+  s_0648395c8fc9bf::t_c9eaacf7fb6b6a 13,15
+apps/web/e2e/support/every-test-ran-reporter.ts
+  s_0648395c8fc9bf::t_0b6dad35e45a7d 1-26
+apps/web/e2e/viewer.spec.ts
+  s_0648395c8fc9bf::t_7626e1083458cb 4,6,20-31,33-36,38-58
+apps/web/package.json
+  s_0648395c8fc9bf::t_518b777ad703ef 12-13
+apps/web/playwright.config.ts
+  s_0648395c8fc9bf::t_bff72cc0b2ec52 2,5-10,17-20
+apps/web/src/server/account-data-rights.integration.test.ts
+  s_0648395c8fc9bf::t_265931ef02d36f 31,33,43
+apps/web/src/server/analysis-callback-handler.integration.test.ts
+  s_0648395c8fc9bf::t_11ecbbb410f5fa 14,16,26-27
+apps/web/src/server/better-auth.integration.test.ts
+  s_0648395c8fc9bf::t_530de84ae37cff 9,11,16
+apps/web/src/server/closing-book.integration.test.ts
+  s_0648395c8fc9bf::t_068f2fdb0a133c 32,34,51-52
+apps/web/src/server/game-terminal-completion.integration.test.ts
+  s_0648395c8fc9bf::t_672ff80695ce03 10,12,211
+apps/web/src/server/house-authorization.integration.test.ts
+  s_0648395c8fc9bf::t_8e94eadc65c38b 21,23,52
+apps/web/src/server/house-write-isolation.integration.test.ts
+  s_0648395c8fc9bf::t_c7f803ddc62622 95,97,829
+apps/web/src/server/magic-link.integration.test.ts
+  s_0648395c8fc9bf::t_b52ee661007438 25,27,32
+apps/web/src/server/night-realtime-token.integration.test.ts
+  s_0648395c8fc9bf::t_31b283486496a6 17,19,49
+apps/web/src/server/nudge-delivery.integration.test.ts
+  s_0648395c8fc9bf::t_ef8e7d299327b3 21,23,57
+apps/web/src/server/puzzle-publish.integration.test.ts
+  s_0648395c8fc9bf::t_9fc06d79ad8666 13,15,23-24
+apps/web/src/server/recovery.integration.test.ts
+  s_0648395c8fc9bf::t_c5a106dffb9435 31,33,38
+apps/web/src/server/season-close.integration.test.ts
+  s_0648395c8fc9bf::t_d79d574484e052 20,22,38-39
+apps/web/src/server/season-renewal.integration.test.ts
+  s_0648395c8fc9bf::t_2671352d81e12e 38,40,69-70
+apps/web/vitest.config.ts
+  s_0648395c8fc9bf::t_225535ad40a022 2,11
+package.json
+  s_0648395c8fc9bf::t_8c02a84b1261c5 16,31-33
+packages/db/package.json
+  s_0648395c8fc9bf::t_b8e0ea4ef9bc1f 9-11,17-18
+packages/db/src/account-data-rights.integration.test.ts
+  s_0648395c8fc9bf::t_3d34d12b997f4f 23,25,54
+packages/db/src/closing-book.integration.test.ts
+  s_0648395c8fc9bf::t_feb51336805083 10,12,35
+packages/db/src/email-delivery-event-repository.integration.test.ts
+  s_0648395c8fc9bf::t_de2bc141328532 6,8,11
+packages/db/src/games-schema.integration.test.ts
+  s_0648395c8fc9bf::t_230fc30e89f1d2 6,8,14
+packages/db/src/house-creation.integration.test.ts
+  s_0648395c8fc9bf::t_930e233df2d22b 7,9,28
+packages/db/src/house-home-repository.integration.test.ts
+  s_0648395c8fc9bf::t_4129e9de67e264 8,10,13
+packages/db/src/house-reads.integration.test.ts
+  s_0648395c8fc9bf::t_2c49bc08f25383 12,14,105
+packages/db/src/identity-recovery-repository.integration.test.ts
+  s_0648395c8fc9bf::t_604f1bd7d6fa97 6,8,11
+packages/db/src/identity-sessions.integration.test.ts
+  s_0648395c8fc9bf::t_b0985da28e694a 5,7,10
+packages/db/src/invitation-repository.integration.test.ts
+  s_0648395c8fc9bf::t_e0c5d5d41f7f79 10,12,39
+packages/db/src/membership-admin-repository.integration.test.ts
+  s_0648395c8fc9bf::t_5105bd4ff30ac4 8,10,13
+packages/db/src/migrations.integration.test.ts
+  s_0648395c8fc9bf::t_9230746892b09e 8,10,13
+packages/db/src/night-attendance-repository.integration.test.ts
+  s_0648395c8fc9bf::t_9185d70d73a85f 9,11,18
+packages/db/src/night-lifecycle-repository.integration.test.ts
+  s_0648395c8fc9bf::t_0ca4e962544368 11,13,33
+packages/db/src/night-rail-repository.integration.test.ts
+  s_0648395c8fc9bf::t_7444e1eaf02bc0 9,11,27
+packages/db/src/night-realtime-scope-repository.integration.test.ts
+  s_0648395c8fc9bf::t_44fbb3d38ae860 9,11,25
+packages/db/src/night-repository.integration.test.ts
+  s_0648395c8fc9bf::t_dc114f469bb04e 9,11,23
+packages/db/src/nudge-migration.integration.test.ts
+  s_0648395c8fc9bf::t_e75d49597a5c34 6,8,40
+packages/db/src/outbox.integration.test.ts
+  s_0648395c8fc9bf::t_f2dbcc6931452b 7,9,26
+packages/db/src/pg-analysis-job-repository.integration.test.ts
+  s_0648395c8fc9bf::t_bc09b184ba1c22 9,11,17-18
+packages/db/src/pg-game-completion-repository.integration.test.ts
+  s_0648395c8fc9bf::t_dd2969a0ecea06 9,11,91
+packages/db/src/pg-game-note-repository.integration.test.ts
+  s_0648395c8fc9bf::t_c6ef124593f8e7 8,10,17
+packages/db/src/pg-game-position-repository.integration.test.ts
+  s_0648395c8fc9bf::t_9b423b79da44d2 8,10,17
+packages/db/src/pg-game-reaction-repository.integration.test.ts
+  s_0648395c8fc9bf::t_e474384e5f8f76 8,10,17
+packages/db/src/pg-game-seat-acceptance-repository.integration.test.ts
+  s_0648395c8fc9bf::t_ce401a1b854f37 10,12,74
+packages/db/src/pg-game-seat-cancellation-repository.integration.test.ts
+  s_0648395c8fc9bf::t_56cd5db2b99c5d 12,14,61
+packages/db/src/pg-game-seat-repository.integration.test.ts
+  s_0648395c8fc9bf::t_99e16c99603e29 9,11,86
+packages/db/src/pg-house-chat-repository.integration.test.ts
+  s_0648395c8fc9bf::t_5f72c4bb15bd8d 9,11,18
+packages/db/src/pg-move-shelf-repository.integration.test.ts
+  s_0648395c8fc9bf::t_33a2cab345dc0f 8,10,66
+packages/db/src/pg-nudge-repository.integration.test.ts
+  s_0648395c8fc9bf::t_d507b76e4ae571 9,11,73
+packages/db/src/pg-submit-move-repository.integration.test.ts
+  s_0648395c8fc9bf::t_ba974c9e291f1d 17,19,219
+packages/db/src/product-metrics.integration.test.ts
+  s_0648395c8fc9bf::t_4d469bab59fb13 7,9,13
+packages/db/src/season-closing.integration.test.ts
+  s_0648395c8fc9bf::t_edab42f5a06546 10,12,34
+packages/db/src/season-repository.integration.test.ts
+  s_0648395c8fc9bf::t_d0a87298c440c9 9,11,68
+packages/db/src/season-scoring-repository.integration.test.ts
+  s_0648395c8fc9bf::t_5147d4c57e3109 15,17,27
+packages/db/src/test-database/vitest-global-setup.ts
+  s_0648395c8fc9bf::t_87483188e44095 1
+packages/db/src/test-database/vitest-integration-reporter.ts
+  s_0648395c8fc9bf::t_29a040340d21d8 1-41
+packages/db/src/test-database/vitest.ts
+  s_0648395c8fc9bf::t_622320f30201bb 1-41
+packages/db/vitest.config.ts
+  s_0648395c8fc9bf::t_1695e76a415bdf 2,11
+turbo.json
+  s_0648395c8fc9bf::t_6bf43ce028db61 16-19,27-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db8f6f9dcd383e4d5f2c2f6880923bd5f16ba095",
+  "prompts": {},
+  "sessions": {
+    "s_0648395c8fc9bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7adefb7a-8a2b-4a7f-aff2-6e8c1dfd6235",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
