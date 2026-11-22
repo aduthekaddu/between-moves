@@ -1,0 +1,21 @@
+.prettierignore
+  s_b9d9ac6a3eb0fb::t_c2f8057992b5be 15-17
+architecture/stack.html
+  s_b9d9ac6a3eb0fb::t_fe50c852a09b57 1-8,10-36,38-40,43-72,74-81,83-89,91-92,94-98,100-116,118-131,133-134,136-143,145-150,152-160,162-174,180-185,187-207,209-230,232-233,235-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ac2daded01543fe733cc4afa38a91b696ff13866",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
