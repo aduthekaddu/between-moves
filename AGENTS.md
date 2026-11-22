@@ -28,9 +28,9 @@ Those names are the lint allow-list. Add the workspace dependency to that packag
 
 Reviewed SQL lives in `packages/db/migrations/NNNN_name/`. `pnpm db:generate` writes a draft under `packages/db/migrations/generated/`, and git ignores that directory. `pnpm db:migrate:down` throws when `APP_ENV` is `production`. The check is in `packages/db/src/migrate-cli.ts`.
 
-Point database integration tests at a disposable database. They read `TEST_DATABASE_URL` and skip when it is unset. `packages/db/src/season-closing.integration.test.ts` rolls every migration down before each test.
+Start the disposable TLS test database with `pnpm db:test:up`. CI runs the same script, `scripts/test-database.sh`. A file named `*.integration.test.ts` runs in the Vitest `integration` project, which fails when the database is missing, a test skips, or no test runs. Never add a per-file skip for a missing database. Read the URL with `requireTestDatabaseUrl` from `@between-moves/db/test-database`. `packages/db/src/season-closing.integration.test.ts` rolls every migration down before each test.
 
-`pnpm check` runs lint, typecheck, and the test script. It does not run `pnpm build`. CI runs that build as its own step. Run `pnpm traceability:check` when you change a BM-051 security criterion. Run `pnpm test:e2e` when you change a page.
+`pnpm check` runs lint, typecheck, the unit tests, and `pnpm test:integration`, so it needs the test database. It does not run `pnpm build`. CI runs that build as its own step. Run `pnpm traceability:check` when you change a BM-051 security criterion. Run `pnpm test:e2e` when you change a page.
 
 Regenerate `tooling/traceability-matrix.md` with `pnpm traceability:generate`. Leave the generated file as the command wrote it.
 
