@@ -32,11 +32,22 @@ describe('Node and pnpm are pinned in one place each', () => {
       /^\s+node-version:/m,
       'Use `node-version-file: .node-version` instead of a literal node-version.',
     );
-    assert.doesNotMatch(
-      workflow,
-      /^\s+version:/m,
-      'Drop `version:` from pnpm/action-setup. It reads packageManager in package.json.',
+    assert.match(
+      packageJson.packageManager ?? '',
+      /^pnpm@\d+\.\d+\.\d+$/,
+      'Set packageManager in package.json to an exact pnpm version. CI installs pnpm from it.',
     );
+    const pnpmSetups = [
+      ...workflow.matchAll(/uses: pnpm\/action-setup@\S+\n(?:(\s+)with:\n((?:\1\s+\S.*\n)*))?/g),
+    ];
+    assert.ok(pnpmSetups.length > 0);
+    for (const [, , inputs = ''] of pnpmSetups) {
+      assert.doesNotMatch(
+        inputs,
+        /^\s+version:/m,
+        'Drop `version:` from pnpm/action-setup. It reads packageManager in package.json.',
+      );
+    }
     const setupNodeSteps = workflow.match(/uses: actions\/setup-node@/g)?.length ?? 0;
     const nodeFileInputs = workflow.match(/^\s+node-version-file: \.node-version$/gm)?.length ?? 0;
     assert.ok(setupNodeSteps > 0);
