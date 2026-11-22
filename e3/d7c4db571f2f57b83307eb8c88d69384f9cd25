@@ -1,0 +1,28 @@
+tooling/doc-claims.test.mjs
+  s_0648395c8fc9bf::t_b2b75882cd22ef 1-366
+  s_0648395c8fc9bf::t_2d4ba2d3c0e6bd 367-629
+AGENTS.md
+  s_0648395c8fc9bf::t_934256b5f5fbb3 21,23,25
+ARCHITECTURE.md
+  s_0648395c8fc9bf::t_5ea79bccfc50f7 39
+CONTRIBUTING.md
+  s_0648395c8fc9bf::t_7e1ee654f13e49 34-35
+package.json
+  s_0648395c8fc9bf::t_a180a13cd9edf7 15-16,19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3d7c4db571f2f57b83307eb8c88d69384f9cd25",
+  "prompts": {},
+  "sessions": {
+    "s_0648395c8fc9bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7adefb7a-8a2b-4a7f-aff2-6e8c1dfd6235",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
