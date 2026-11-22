@@ -296,6 +296,49 @@ describe('live move entry', () => {
     expect(container.textContent).toContain('Bea won');
   });
 
+  it('shows the newest board when a send fails after a refresh landed during it (#63)', async () => {
+    const offered: MoveEntryPosition = {
+      ...initial,
+      white: { name: 'Ada', membershipId: 'ada' },
+      black: { name: 'Bea', membershipId: 'bea' },
+      pendingDrawOffer: { offeringMembershipId: 'bea', ply: 0 },
+    };
+    const elsewhere: MoveEntryPosition = {
+      ...offered,
+      currentFen: requireFen('8/8/8/8/8/4P3/8/8 b - - 0 1'),
+      currentPly: 1,
+      sideToMove: 'black',
+      version: 2,
+      pendingDrawOffer: null,
+      moves: [{ ply: 1, uci: 'e2e3', san: 'e3' }],
+    };
+    let snapshot = offered;
+    let declined: (response: Response) => void = () => {};
+    let failMove: (error: Error) => void = () => {};
+    fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+      if (options?.method !== 'POST') return Promise.resolve(json(snapshot));
+      if (url.endsWith('/draw')) return new Promise<Response>((resolve) => (declined = resolve));
+      return new Promise<Response>((_, reject) => (failMove = reject));
+    });
+    await mount(offered);
+    await click('.game-actions__buttons button:not(.game-actions__accept)');
+    await proposeMove();
+    expect(container.querySelector('[data-square="e4"]')?.getAttribute('aria-label')).toBe(
+      'e4, white pawn',
+    );
+
+    snapshot = elsewhere;
+    await act(async () => declined(json({ ok: true })));
+    await act(async () => failMove(new TypeError('Failed to fetch')));
+    expect(container.textContent).toContain("Something went wrong. Your last change wasn't saved");
+    expect(container.querySelector('[data-square="e3"]')?.getAttribute('aria-label')).toBe(
+      'e3, white pawn',
+    );
+    expect(container.querySelector('[data-square="e2"]')?.getAttribute('aria-label')).toBe(
+      'e2, empty',
+    );
+  });
+
   it('switches live play to read-only below the viewport boundary', async () => {
     await mount();
     matches = false;
@@ -375,6 +418,17 @@ describe('correspondence move entry', () => {
     await act(async () => vi.advanceTimersByTime(UNDO_WINDOW_MS));
     expect(posts()).toHaveLength(1);
     expect(postedBody()).toMatchObject({ expectedPly: 0, move: { from: 'e2', to: 'e4' } });
+  });
+
+  it('moves the turn dot with the staged Move, and back on Undo', async () => {
+    const dot = () =>
+      container.querySelector('.player-strip[data-to-move]')?.getAttribute('data-side');
+    await mount(correspondence);
+    expect(dot()).toBe('white');
+    await proposeMove();
+    expect(dot()).toBe('black');
+    await act(async () => buttonNamed('Undo').click());
+    expect(dot()).toBe('white');
   });
 
   it('takes a Move back with Undo, and nothing is sent', async () => {
@@ -615,6 +669,26 @@ describe('reviewing a Game', () => {
     await act(async () => buttonNamed('Back to the game').click());
     expect(square('e5')?.getAttribute('aria-label')).toBe('e5, black pawn');
     expect(container.querySelector('[data-movable]')).not.toBeNull();
+  });
+
+  it('labels the reviewed position and moves the turn dot to its side (#66)', async () => {
+    const dot = () =>
+      [...container.querySelectorAll('.player-strip[data-to-move]')].map((node) =>
+        node.getAttribute('data-side'),
+      );
+    await mount(played);
+    expect(dot()).toEqual(['white']);
+    await act(async () => buttonNamed('Show the board after 1. e4').click());
+    expect(dot()).toEqual(['black']);
+
+    await act(async () => root.render(<></>));
+    await mount({ ...played, state: 'completed', result: 'black_win', resultReason: 'resign' });
+    expect(dot()).toEqual([]);
+    await act(async () => buttonNamed('Show the board after 1. e4').click());
+    expect(container.querySelector('[role="grid"]')?.getAttribute('aria-label')).toBe(
+      'Chessboard. black to move. Last move e2e4.',
+    );
+    expect(dot()).toEqual(['black']);
   });
 
   it('steps back to the start with the arrow buttons', async () => {
