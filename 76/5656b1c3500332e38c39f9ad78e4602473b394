@@ -1,0 +1,45 @@
+.github/workflows/ci.yml
+  s_b9d9ac6a3eb0fb::t_4c663d8237c4cd 91-93
+.prettierignore
+  s_b9d9ac6a3eb0fb::t_fbf7b8ae352f67 11-14
+AGENTS.md
+  s_b9d9ac6a3eb0fb::t_76c978d750a428 33
+CONTRIBUTING.md
+  s_b9d9ac6a3eb0fb::t_e27f37fab30b2c 7,13-15,22,24
+apps/web/src/modules/nights/presence.ts
+  s_b9d9ac6a3eb0fb::t_9d33735189fa5c 31
+apps/web/src/modules/nights/rail.test.ts
+  s_b9d9ac6a3eb0fb::t_a73dad1bb1e00b 1
+apps/web/src/server/night-lifecycle-handler.test.ts
+  s_b9d9ac6a3eb0fb::t_39a4e28c2d3def 1
+apps/web/src/server/night-lifecycle-handler.ts
+  s_b9d9ac6a3eb0fb::t_361f53023bdc5c 32-36
+architecture/stack.html
+  s_b9d9ac6a3eb0fb::t_ee4b529d747df0 1-9,11-47,49-51,54-117,119-156,158-174,176-180,182-199,201-269,271-329,331-339,341-377,379-402,404-436,438-441,447-468,470-506,508-561,563-567,569-579
+package.json
+  s_b9d9ac6a3eb0fb::t_945a5537544dbb 30
+packages/adapters/src/upstash-night-presence.ts
+  s_b9d9ac6a3eb0fb::t_bab5e5c004ce57 27
+packages/application/src/identity/magic-link.test.ts
+  s_b9d9ac6a3eb0fb::t_9e6654b93416c5 72
+packages/db/src/pg-invitation-redemption-repository.ts
+  s_b9d9ac6a3eb0fb::t_f4298672139f43 159-160
+packages/db/src/pg-night-rsvp-repository.ts
+  s_b9d9ac6a3eb0fb::t_65f0933f3e4bf4 90-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "765656b1c3500332e38c39f9ad78e4602473b394",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
