@@ -55,7 +55,7 @@ const PNPM_BUILT_INS = new Set(
   ).split(' '),
 );
 // CHANGELOG is history, the traceability matrix is generated and has its own check.
-// Every other .md file in the repo is checked, including anything under docs/.
+// Every other .md file in the repo is checked. Backticked paths are only checked under TOP_LEVEL_DIRS.
 const EXCLUDED_DOCS = new Set(['CHANGELOG.md', 'tooling/traceability-matrix.md']);
 
 function listFiles(directory, accept) {
@@ -205,40 +205,53 @@ function* configStrings(value, seen = new Set()) {
   }
 }
 
-// The lint allow-list in the root eslint config: { 'db' => { full: Set, typeOnly: Set } }.
-// Subjects are `apps/<name>` for an app and `<name>` for a package. `full` names may be imported
-// as values, `typeOnly` names only with `import type`.
-function lintAllowLists(entries) {
+// What the root eslint config lets each workspace package import, decided by ESLint itself:
+// { 'db' => { full: Set, typeOnly: Set } }. Subjects are `apps/<name>` for an app and `<name>` for
+// a package. `full` names may be imported as values, `typeOnly` names only with `import type`.
+// ESLint lints one probe file per subject that imports every other workspace package, so rule
+// severity, later entries that override earlier ones, patterns and `allowTypeImports` all
+// count as they do in `pnpm lint`.
+async function lintAllowLists(root, entries, workspace) {
   const lists = new Map();
-  const nameOf = (item) => item.replace(/^!/, '').replace(/\/\*$/, '').slice(SCOPE_NAME.length);
-  for (const entry of entries) {
-    const patterns = entry.rules?.['no-restricted-imports']?.[1]?.patterns ?? [];
-    const globs = [entry.files ?? []].flat().filter((glob) => typeof glob === 'string');
-    if (patterns.length === 0 || globs.length === 0) continue;
-    const allowed = new Set();
-    const typeOnly = new Set();
-    for (const { group = [], allowTypeImports } of patterns) {
-      if (group.includes(`${SCOPE_NAME}*`)) {
-        for (const item of group.filter((item) => item.startsWith(`!${SCOPE_NAME}`))) {
-          allowed.add(nameOf(item));
-        }
-      } else {
-        for (const item of group.filter((item) => item.startsWith(SCOPE_NAME))) {
-          if (allowTypeImports) typeOnly.add(nameOf(item));
-          else allowed.delete(nameOf(item));
-        }
-      }
-    }
-    const list = {
-      full: new Set([...allowed].filter((name) => !typeOnly.has(name))),
-      typeOnly: new Set([...typeOnly].filter((name) => allowed.has(name))),
-    };
-    for (const glob of globs) {
-      const target = /^(apps\/[^/]+|packages\/(?:\{([^}]+)\}|[^/]+))\/src\//.exec(glob);
-      if (!target) continue;
-      const subjects = target[2] ? target[2].split(',') : [target[1].replace(/^packages\//, '')];
-      for (const subject of subjects) lists.set(subject, list);
-    }
+  if (entries.length === 0) return lists;
+  const { ESLint } = await import('eslint');
+  const { default: tsParser } = await import('@typescript-eslint/parser');
+  const eslint = new ESLint({
+    cwd: root,
+    overrideConfigFile: true,
+    overrideConfig: [...entries, { files: ['**/*.ts'], languageOptions: { parser: tsParser } }],
+  });
+  const names = workspace
+    .map((entry) => entry.manifest.name)
+    .filter((name) => name?.startsWith(SCOPE_NAME));
+  // Names of the packages that ESLint refuses to let `file` import with this statement.
+  const refused = async (file, statement, others) => {
+    const code = others.map((name) => statement(name)).join('\n');
+    const [result] = await eslint.lintText(code, { filePath: join(root, file) });
+    const fatal = result.messages.find((message) => message.fatal || message.ruleId === null);
+    if (fatal) throw new Error(`eslint could not read the probe for ${file}: ${fatal.message}`);
+    return new Set(
+      result.messages
+        .filter((message) => message.ruleId === 'no-restricted-imports')
+        .map((message) => others[message.line - 1]),
+    );
+  };
+  for (const entry of workspace) {
+    if (!/^(?:apps|packages)\//.test(entry.dir)) continue;
+    const others = names.filter((name) => name !== entry.manifest.name);
+    const file = `${entry.dir}/src/probe.ts`;
+    const values = await refused(file, (name) => `import '${name}';`, others);
+    const types = await refused(file, (name) => `import type {} from '${name}';`, others);
+    lists.set(entry.dir.replace(/^packages\//, ''), {
+      full: new Set(
+        others.filter((name) => !values.has(name)).map((name) => name.slice(SCOPE_NAME.length)),
+      ),
+      typeOnly: new Set(
+        others
+          .filter((name) => values.has(name) && !types.has(name))
+          .map((name) => name.slice(SCOPE_NAME.length)),
+      ),
+    });
   }
   return lists;
 }
@@ -271,7 +284,11 @@ export async function findStaleClaims(root) {
   };
   const eslintConfigs = await loadEslintConfigs(root);
   const rootConfig = eslintConfigs.find(({ file }) => dirname(file) === root);
-  const lintAllowed = lintAllowLists(rootConfig?.entries ?? []);
+  let lintAllowedPromise;
+  const lintAllowedLists = () => {
+    lintAllowedPromise ??= lintAllowLists(root, rootConfig?.entries ?? [], workspace);
+    return lintAllowedPromise;
+  };
   const fileCache = new Map();
   const read = (path) => {
     if (!fileCache.has(path)) fileCache.set(path, readFileSync(join(root, path), 'utf8'));
@@ -337,7 +354,7 @@ export async function findStaleClaims(root) {
 
   // "Today only `apps/web` depends on `contracts`.", "`x` imports no workspace package." and the
   // bullet list of what a layer "may import", which AGENTS.md says is the lint allow-list.
-  function checkDependencyProse(doc, line, text) {
+  async function checkDependencyProse(doc, line, text) {
     for (const only of [
       /`([^`]+)` is the only workspace package that (?:declares a dependency on|depends on) `([^`]+)`/,
       /only `([^`]+)` depends on `([^`]+)`/,
@@ -376,7 +393,7 @@ export async function findStaleClaims(root) {
     }
     const imports = /^- (.+?) imports no workspace package\b/.exec(text);
     for (const subject of imports ? tokensIn(imports[1]) : []) {
-      const allowed = lintAllowed.get(subject);
+      const allowed = (await lintAllowedLists()).get(subject);
       const entry = bySubject(subject);
       const lintNames = allowed ? [...allowed.full, ...allowed.typeOnly] : [];
       const depNames = entry ? [...dependenciesOf(entry)].map(shortName) : [];
@@ -401,7 +418,7 @@ export async function findStaleClaims(root) {
       const claimedFull = typeOnlyClaim ? new Set() : claimed;
       const claimedTypeOnly = typeOnlyClaim ? claimed : new Set();
       for (const subject of tokensIn(may[1])) {
-        const allowed = lintAllowed.get(subject);
+        const allowed = (await lintAllowedLists()).get(subject);
         if (
           !allowed ||
           !sameSet(allowed.full, claimedFull) ||
@@ -580,12 +597,13 @@ export async function findStaleClaims(root) {
       }
 
       checkPackageNames(doc, line, text);
-      checkDependencyProse(doc, line, text);
+      await checkDependencyProse(doc, line, text);
 
       for (const match of text.matchAll(/`([^`]+)`/g)) {
         const token = match[1].trim();
-        if (/^pnpm\s/.test(token)) {
-          for (const command of pnpmCommands(token)) checkScript(doc, line, command);
+        const commands = pnpmCommands(token);
+        if (commands.length > 0) {
+          for (const command of commands) checkScript(doc, line, command);
         } else if (isPlaceholder(token) || token.includes(' ')) continue;
         else if (token.includes('/') && repoPath.test(token)) checkPath(doc, line, token);
         else if (
@@ -733,7 +751,7 @@ describe('doc claims checker', () => {
       {
         ...fixtureFiles,
         'eslint.config.mjs': `export default [${JSON.stringify(
-          allowList('apps/worker/src/**/*.ts', 'domain', 'config'),
+          allowList('apps/worker/src/**/*.ts', 'domain', 'observability', 'config'),
         )}];\n`,
         'AGENTS.md': [
           'Gone path `packages/domain/src/gone.ts` here.',
@@ -983,6 +1001,73 @@ describe('prose claims', () => {
       1,
     );
   });
+
+  describe('reads the config the way ESLint resolves it', () => {
+    const worker = ['apps/worker/src/**/*.ts'];
+    const allowDomain = { group: ['@between-moves/*', '!@between-moves/domain'] };
+    const mayImportDomain = '- `apps/worker` may import `domain`.\n';
+    const edgeFindings = async (entries, doc) =>
+      mentions(await findingsFor({ ...lint(entries), 'AGENTS.md': doc }), '[edge]');
+
+    it('treats a rule set to off, in any spelling, as allowing every package', async () => {
+      for (const severity of ['off', 0]) {
+        const entry = {
+          files: worker,
+          rules: { 'no-restricted-imports': [severity, { patterns: [allowDomain] }] },
+        };
+        assert.equal(
+          (await edgeFindings([entry], mayImportDomain)).length,
+          1,
+          `severity ${severity}`,
+        );
+      }
+    });
+
+    it('lets a later entry that turns the rule off override an earlier allow-list', async () => {
+      const off = { files: worker, rules: { 'no-restricted-imports': 'off' } };
+      const findings = await edgeFindings([restrict(worker, allowDomain), off], mayImportDomain);
+      assert.equal(findings.length, 1, findings.join('\n'));
+    });
+
+    it('lets a later entry that replaces the allow-list override an earlier one', async () => {
+      const replace = restrict(worker, {
+        group: ['@between-moves/*', '!@between-moves/observability'],
+      });
+      const entries = [restrict(worker, allowDomain), replace];
+      assert.equal((await edgeFindings(entries, mayImportDomain)).length, 1);
+      const claimsObservability = '- `apps/worker` may import `observability`.\n';
+      assert.deepEqual(await edgeFindings(entries, claimsObservability), []);
+    });
+
+    it('treats patterns that do not restrict workspace packages as allowing all of them', async () => {
+      const unrelated = restrict(['packages/observability/src/**/*.ts'], { group: ['node:fs'] });
+      const noImports = '- `observability` imports no workspace package.\n';
+      assert.equal((await edgeFindings([unrelated], noImports)).length, 1);
+      const onlyOneBanned = restrict(['packages/observability/src/**/*.ts'], {
+        group: ['@between-moves/db'],
+      });
+      assert.equal((await edgeFindings([onlyOneBanned], noImports)).length, 1);
+    });
+
+    it('accepts `imports no workspace package` when every workspace import is banned', async () => {
+      const banned = restrict(['packages/observability/src/**/*.ts'], {
+        group: ['@between-moves/*'],
+      });
+      assert.deepEqual(
+        await edgeFindings([banned], '- `observability` imports no workspace package.\n'),
+        [],
+      );
+    });
+
+    it('honors allowTypeImports on the `@between-moves/*` group', async () => {
+      const entries = [restrict(worker, { group: ['@between-moves/*'], allowTypeImports: true })];
+      const plain = '- `apps/worker` may import `domain` and `observability`.\n';
+      assert.equal((await edgeFindings(entries, plain)).length, 1);
+      const typeOnly =
+        '- `apps/worker` may import `domain` and `observability` only with `import type`.\n';
+      assert.deepEqual(await edgeFindings(entries, typeOnly), []);
+    });
+  });
 });
 
 describe('commands and files', () => {
@@ -998,6 +1083,21 @@ describe('commands and files', () => {
     assert.equal(mentions(findings, 'pnpm gone').length, 1);
     assert.equal(mentions(findings, 'pnpm also-gone').length, 1);
     assert.equal(mentions(findings, 'pnpm fenced-gone').length, 1);
+  });
+
+  it('checks inline commands the way fenced ones are checked', async () => {
+    const findings = await findingsFor({
+      'AGENTS.md': [
+        'Run `APP_ENV=production pnpm env-gone`.',
+        'Run `$ pnpm prompt-gone`.',
+        'Run `cd apps/worker && pnpm cd-gone`.',
+        'Run `pnpm check` and `cd apps/worker && pnpm trigger:deploy`.',
+      ].join('\n'),
+    });
+    assert.equal(mentions(findings, '[script]', 'pnpm env-gone').length, 1, findings.join('\n'));
+    assert.equal(mentions(findings, '[script]', 'pnpm prompt-gone').length, 1);
+    assert.equal(mentions(findings, '[script]', 'pnpm cd-gone').length, 1);
+    assert.equal(mentions(findings, '[script]').length, 3);
   });
 
   it('checks fenced commands that start with environment variables', async () => {
