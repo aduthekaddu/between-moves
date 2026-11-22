@@ -31,6 +31,8 @@ Set the machine up with the install steps in [README.md](README.md). The scripts
    pnpm test:e2e
    ```
 
+`pnpm check` also runs `pnpm test:docs`. That test fails when a developer doc names a path, `pnpm` script, `@between-moves/*` package, or `symbol in file` that is not in the tree, or when the package diagram and the "may import" lists in `AGENTS.md` and `ARCHITECTURE.md` differ from the `package.json` files and `eslint.config.mjs`. Update the doc in the same commit as the code.
+
 `pnpm check` does not run `pnpm build`, the traceability check, or the browser tests. CI runs `pnpm build` as its own step.
 
 ## Run tests that need PostgreSQL

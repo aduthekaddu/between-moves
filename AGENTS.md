@@ -18,11 +18,11 @@ Use the Node and pnpm versions pinned in `package.json`.
 
 - `domain` may import `@between-moves/contracts` only with `import type`. It does not import it today, and `packages/domain/package.json` does not depend on it. Declare that dependency before you add the import.
 - `application` may import `domain` and `contracts`. Its `package.json` depends on `domain` only.
-- `db` and `adapters` may import `domain`, `contracts`, `observability`, and `@between-moves/config`. `application` is outside that list.
+- `db` and `adapters` may import `domain`, `contracts`, and `observability`. `application` is outside that list.
 - `observability` imports no workspace package.
-- `apps/worker` may import `application`, `domain`, `db`, `adapters`, `contracts`, `observability`, and `@between-moves/config`.
+- `apps/worker` may import `application`, `domain`, `db`, `adapters`, `contracts`, and `observability`.
 
-Those names are the lint allow-list. Add the workspace dependency to that package's `package.json` before you import it. Today only `apps/web` depends on `contracts`. No package depends on `@between-moves/config`. Web configuration is `apps/web/src/config/index.ts`.
+Those names are the lint allow-list. Add the workspace dependency to that package's `package.json` before you import it. Today only `apps/web` depends on `contracts`. Web configuration is `apps/web/src/config/index.ts`.
 
 `pnpm lint:boundaries` covers the worker and the packages named in the root `package.json` script. It skips `apps/web` and `packages/contracts`. The web app uses `apps/web/eslint.config.mjs`. Contracts has no ESLint config in this repo.
 
