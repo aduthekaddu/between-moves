@@ -138,6 +138,22 @@ textarea {
   font-size: max(1rem, 1em);
 }
 
+/* WCAG 2.5.8 wants a 24px hit area on every control. Zero specificity: a class may make a control taller, and tooling/css-guards.mjs rejects one that makes it shorter. Links inside text are exempt and are not listed. */
+:root {
+  --target-size: 24px;
+}
+
+:where(
+  button,
+  summary,
+  select,
+  textarea,
+  [role='button'],
+  input:not([type='checkbox'], [type='radio'], [type='hidden'])
+) {
+  min-block-size: var(--target-size);
+}
+
 :where(
     .house-shell,
     .game-shell,
