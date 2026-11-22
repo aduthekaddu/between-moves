@@ -1,0 +1,31 @@
+.claude/skills/verify-nudge-outbox/SKILL.md
+  s_b9d9ac6a3eb0fb::t_b4558508dbcea3 1-83
+ARCHITECTURE.md
+  s_b9d9ac6a3eb0fb::t_68c179e3325f05 153-186
+AGENTS.md
+  s_b9d9ac6a3eb0fb::t_7ae5930a6fb5af 37-38
+.claude/skills/verify-nudge-outbox/chart-view.mjs
+  s_b9d9ac6a3eb0fb::t_83e911a6a4531c 1-38
+.claude/skills/verify-nudge-outbox/chart.cfg
+  s_b9d9ac6a3eb0fb::t_56ff964644e5d5 1-16
+packages/db/src/due-nudges.ts
+  s_b9d9ac6a3eb0fb::t_6c48f08ba92f3d 2-3
+packages/db/src/pg-nudge-delivery-gate.ts
+  s_b9d9ac6a3eb0fb::t_b621ea0965a638 38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b44401f292e073c274b8c23c08bfc4e8e9c6c4a",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
