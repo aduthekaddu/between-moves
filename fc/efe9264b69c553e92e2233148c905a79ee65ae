@@ -1,0 +1,57 @@
+apps/web/src/app/api/houses/[houseId]/invitations/handler.test.ts
+  s_0648395c8fc9bf::t_cbb7049e4821b5 8-9,83-112
+apps/web/src/app/api/houses/[houseId]/invitations/handler.ts
+  s_0648395c8fc9bf::t_e89bd92f8285b8 72
+apps/web/src/app/api/invitations/[token]/handler.test.ts
+  s_0648395c8fc9bf::t_56546ac3c60cae 3-4,53-82
+apps/web/src/app/api/invitations/[token]/handler.ts
+  s_0648395c8fc9bf::t_71a44ef8c9a83c 42
+apps/web/src/app/api/invitations/[token]/redeem/handler.test.ts
+  s_0648395c8fc9bf::t_448fa445ecf4d2 7-8,111-140
+apps/web/src/app/api/invitations/[token]/redeem/handler.ts
+  s_0648395c8fc9bf::t_066a03777eeafd 70
+apps/web/src/server/game-reaction-handler.test.ts
+  s_0648395c8fc9bf::t_32a11ded9964ed 92-122
+apps/web/src/server/game-reaction-handler.ts
+  s_0648395c8fc9bf::t_67a674a73c1fa9 64
+apps/web/src/server/house-chat-handler.test.ts
+  s_0648395c8fc9bf::t_36d4655a0c47f1 138-168
+apps/web/src/server/house-chat-handler.ts
+  s_0648395c8fc9bf::t_677f7077eb851b 90
+apps/web/src/server/submit-move-handler.test.ts
+  s_0648395c8fc9bf::t_77d39f11eba804 11-12,239-269
+apps/web/src/server/submit-move-handler.ts
+  s_0648395c8fc9bf::t_ec4a1cf80000f2 125
+tooling/traceability-criteria.json
+  s_0648395c8fc9bf::t_bb0e5b80be61b3 6-31,39-44,48-75,82-87
+tooling/traceability-matrix.md
+  s_99e6b4fa97078c::t_f76bcfad20d287 7-9
+tooling/traceability.mjs
+  s_0648395c8fc9bf::t_8c4f95705ac7ec 4,12-126,143-147,149,151,153-173,180-182,196-200
+tooling/traceability.test.mjs
+  s_99e6b4fa97078c::t_f7e0a27a92a07b 5-21,24,26-29,37-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fcefe9264b69c553e92e2233148c905a79ee65ae",
+  "prompts": {},
+  "sessions": {
+    "s_0648395c8fc9bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7adefb7a-8a2b-4a7f-aff2-6e8c1dfd6235",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    },
+    "s_99e6b4fa97078c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "30fc78cc-c8d5-5e67-be6f-766ace7f4ede",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
