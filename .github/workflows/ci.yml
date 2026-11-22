@@ -59,6 +59,32 @@ jobs:
           cache: pnpm
       - run: pnpm traceability:check
 
+  formal-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      # The key hashes the script, which pins the TLC version and the jar SHA-256.
+      # The script re-checks the SHA-256, so a stale cache costs a download, not a wrong jar.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/between-moves/tla2tools
+          key: tla2tools-${{ hashFiles('tooling/formal-check.mjs') }}
+      - name: Prove the runner can fail
+        run: pnpm formal:selftest
+      - name: Check formal models
+        run: pnpm formal:check
+
   quality:
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
