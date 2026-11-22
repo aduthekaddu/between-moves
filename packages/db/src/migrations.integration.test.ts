@@ -62,6 +62,12 @@ integration('PostgreSQL foundation', () => {
       viewerId: authorized.viewerId,
       houseId: '01941f29-7c00-7000-8000-000000000011',
     });
+    await database.query(
+      `insert into house_reference_records
+         (id, house_id, authorized_viewer_id, membership_status, label)
+       values ($1, $2, $3, 'left', 'Maple House former reference')`,
+      ['01941f29-7c00-7000-8000-000000000004', authorized.houseId, authorized.viewerId],
+    );
 
     await expect(repository.list(authorized)).resolves.toEqual([
       {
