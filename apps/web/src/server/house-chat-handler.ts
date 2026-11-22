@@ -87,6 +87,7 @@ export function createPostHouseChatHandler(dependencies: HouseChatHandlerDepende
         'Sign in to send House chat.',
       );
     }
+    // [BM-051:AC-2] Over the chat threshold: a fixed 429 problem with Retry-After, no account data.
     const rateLimit = await dependencies.limitChat(request, viewer.userId);
     if (!rateLimit.allowed) {
       return problem(

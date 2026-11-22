@@ -32,6 +32,8 @@ Point database integration tests at a disposable database. They read `TEST_DATAB
 
 `pnpm check` runs lint, typecheck, and the test script. It does not run `pnpm build`. CI runs that build as its own step. Run `pnpm traceability:check` when you change a BM-051 security criterion. Run `pnpm test:e2e` when you change a page.
 
+Each test in `tooling/traceability-criteria.json` lists `asserts` words. The check needs a running test whose title carries the criterion tag (for example `[BM-051:AC-2]`) and whose `expect` or `assert` calls contain every word. Tag the test that asserts the criterion; a tag in a comment or a skipped test does not count.
+
 Regenerate `tooling/traceability-matrix.md` with `pnpm traceability:generate`. Leave the generated file as the command wrote it.
 
 When a House write emits an outbox event, write the state change and the event on the same database client. `snapshotAndEnqueueClosing` in `packages/db/src/pg-season-closing.ts` does that for `season.closing`.
