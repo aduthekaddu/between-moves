@@ -1,0 +1,23 @@
+packages/db/src/index.ts
+  s_99e6b4fa97078c::t_d9df1578ed85ec 7
+packages/db/src/migrations.integration.test.ts
+  s_99e6b4fa97078c::t_42665e187325da 6,51
+packages/db/src/pg-house-reference-repository.ts
+  s_99e6b4fa97078c::t_75cb6a239e00b6 6-17,20-21,24-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fd35c2e6607a31325247b86314b86aaeb69a3e5f",
+  "prompts": {},
+  "sessions": {
+    "s_99e6b4fa97078c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "30fc78cc-c8d5-5e67-be6f-766ace7f4ede",
+        "model": "unknown"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
