@@ -1,0 +1,19 @@
+scripts/test-database.sh
+  s_b9d9ac6a3eb0fb::t_ae653518c0dd9c 51-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d1f7e789e4975efd1e3c37e66f62234c87aec78b",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
