@@ -1,0 +1,19 @@
+tooling/doc-claims.test.mjs
+  s_b9d9ac6a3eb0fb::t_0a026efcc326e9 58,208-214,216-254,287-291,357,396,421,600,604-606,754,1004-1070,1088-1102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f1f283c8547e1792bb5ada5df79c00fe2dcc46f7",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
