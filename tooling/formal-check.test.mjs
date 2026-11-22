@@ -5,11 +5,21 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { jarLocation } from './formal-check.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const runner = join(here, 'formal-check.mjs');
@@ -28,9 +38,13 @@ function copyOfFixture() {
   return dir;
 }
 
-function check(modelsDir) {
-  const run = spawnSync(process.execPath, [runner, '--models', modelsDir], { encoding: 'utf8' });
-  return { code: run.status, out: `${run.stdout}${run.stderr}` };
+function run(args, options = {}) {
+  const result = spawnSync(process.execPath, [runner, ...args], { encoding: 'utf8', ...options });
+  return { code: result.status, out: `${result.stdout}${result.stderr}` };
+}
+
+function check(modelsDir, options) {
+  return run(['--models', modelsDir], options);
 }
 
 after(() => {
@@ -105,5 +119,91 @@ describe('formal-check runner', () => {
     const { code, out } = check(folder('formal-empty-'));
     assert.equal(code, 0, out);
     assert.match(out, /0 model\(s\)/);
+  });
+
+  it('exits nonzero when a bug config deadlocks instead of violating an invariant', () => {
+    const dir = copyOfFixture();
+    // BuggySpec runs past Limit and gets stuck. Without an invariant, TLC reports a deadlock.
+    writeFileSync(
+      join(dir, 'Counter.bug-overshoot.cfg'),
+      'CONSTANT Limit = 3\nSPECIFICATION BuggySpec\n',
+    );
+    const { code, out } = check(dir);
+    assert.notEqual(code, 0, out);
+    assert.doesNotMatch(out, /Counter\.bug-overshoot\.cfg fails as expected/);
+    assert.match(
+      out,
+      /FAIL Counter\.bug-overshoot\.cfg bug config failed for the wrong reason \(TLC exited 11: Deadlock reached/,
+    );
+  });
+
+  it('checks a model that sits in a subfolder, and names the folder in each line', () => {
+    const dir = folder('formal-nested-');
+    cpSync(fixture, join(dir, 'nudge', 'outbox'), { recursive: true });
+    const { code, out } = check(dir);
+    assert.equal(code, 0, out);
+    assert.match(out, /1 model\(s\), 2 bug config\(s\)/);
+    assert.match(out, /ok\s+nudge\/outbox\/Counter\.cfg passes/);
+    assert.match(out, /ok\s+nudge\/outbox\/Counter\.bug-overshoot\.cfg fails as expected/);
+  });
+
+  it('fails a model in a subfolder whose bug config passes', () => {
+    const dir = folder('formal-nested-bug-');
+    cpSync(fixture, join(dir, 'board'), { recursive: true });
+    cpSync(join(dir, 'board', 'Counter.cfg'), join(dir, 'board', 'Counter.bug-overshoot.cfg'));
+    const { code, out } = check(dir);
+    assert.notEqual(code, 0, out);
+    assert.match(out, /FAIL board\/Counter\.bug-overshoot\.cfg bug config passed/);
+  });
+
+  it('keeps each folder separate: a config does not pair with a .tla in another folder', () => {
+    const dir = folder('formal-split-');
+    mkdirSync(join(dir, 'a'));
+    mkdirSync(join(dir, 'b'));
+    cpSync(join(fixture, 'Counter.tla'), join(dir, 'a', 'Counter.tla'));
+    cpSync(join(fixture, 'Counter.cfg'), join(dir, 'b', 'Counter.cfg'));
+    const { code, out } = check(dir);
+    assert.notEqual(code, 0, out);
+    assert.match(out, /FAIL a\/Counter\.tla: no Counter\.cfg/);
+    assert.match(out, /FAIL b\/Counter: configs exist but Counter\.tla does not/);
+  });
+
+  it('exits nonzero for a file that is not .tla, .cfg or README.md, at the top and in a subfolder', () => {
+    const dir = folder('formal-stray-');
+    mkdirSync(join(dir, 'sub'));
+    writeFileSync(join(dir, 'Counter.cfg.disabled'), '');
+    writeFileSync(join(dir, 'sub', 'notes.txt'), '');
+    writeFileSync(join(dir, 'README.md'), '# fine\n');
+    writeFileSync(join(dir, 'sub', 'README.md'), '# fine\n');
+    const { code, out } = check(dir);
+    assert.notEqual(code, 0, out);
+    assert.match(out, /FAIL Counter\.cfg\.disabled: not a \.tla, \.cfg or README\.md file/);
+    assert.match(out, /FAIL sub\/notes\.txt: not a \.tla, \.cfg or README\.md file/);
+    assert.doesNotMatch(out, /README\.md: not a/);
+  });
+
+  it('accepts a relative FORMAL_CACHE_DIR, which TLC must not read from its own working folder', () => {
+    const cwd = folder('formal-cache-cwd-');
+    const downloaded = jarLocation({});
+    assert.ok(existsSync(downloaded), `the earlier tests should have downloaded ${downloaded}`);
+    const inCwd = jarLocation({ FORMAL_CACHE_DIR: join(cwd, 'cache') });
+    mkdirSync(dirname(inCwd), { recursive: true });
+    copyFileSync(downloaded, inCwd);
+    const { code, out } = check(fixture, {
+      cwd,
+      env: { ...process.env, FORMAL_CACHE_DIR: 'cache' },
+    });
+    assert.equal(code, 0, out);
+  });
+
+  it('rejects an unknown argument, a stray positional and a missing --models value', () => {
+    for (const args of [['--model', fixture], [fixture], ['--models'], ['--models', '--other']]) {
+      const { code, out } = run(args);
+      assert.notEqual(code, 0, `${args.join(' ')}: ${out}`);
+      assert.match(
+        out,
+        /formal-check: .*Usage: node tooling\/formal-check\.mjs \[--models <dir>\]/s,
+      );
+    }
   });
 });

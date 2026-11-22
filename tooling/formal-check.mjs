@@ -1,5 +1,10 @@
 // Runs every TLA+ model under architecture/models with TLC.
 //
+// Layout: models may sit in architecture/models itself or in any subfolder, to any depth.
+// Each folder is checked on its own, so `<Name>.tla` and its configs share a folder.
+// Besides README.md, every file in the tree must be a .tla or a .cfg; anything else fails
+// the run, so a renamed or misplaced file cannot go unchecked.
+//
 // File convention, one module per `<Name>.tla`:
 //   <Name>.cfg                must pass.
 //   <Name>.bug-<slug>.cfg     replays a past bug. It must FAIL with an invariant or
@@ -53,20 +58,54 @@ const CFG_NAME = /^([A-Za-z][A-Za-z0-9_]*)(?:\.bug-([a-z0-9]+(?:-[a-z0-9]+)*))?\
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const defaultModelsDir = join(repoRoot, 'architecture', 'models');
 
+const STRAY_FILE = 'not a .tla, .cfg or README.md file, so nothing checks it';
+
+/**
+ * Walks `modelsDir`. Returns the models, each with the folder it lives in (`dir`) and its
+ * path from `modelsDir` (`id`), plus every problem found.
+ */
 export function discoverModels(modelsDir) {
-  const files = readdirSync(modelsDir).sort();
+  const models = [];
   const problems = [];
-  const models = new Map();
+  const visit = (dir, relDir) => {
+    const at = (file) => (relDir ? `${relDir}/${file}` : file);
+    const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
+    );
+    const files = [];
+    for (const entry of entries) {
+      if (entry.isDirectory()) visit(join(dir, entry.name), at(entry.name));
+      else if (entry.isFile() && (/\.(tla|cfg)$/.test(entry.name) || entry.name === 'README.md'))
+        files.push(entry.name);
+      else problems.push(`${at(entry.name)}: ${STRAY_FILE}`);
+    }
+    models.push(...discoverFolder(dir, relDir, files, problems));
+  };
+  visit(modelsDir, '');
+  return { models, problems };
+}
+
+function discoverFolder(dir, relDir, files, problems) {
+  const at = (file) => (relDir ? `${relDir}/${file}` : file);
+  const byName = new Map();
   const modelFor = (name) => {
-    if (!models.has(name)) models.set(name, { name, main: null, bugs: [] });
-    return models.get(name);
+    if (!byName.has(name))
+      byName.set(name, {
+        name,
+        dir,
+        id: at(name),
+        tla: files.includes(`${name}.tla`),
+        main: null,
+        bugs: [],
+      });
+    return byName.get(name);
   };
 
   for (const file of files.filter((f) => f.endsWith('.cfg'))) {
     const match = CFG_NAME.exec(file);
     if (!match) {
       problems.push(
-        `${file}: config name must be <Name>.cfg or <Name>.bug-<slug>.cfg (slug is lower-case words joined by "-")`,
+        `${at(file)}: config name must be <Name>.cfg or <Name>.bug-<slug>.cfg (slug is lower-case words joined by "-")`,
       );
       continue;
     }
@@ -77,17 +116,15 @@ export function discoverModels(modelsDir) {
 
   for (const file of files.filter((f) => f.endsWith('.tla'))) {
     const name = basename(file, '.tla');
-    if (!models.has(name)) problems.push(`${file}: no ${name}.cfg, so nothing checks it`);
+    if (!byName.has(name)) problems.push(`${at(file)}: no ${name}.cfg, so nothing checks it`);
   }
 
-  for (const model of models.values()) {
-    if (!files.includes(`${model.name}.tla`))
-      problems.push(`${model.name}: configs exist but ${model.name}.tla does not`);
-    if (!model.main)
-      problems.push(`${model.name}: bug configs exist but ${model.name}.cfg does not`);
+  for (const model of byName.values()) {
+    if (!model.tla) problems.push(`${model.id}: configs exist but ${model.name}.tla does not`);
+    if (!model.main) problems.push(`${model.id}: bug configs exist but ${model.name}.cfg does not`);
   }
 
-  return { models: [...models.values()], problems };
+  return [...byName.values()];
 }
 
 /** What TLC's exit code means for a config that is expected to pass or to fail. */
@@ -152,10 +189,14 @@ function chooseRuntime() {
   return { kind: 'docker', label: `docker ${DOCKER_IMAGE}` };
 }
 
+/** Absolute, because TLC runs in the model folder and docker needs an absolute bind path. */
+export function jarLocation(env) {
+  const cacheDir = env.FORMAL_CACHE_DIR || join(homedir(), '.cache', 'between-moves', 'tla2tools');
+  return join(resolve(cacheDir), TLA2TOOLS_VERSION, 'tla2tools.jar');
+}
+
 async function ensureJar() {
-  const cacheDir =
-    process.env.FORMAL_CACHE_DIR || join(homedir(), '.cache', 'between-moves', 'tla2tools');
-  const jar = join(cacheDir, TLA2TOOLS_VERSION, 'tla2tools.jar');
+  const jar = jarLocation(process.env);
   if (existsSync(jar) && sha256(readFileSync(jar)) === TLA2TOOLS_SHA256) return jar;
 
   const response = await fetch(TLA2TOOLS_URL);
@@ -178,18 +219,26 @@ function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function runTlc(runtime, jar, modelsDir, name, cfg) {
+function runTlc(runtime, jar, model, cfg) {
   // TLC names its state folder after the current second, so two runs must not share a metadir.
   const metaDir = mkdtempSync(join(tmpdir(), 'formal-check-'));
   try {
-    return spawnTlc(runtime, jar, modelsDir, metaDir, name, cfg);
+    return spawnTlc(runtime, jar, model, metaDir, cfg);
   } finally {
     rmSync(metaDir, { recursive: true, force: true });
   }
 }
 
-function spawnTlc(runtime, jar, modelsDir, metaDir, name, cfg) {
-  const tlcArgs = ['tlc2.TLC', ...TLC_FLAGS, '-metadir', metaDir, '-config', cfg, `${name}.tla`];
+function spawnTlc(runtime, jar, model, metaDir, cfg) {
+  const tlcArgs = [
+    'tlc2.TLC',
+    ...TLC_FLAGS,
+    '-metadir',
+    metaDir,
+    '-config',
+    cfg,
+    `${model.name}.tla`,
+  ];
   const [command, args] =
     runtime.kind === 'java'
       ? ['java', [...JVM_FLAGS, '-cp', jar, ...tlcArgs]]
@@ -200,10 +249,9 @@ function spawnTlc(runtime, jar, modelsDir, metaDir, name, cfg) {
             '--rm',
             '--network',
             'none',
-            '--user',
-            `${process.getuid()}:${process.getgid()}`,
+            ...dockerUser(),
             '-v',
-            `${modelsDir}:/models:ro`,
+            `${model.dir}:/models:ro`,
             '-v',
             `${jar}:/tla2tools.jar:ro`,
             '-v',
@@ -219,13 +267,20 @@ function spawnTlc(runtime, jar, modelsDir, metaDir, name, cfg) {
           ],
         ];
   const run = spawnSync(command, args, {
-    cwd: modelsDir,
+    cwd: model.dir,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
     timeout: TLC_TIMEOUT_MS,
   });
   if (run.error) return { exitCode: -1, output: `could not run TLC: ${run.error.message}` };
   return { exitCode: run.status ?? -1, output: `${run.stdout}${run.stderr}` };
+}
+
+// Run as the caller so the metadir files belong to them. Windows has no uid.
+function dockerUser() {
+  return process.getuid && process.getgid
+    ? ['--user', `${process.getuid()}:${process.getgid()}`]
+    : [];
 }
 
 function indent(text) {
@@ -236,9 +291,19 @@ function indent(text) {
     .join('\n');
 }
 
+const USAGE = 'Usage: node tooling/formal-check.mjs [--models <dir>]';
+
+export function parseArgs(argv) {
+  if (argv.length === 0) return { modelsDir: defaultModelsDir };
+  const [flag, value, ...rest] = argv;
+  if (flag !== '--models' || value === undefined || value.startsWith('--') || rest.length > 0) {
+    throw new Error(`unexpected arguments: ${argv.join(' ')}. ${USAGE}`);
+  }
+  return { modelsDir: resolve(value) };
+}
+
 export async function main(argv) {
-  const flag = argv.indexOf('--models');
-  const modelsDir = resolve(flag >= 0 ? argv[flag + 1] : defaultModelsDir);
+  const { modelsDir } = parseArgs(argv);
   if (!existsSync(modelsDir)) {
     console.error(`formal-check: models folder not found: ${modelsDir}`);
     return 1;
@@ -251,9 +316,7 @@ export async function main(argv) {
   let failures = problems.length;
   for (const problem of problems) console.log(`FAIL ${problem}`);
 
-  const runnable = models.filter(
-    (model) => model.main && existsSync(join(modelsDir, `${model.name}.tla`)),
-  );
+  const runnable = models.filter((model) => model.main && model.tla);
   if (runnable.length === 0) {
     console.log(
       failures === 0 ? 'formal-check: nothing to run' : `formal-check: ${failures} problem(s)`,
@@ -271,10 +334,11 @@ export async function main(argv) {
     ];
     for (const { kind, cfg } of configs) {
       const started = Date.now();
-      const { exitCode, output } = runTlc(runtime, jar, modelsDir, model.name, cfg);
+      const { exitCode, output } = runTlc(runtime, jar, model, cfg);
       const verdict = judge(kind, exitCode, output);
       const seconds = ((Date.now() - started) / 1000).toFixed(1);
-      console.log(`${verdict.ok ? 'ok  ' : 'FAIL'} ${cfg} ${verdict.summary} [${seconds}s]`);
+      const shown = model.id === model.name ? cfg : `${dirname(model.id)}/${cfg}`;
+      console.log(`${verdict.ok ? 'ok  ' : 'FAIL'} ${shown} ${verdict.summary} [${seconds}s]`);
       if (!verdict.ok) {
         failures += 1;
         if (verdict.showOutput) console.log(indent(output));
