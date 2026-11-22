@@ -26,7 +26,6 @@
     "test:e2e": "turbo run test:e2e",
     "db:migrate": "pnpm --filter @between-moves/db migrate",
     "db:migrate:down": "pnpm --filter @between-moves/db migrate:down",
-    "db:generate": "pnpm --filter @between-moves/db schema:generate",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
