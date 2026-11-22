@@ -1,10 +1,9 @@
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DrizzleHouseReferenceRepository } from './house-reference-repository';
 import { migrateDown, migrateUp } from './migrations';
+import { PgHouseReferenceRepository } from './pg-house-reference-repository';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const integration = testDatabaseUrl ? describe : describe.skip;
@@ -49,7 +48,7 @@ integration('PostgreSQL foundation', () => {
   });
 
   it('[BM-005] DR-SEC-01 returns only seeded rows authorized for the viewer and House context', async () => {
-    const repository = new DrizzleHouseReferenceRepository(drizzle(database));
+    const repository = new PgHouseReferenceRepository(database);
     const authorized = fakeAuthorizationContext({
       viewerId: '01941f29-7c00-7000-8000-000000000002',
       houseId: '01941f29-7c00-7000-8000-000000000001',
