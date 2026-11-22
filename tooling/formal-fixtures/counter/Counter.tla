@@ -11,7 +11,6 @@ vars == <<x>>
 
 Init == x = 0
 
-\* Stops at Limit.
 Step == x < Limit /\ x' = x + 1
 
 \* Bug: the guard is off by one, so x can pass Limit.

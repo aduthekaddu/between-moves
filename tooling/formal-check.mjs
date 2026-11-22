@@ -53,7 +53,6 @@ const CFG_NAME = /^([A-Za-z][A-Za-z0-9_]*)(?:\.bug-([a-z0-9]+(?:-[a-z0-9]+)*))?\
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const defaultModelsDir = join(repoRoot, 'architecture', 'models');
 
-/** Group the files in a models folder into models, and list convention breaks. */
 export function discoverModels(modelsDir) {
   const files = readdirSync(modelsDir).sort();
   const problems = [];
@@ -136,7 +135,6 @@ function javaMajor(java) {
   return match[1] === '1' ? Number(match[2]) : Number(match[1]);
 }
 
-/** Pick `java` on PATH when it is new enough, else the pinned Docker image. */
 function chooseRuntime() {
   const major = javaMajor('java');
   if (major !== null && major >= MIN_JAVA_MAJOR)
@@ -154,7 +152,6 @@ function chooseRuntime() {
   return { kind: 'docker', label: `docker ${DOCKER_IMAGE}` };
 }
 
-/** The pinned jar, downloaded once into a cache outside the repo and checked by SHA-256. */
 async function ensureJar() {
   const cacheDir =
     process.env.FORMAL_CACHE_DIR || join(homedir(), '.cache', 'between-moves', 'tla2tools');
