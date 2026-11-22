@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MoveEntryPosition } from '../move-entry-wire';
 import { formatClock, remainingTime } from './countdown';
+import { requireFen } from '../board-model';
 
 const position: MoveEntryPosition = {
   mode: 'live',
-  currentFen: '',
+  currentFen: requireFen('8/8/8/8/8/8/8/8 w - - 0 1'),
   currentPly: 0,
   version: 0,
   sideToMove: 'white',

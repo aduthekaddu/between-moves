@@ -4,10 +4,11 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MoveEntryPosition } from '../move-entry-wire';
 import { LiveClocks } from './live-clocks';
+import { requireFen } from '../board-model';
 
 const position: MoveEntryPosition = {
   mode: 'live',
-  currentFen: '8/8/8/8/8/8/4P3/8 w - - 0 1',
+  currentFen: requireFen('8/8/8/8/8/8/4P3/8 w - - 0 1'),
   currentPly: 0,
   sideToMove: 'white',
   version: 0,

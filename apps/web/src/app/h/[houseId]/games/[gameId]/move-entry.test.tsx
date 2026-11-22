@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MoveEntry, UNDO_WINDOW_MS } from './move-entry';
 import type { MoveEntryPosition } from './move-entry-wire';
+import { requireFen } from './board-model';
 
 const refresh = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
@@ -33,7 +34,7 @@ vi.mock('../../../../_components/paper-sound', () => ({
 
 const initial: MoveEntryPosition = {
   mode: 'live',
-  currentFen: '8/8/8/8/8/8/4P3/8 w - - 0 1',
+  currentFen: requireFen('8/8/8/8/8/8/4P3/8 w - - 0 1'),
   currentPly: 0,
   sideToMove: 'white',
   version: 0,
@@ -50,7 +51,7 @@ const initial: MoveEntryPosition = {
 };
 const afterMove: MoveEntryPosition = {
   ...initial,
-  currentFen: '8/8/8/8/4P3/8/8/8 b - - 0 1',
+  currentFen: requireFen('8/8/8/8/4P3/8/8/8 b - - 0 1'),
   currentPly: 1,
   sideToMove: 'black',
   version: 1,
@@ -247,7 +248,7 @@ describe('live move entry', () => {
   });
 
   it('shows a live Move with its check and last-move marks while it sends and once accepted', async () => {
-    const live: MoveEntryPosition = { ...initial, currentFen: '4k3/8/8/8/8/8/8/R3K3 w - - 0 1' };
+    const live: MoveEntryPosition = { ...initial, currentFen: requireFen('4k3/8/8/8/8/8/8/R3K3 w - - 0 1') };
     fetchMock.mockResolvedValue(json(live));
     await mount(live);
     let answer: (response: Response) => void = () => {};
@@ -309,7 +310,7 @@ describe('live move entry', () => {
 
 const correspondence: MoveEntryPosition = {
   mode: 'correspondence',
-  currentFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+  currentFen: requireFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'),
   currentPly: 0,
   sideToMove: 'white',
   version: 0,
@@ -399,7 +400,7 @@ describe('correspondence move entry', () => {
   });
 
   it('asks which piece a pawn becomes and sends that choice', async () => {
-    await mount({ ...correspondence, currentFen: '8/4P3/8/8/8/8/8/k6K w - - 0 1' });
+    await mount({ ...correspondence, currentFen: requireFen('8/4P3/8/8/8/8/8/k6K w - - 0 1') });
     await click('[data-square="e7"]');
     await click('[data-square="e8"]');
     expect(
@@ -423,7 +424,7 @@ describe('correspondence move entry', () => {
   });
 
   it('drops the check mark when the staged Move leaves check', async () => {
-    await mount({ ...correspondence, currentFen: 'k3r3/8/8/8/8/8/8/4K3 w - - 0 1', inCheck: true });
+    await mount({ ...correspondence, currentFen: requireFen('k3r3/8/8/8/8/8/8/4K3 w - - 0 1'), inCheck: true });
     expect(square('e1')?.getAttribute('aria-label')).toBe('e1, white king, in check');
     await click('[data-square="e1"]');
     await click('[data-square="d1"]');
@@ -435,7 +436,7 @@ describe('correspondence move entry', () => {
   });
 
   it('keeps the check mark with the Move while it sends and once it is accepted', async () => {
-    await mount({ ...correspondence, currentFen: 'k3r3/8/8/8/8/8/8/4K3 w - - 0 1', inCheck: true });
+    await mount({ ...correspondence, currentFen: requireFen('k3r3/8/8/8/8/8/8/4K3 w - - 0 1'), inCheck: true });
     let answer: (response: Response) => void = () => {};
     fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
       options?.method === 'POST'
@@ -504,7 +505,7 @@ describe('correspondence move entry', () => {
   });
 
   it('marks the check a staged Move gives', async () => {
-    await mount({ ...correspondence, currentFen: '4k3/8/8/8/8/8/8/R3K3 w - - 0 1' });
+    await mount({ ...correspondence, currentFen: requireFen('4k3/8/8/8/8/8/8/R3K3 w - - 0 1') });
     await click('[data-square="a1"]');
     await click('[data-square="a8"]');
     expect(container.textContent).toContain('You played Ra8+');
@@ -515,7 +516,7 @@ describe('correspondence move entry', () => {
     vi.stubGlobal('AudioContext', class {});
     const opened: MoveEntryPosition = {
       ...correspondence,
-      currentFen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
+      currentFen: requireFen('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2'),
       currentPly: 2,
       version: 2,
       moves: [
@@ -534,7 +535,7 @@ describe('correspondence move entry', () => {
     fetchMock.mockResolvedValue(
       json({
         ...opened,
-        currentFen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3',
+        currentFen: requireFen('r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3'),
         currentPly: 4,
         version: 5,
         moves: [
@@ -591,7 +592,7 @@ describe('a finished Game', () => {
 describe('reviewing a Game', () => {
   const played: MoveEntryPosition = {
     ...correspondence,
-    currentFen: 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
+    currentFen: requireFen('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2'),
     currentPly: 2,
     version: 2,
     moves: [

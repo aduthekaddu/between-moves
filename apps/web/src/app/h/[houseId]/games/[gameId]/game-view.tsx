@@ -1,5 +1,6 @@
 import type { GameNotesView, GamePosition, GameReactionValue } from '@between-moves/domain';
 import { AppMasthead } from '../../../../_components/app-masthead';
+import { requireFen } from './board-model';
 import type { RematchOffer } from './game-end';
 import { GameNotes } from './game-notes';
 import { MoveEntry } from './move-entry';
@@ -68,6 +69,7 @@ export function GameView({
           {...(afterGame === undefined ? {} : { afterGame })}
           initial={{
             ...position,
+            currentFen: requireFen(position.currentFen),
             ...(position.mode === 'live' ? { serverNow: new Date().toISOString() } : {}),
           }}
         />

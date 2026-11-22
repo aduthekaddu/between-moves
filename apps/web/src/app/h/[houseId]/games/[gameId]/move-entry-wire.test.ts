@@ -60,6 +60,44 @@ describe('Move-entry wire responses', () => {
     expect(moveEntryPosition({ ...snapshot, inCheck: undefined })).toBeNull();
     expect(moveEntryPosition({ ...snapshot, moves: [{ ply: 'one' }] })).toBeNull();
   });
+
+  it('rejects a board the client cannot draw in every response, so each takes its invalid path', () => {
+    const unreadable = ['not a board', '8/8/8/8 w - - 0 1', '8/8/8/8/4P3/8/8/8 x - - 0 1'];
+    for (const fen of unreadable) {
+      expect(
+        acceptedMove({
+          ply: 1,
+          uci: 'e2e4',
+          san: 'e4',
+          fenAfter: fen,
+          sideToMove: 'black',
+          version: 1,
+        }),
+        fen,
+      ).toBeNull();
+      expect(
+        conflictPosition({ code: 'move_conflict', meta: { version: 2, currentPly: 2, fen } }),
+        fen,
+      ).toBeNull();
+      expect(
+        moveEntryPosition({
+          currentFen: fen,
+          currentPly: 1,
+          sideToMove: 'black',
+          version: 1,
+          state: 'active',
+          viewerColor: 'white',
+          white: { name: 'Ada' },
+          black: { name: 'Bea' },
+          moveDueAt: null,
+          result: null,
+          inCheck: false,
+          moves: [],
+        }),
+        fen,
+      ).toBeNull();
+    }
+  });
 });
 
 describe('[BM-042] live snapshot validation', () => {

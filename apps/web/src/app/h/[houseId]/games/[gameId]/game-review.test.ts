@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { requireFen } from './board-model';
 import { moveLabel, replayPositions } from './game-review';
 
 const moves = [
@@ -14,12 +15,13 @@ describe('move labels', () => {
 });
 
 describe('game review replay', () => {
-  it('gives the position after every Move', () => {
+  it('gives the start and the position after every Move', () => {
     const positions = replayPositions(
       moves,
-      'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2',
+      requireFen('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2'),
     );
     expect(positions?.map((fen) => fen.split(' ')[0])).toEqual([
+      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR',
       'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR',
       'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR',
     ]);
@@ -31,15 +33,15 @@ describe('game review replay', () => {
     );
     const positions = replayPositions(
       line,
-      'Q2qkbnr/2pppppp/2n5/8/8/8/1PPPPPPP/RNBQKBNR b KQk - 0 5',
+      requireFen('Q2qkbnr/2pppppp/2n5/8/8/8/1PPPPPPP/RNBQKBNR b KQk - 0 5'),
     );
     expect(positions?.at(-1)?.split(' ')[0]).toBe('Q2qkbnr/2pppppp/2n5/8/8/8/1PPPPPPP/RNBQKBNR');
   });
 
   it('turns review off when the replay disagrees with the server board', () => {
-    expect(replayPositions(moves, '8/8/8/8/8/8/8/8 w - - 0 1')).toBeNull();
+    expect(replayPositions(moves, requireFen('8/8/8/8/8/8/8/8 w - - 0 1'))).toBeNull();
     expect(
-      replayPositions([{ ply: 1, uci: 'e2e5', san: '?' }], '8/8/8/8/8/8/8/8 w - - 0 1'),
+      replayPositions([{ ply: 1, uci: 'e2e5', san: '?' }], requireFen('8/8/8/8/8/8/8/8 w - - 0 1')),
     ).toBeNull();
   });
 });
