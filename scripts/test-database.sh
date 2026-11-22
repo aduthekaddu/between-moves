@@ -13,9 +13,7 @@ container="${TEST_DATABASE_CONTAINER:-between-moves-test-db}"
 port="${TEST_DATABASE_PORT:-55432}"
 image='postgres:16.10-bookworm'
 database='between_moves_test'
-admin_password='postgres-test-only'
 runtime_role='between_moves_app'
-runtime_password='runtime-test-only'
 settings_dir="$(cd "$(dirname "$0")/.." && pwd)/.test-database"
 
 case "${1:-}" in
@@ -50,6 +48,9 @@ psql_admin() {
 docker rm -f "$container" >/dev/null 2>&1 || true
 rm -rf "$settings_dir"
 mkdir -p "$settings_dir"
+# Fresh passwords each run. The test runners read them from $settings_dir/env.
+admin_password="$(openssl rand -hex 16)"
+runtime_password="$(openssl rand -hex 16)"
 key_dir="$(mktemp -d)"
 trap 'rm -rf "$key_dir"' EXIT
 
