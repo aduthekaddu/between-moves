@@ -1,0 +1,35 @@
+architecture/models/nudge-outbox/NudgeOutbox.bug-advance-after-deadline.cfg
+  s_b9d9ac6a3eb0fb::t_6aeb407c0fc187 1-15
+architecture/models/nudge-outbox/NudgeOutbox.bug-reader-never-passes.cfg
+  s_b9d9ac6a3eb0fb::t_2f45d940f5b2b7 1-15
+architecture/models/nudge-outbox/NudgeOutbox.bug-send-after-turn-ended.cfg
+  s_b9d9ac6a3eb0fb::t_56836fc15c615e 1-15
+architecture/models/nudge-outbox/NudgeOutbox.cfg
+  s_b9d9ac6a3eb0fb::t_ff4d7265b0867b 1-18
+architecture/models/nudge-outbox/NudgeOutbox.tla
+  s_6d6f669fed7156::t_77174ce25b8e69 1-206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b2acae0eaa607758e32455e836a14455dc60507",
+  "prompts": {},
+  "sessions": {
+    "s_6d6f669fed7156": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23c3bf8f-11ea-47f7-a37c-774701612673",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    },
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
