@@ -69,10 +69,7 @@ describe('magic-link delivery application use cases', () => {
     };
 
     await expect(consumer.consume(event)).resolves.toBe('processed');
-    expect(sender.sendMagicLink).toHaveBeenCalledWith(
-      { email, signInUrl },
-      { idempotencyKey: id },
-    );
+    expect(sender.sendMagicLink).toHaveBeenCalledWith({ email, signInUrl }, { idempotencyKey: id });
   });
 
   it('[BM-008] treats a provider-idempotent replay as a duplicate outbox delivery', async () => {

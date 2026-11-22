@@ -1,7 +1,4 @@
-import {
-  HouseAuthorizationDeniedError,
-  type AuthenticatedViewer,
-} from '@between-moves/domain';
+import { HouseAuthorizationDeniedError, type AuthenticatedViewer } from '@between-moves/domain';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createAssignNightHostHandler,

@@ -29,7 +29,11 @@ function routeProblem(request: Request, detail = 'Night route is invalid.') {
   return problem(request, 422, 'validation_failed', 'Validation failed', detail);
 }
 
-function lifecycleError(request: Request, error: unknown, forbiddenDetail: string): Response | null {
+function lifecycleError(
+  request: Request,
+  error: unknown,
+  forbiddenDetail: string,
+): Response | null {
   if (
     error instanceof HouseAuthorizationDeniedError ||
     (error instanceof DomainError && error.code === 'authorization_denied')

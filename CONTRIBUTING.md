@@ -4,28 +4,24 @@ Set the machine up with the install steps in [README.md](README.md). The scripts
 
 ## Check a change
 
-1. Format the files you touched.
-
-   ```bash
-   pnpm format
-   ```
-
-2. Run lint, typecheck, and the test script.
+1. Run the format check, lint, typecheck, and the test script.
 
    ```bash
    pnpm check
    ```
 
-3. When the change touches a BM-051 security criterion, regenerate the matrix and check it.
+   When it reports formatting, run `pnpm format` and run `pnpm check` again. CI runs the same format check and fails the pull request on any unformatted file.
+
+2. When the change touches a BM-051 security criterion, regenerate the matrix and check it.
 
    ```bash
    pnpm traceability:generate
    pnpm traceability:check
    ```
 
-   `tooling/traceability-matrix.md` is generated. Leave it as the command wrote it.
+   `tooling/traceability-matrix.md` is generated. Leave it as the command wrote it. `.prettierignore` lists it, so `pnpm format` does not touch it.
 
-4. When the change touches a page, run the browser tests.
+3. When the change touches a page, run the browser tests.
 
    ```bash
    pnpm test:e2e

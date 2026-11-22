@@ -27,7 +27,7 @@
     "db:migrate": "pnpm --filter @between-moves/db migrate",
     "db:migrate:down": "pnpm --filter @between-moves/db migrate:down",
     "db:generate": "pnpm --filter @between-moves/db schema:generate",
-    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
