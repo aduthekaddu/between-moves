@@ -1,0 +1,40 @@
+tooling/formal-check.mjs
+  s_0648395c8fc9bf::t_afd09ed9ad7dde 1-264,266
+  s_0648395c8fc9bf::t_730ca257431c79 265,267-304
+.github/workflows/ci.yml
+  s_0648395c8fc9bf::t_ca0d4e793a0f32 62-87
+AGENTS.md
+  s_0648395c8fc9bf::t_4c4b9423c3bf66 33
+CONTRIBUTING.md
+  s_0648395c8fc9bf::t_8215537578bf6e 34-53
+architecture/models/README.md
+  s_0648395c8fc9bf::t_252ac5a937baba 1-10
+package.json
+  s_0648395c8fc9bf::t_fef150ccb8245f 27-28
+tooling/formal-check.test.mjs
+  s_0648395c8fc9bf::t_998084a2372a73 1-109
+tooling/formal-fixtures/counter/Counter.bug-no-fairness.cfg
+  s_0648395c8fc9bf::t_ba69973befc676 1-3
+tooling/formal-fixtures/counter/Counter.bug-overshoot.cfg
+  s_0648395c8fc9bf::t_fc77cd29b9774b 1-3
+tooling/formal-fixtures/counter/Counter.cfg
+  s_0648395c8fc9bf::t_5cfbcedf973609 1-4
+tooling/formal-fixtures/counter/Counter.tla
+  s_0648395c8fc9bf::t_6e39b863302d8a 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9b113988236e650940bef434a7a8629150be231",
+  "prompts": {},
+  "sessions": {
+    "s_0648395c8fc9bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7adefb7a-8a2b-4a7f-aff2-6e8c1dfd6235",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
