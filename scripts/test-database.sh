@@ -90,4 +90,4 @@ TEST_RUNTIME_DATABASE_URL=postgresql://$runtime_role:$runtime_password@127.0.0.1
 EOF
 
 echo "TLS PostgreSQL is ready in container $container on 127.0.0.1:$port."
-echo "Settings are in $settings_dir/env. Remove both with: pnpm db:test:down"
+echo "Settings are in $settings_dir/env. Remove both with: TEST_DATABASE_CONTAINER=$container pnpm db:test:down"
