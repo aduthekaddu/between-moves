@@ -12,7 +12,7 @@ Read `ops/deploy.md` when you deploy the web app or the worker.
 
 ## Rules that are easy to miss
 
-Use the Node and pnpm versions pinned in `package.json`.
+pnpm stops with `ERR_PNPM_UNSUPPORTED_ENGINE` on a Node outside `engines.node`. Run under the Node in `.node-version`, for example `mise exec -- pnpm check`. `pnpm exec` and raw `node`, `turbo` and `eslint` calls can skip that check.
 
 `eslint.config.mjs` is the import allow-list. Each package `package.json` is the dependency list, and that list is narrower.
 

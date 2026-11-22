@@ -1,0 +1,3 @@
+# mise reads .node-version, so `mise exec -- pnpm check` runs on the pinned Node.
+[settings]
+idiomatic_version_file_enable_tools = ["node"]

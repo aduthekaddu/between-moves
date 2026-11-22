@@ -13,7 +13,7 @@ You need the tools and settings in this table.
 
 | Requirement       | What to use                                                                                |
 | ----------------- | ------------------------------------------------------------------------------------------ |
-| Node.js           | 24. `package.json` allows `>=24 <25`. `.node-version` says `24`.                           |
+| Node.js           | 24 (`.node-version`). pnpm stops on a Node outside `engines.node` in `package.json`.       |
 | pnpm              | 11.24.0, the `packageManager` field in `package.json`. Enable it with Corepack.            |
 | PostgreSQL        | A `DATABASE_URL` whose query includes `sslmode=require`. CI uses PostgreSQL 16.10.         |
 | Web configuration | Every key in `apps/web/.env.example`. `BETTER_AUTH_SECRET` must be at least 32 characters. |
