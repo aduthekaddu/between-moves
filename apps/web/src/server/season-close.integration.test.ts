@@ -17,8 +17,9 @@ import type { AuthenticatedViewer, SeasonTransitionObservation } from '@between-
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const integration = process.env.TEST_DATABASE_URL ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -34,8 +35,8 @@ function viewer(member: { readonly userId: string; readonly displayName: string 
   } satisfies AuthenticatedViewer;
 }
 
-integration('BM-047 close Season through House authorization', () => {
-  const database = new Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 8 });
+describe('BM-047 close Season through House authorization', () => {
+  const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   let world: TwoHousesWithMembers;
   let transitions: SeasonTransitionObservation[];
   let dependencies: Parameters<typeof closeSeason>[1] & Parameters<typeof publishSeason>[1];

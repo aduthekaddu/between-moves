@@ -13,6 +13,7 @@
     "lint:boundaries": "eslint apps/worker/src packages/domain/src packages/application/src packages/db/src packages/adapters/src packages/observability/src --max-warnings=0",
     "typecheck": "turbo run typecheck",
     "test": "pnpm test:boundaries && pnpm test:isolation-coverage && pnpm test:pilot-ops && turbo run test --concurrency=1",
+    "test:integration": "turbo run test:integration --concurrency=1",
     "test:coverage": "pnpm test:boundaries && pnpm test:isolation-coverage && node --experimental-test-coverage --test scripts/pilot-ops.test.mjs && turbo run test --concurrency=1 -- --coverage",
     "test:boundaries": "node --test tooling/import-boundaries.test.mjs",
     "test:isolation-coverage": "node --test tooling/house-write-isolation-coverage.test.mjs",
@@ -27,7 +28,9 @@
     "db:migrate": "pnpm --filter @between-moves/db migrate",
     "db:migrate:down": "pnpm --filter @between-moves/db migrate:down",
     "db:generate": "pnpm --filter @between-moves/db schema:generate",
-    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "db:test:up": "scripts/test-database.sh up",
+    "db:test:down": "scripts/test-database.sh down",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:integration",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

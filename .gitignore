@@ -53,3 +53,6 @@ test-results/
 **/.env.local
 **/.env.*.local
 *.dump
+
+# Disposable TLS PostgreSQL from `pnpm db:test:up`
+.test-database/

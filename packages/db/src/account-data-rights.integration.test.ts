@@ -20,9 +20,9 @@ import { PgHouseChatRepository } from './pg-house-chat-repository';
 import { PgInvitationEmailDeliveryGate } from './pg-invitation-email-delivery-gate';
 import { PgSeasonRepository } from './pg-season-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const id = (value: number) => `01941f29-7c00-7000-8000-${String(value).padStart(12, '0')}`;
 const seasonId = id(5001);
@@ -51,7 +51,7 @@ const scholarsSan = ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'];
 const beaNote = 'I should have seen Qxf7 coming.';
 const adaNote = 'Ada’s own reflection on the finish.';
 
-integration('BM-050 PostgreSQL account export and deletion', () => {
+describe('BM-050 PostgreSQL account export and deletion', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const accounts = new PgAccountDataRightsRepository(database);
   const seasons = new PgSeasonRepository(database);

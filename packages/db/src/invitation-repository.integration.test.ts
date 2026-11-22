@@ -7,9 +7,9 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgInvitationRepository } from './pg-invitation-repository';
 import { PgInvitationRedemptionRepository } from './pg-invitation-redemption-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 
 function creationInput(): InvitationCreationInput {
@@ -36,7 +36,7 @@ function redemptionInput(
   };
 }
 
-integration('PostgreSQL Invitation repository', () => {
+describe('PostgreSQL Invitation repository', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 6 });
   const repository = new PgInvitationRepository(database);
   const redemptions = new PgInvitationRedemptionRepository(database);

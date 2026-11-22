@@ -35,8 +35,9 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createClosingBookReader } from '../modules/stories/closingBook';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const integration = process.env.TEST_DATABASE_URL ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -65,8 +66,8 @@ function viewer(member: { readonly userId: string; readonly displayName: string 
   } satisfies AuthenticatedViewer;
 }
 
-integration('BM-049 Season renewal and the non-owner Closing Book view', () => {
-  const database = new Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 8 });
+describe('BM-049 Season renewal and the non-owner Closing Book view', () => {
+  const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const books = new PgClosingBookRepository(database);
   const scoring = new PgSeasonScoringRepository(database);
   const nights = new PgNightRepository(database);

@@ -6,9 +6,9 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { PgNudgeRepository } from './pg-nudge-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const NOW = new Date('2026-09-15T12:00:00.000Z');
 const clock = new FakeClock(NOW);
@@ -70,7 +70,7 @@ async function createGames(database: Pool, world: TwoHousesWithMembers): Promise
   }
 }
 
-integration('PostgreSQL Nudge dispatcher persistence', () => {
+describe('PostgreSQL Nudge dispatcher persistence', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const repository = new PgNudgeRepository(database);
   let world: TwoHousesWithMembers;

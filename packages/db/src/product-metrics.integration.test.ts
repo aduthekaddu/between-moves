@@ -4,13 +4,13 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrateUp } from './migrations';
 import { resetTwoHousesWithMembers, twoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const queryFile = new URL('../../../ops/product-metrics.sql', import.meta.url);
 
-integration('[BM-052] product metrics on seeded Houses', () => {
+describe('[BM-052] product metrics on seeded Houses', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
 
   beforeAll(async () => {

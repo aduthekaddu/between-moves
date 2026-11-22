@@ -28,10 +28,9 @@ import {
 } from '../modules/identity/dataRights';
 import { createBetterAuthOptions } from './auth-options';
 import { createBetterAuthSessionReader } from './better-auth-session-reader';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const databaseUrl = testDatabaseUrl ?? 'postgresql://app:test@db.example.test/app?sslmode=require';
-const integration = testDatabaseUrl ? describe : describe.skip;
+const databaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -41,7 +40,7 @@ const gameId = '01941f29-7c00-7000-8000-000000005102';
 const beaNote = 'I should have seen Qxf7 coming.';
 const adaNote = 'A tidy finish, if I say so myself.';
 
-integration('BM-050 account export and deletion over HTTP', () => {
+describe('BM-050 account export and deletion over HTTP', () => {
   const database = createDatabase(databaseUrl);
   const config = loadConfig({
     DATABASE_URL: databaseUrl,

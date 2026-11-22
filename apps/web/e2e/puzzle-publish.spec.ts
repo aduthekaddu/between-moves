@@ -7,17 +7,17 @@ import {
   type TwoHousesWithMembers,
 } from '@between-moves/db/testing';
 import { makeSignature } from 'better-auth/crypto';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const id = (number: number) => `01941f29-7c00-7000-8000-${String(number).padStart(12, '0')}`;
 let database: Database | undefined;
 let world: TwoHousesWithMembers | undefined;
 
 test.describe('BM-046 House Puzzle publication', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required');
   test.beforeAll(async () => {
-    database = createDatabase(testDatabaseUrl ?? '');
+    database = createDatabase(testDatabaseUrl);
     await resetTwoHousesWithMembers(database.pool);
     world = await twoHousesWithMembers(database.pool);
     const first = world.first;

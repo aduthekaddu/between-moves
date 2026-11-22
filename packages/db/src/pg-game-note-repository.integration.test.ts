@@ -5,16 +5,16 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { PgGameNoteRepository } from './pg-game-note-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 
 function id(suffix: number): string {
   return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
 }
 
-integration('PostgreSQL Game note repository', () => {
+describe('PostgreSQL Game note repository', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
   const repository = new PgGameNoteRepository(database);
   const gameId = id(951);

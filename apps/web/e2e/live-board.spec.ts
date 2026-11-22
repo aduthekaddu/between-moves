@@ -7,8 +7,9 @@ import {
 } from '@between-moves/db/testing';
 import { expect, test, type Page } from '@playwright/test';
 import { makeSignature } from 'better-auth/crypto';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const seasonId = '01941f29-7c00-7000-8000-000000000941';
 const gameId = '01941f29-7c00-7000-8000-000000000942';
@@ -154,9 +155,8 @@ async function submitE4(page: Page) {
 test.use({ video: 'on' });
 
 test.describe('[BM-042] live board', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required for live board E2E');
   test.beforeAll(() => {
-    database = createDatabase(testDatabaseUrl ?? '');
+    database = createDatabase(testDatabaseUrl);
   });
   test.beforeEach(seedActiveGame);
   test.afterAll(async () => {

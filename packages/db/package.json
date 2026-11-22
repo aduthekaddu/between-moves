@@ -6,13 +6,16 @@
   "exports": {
     ".": "./src/index.ts",
     "./database": "./src/database.ts",
-    "./testing": "./src/testing/index.ts"
+    "./testing": "./src/testing/index.ts",
+    "./test-database": "./src/test-database/index.ts",
+    "./test-database/vitest": "./src/test-database/vitest.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
     "migrate": "tsx src/migrate-cli.ts up",
     "migrate:down": "tsx src/migrate-cli.ts down",
     "schema:generate": "drizzle-kit generate"

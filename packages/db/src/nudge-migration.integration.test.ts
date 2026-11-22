@@ -3,9 +3,9 @@ import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const NOW = new Date('2026-09-15T12:00:00.000Z');
 
@@ -37,7 +37,7 @@ async function createVersionedGame(database: Pool, world: TwoHousesWithMembers):
   );
 }
 
-integration('BM-029 Nudge migration', () => {
+describe('BM-029 Nudge migration', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
 
   beforeEach(async () => {

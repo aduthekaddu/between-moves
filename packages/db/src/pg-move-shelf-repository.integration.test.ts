@@ -5,9 +5,9 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { PgMoveShelfRepository } from './pg-move-shelf-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const createdAt = new Date('2026-09-01T08:00:00.000Z');
 
@@ -63,7 +63,7 @@ async function createCorrespondenceGame(
   );
 }
 
-integration('PostgreSQL Move Shelf query', () => {
+describe('PostgreSQL Move Shelf query', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
   const repository = new PgMoveShelfRepository(database);
   let world: TwoHousesWithMembers;

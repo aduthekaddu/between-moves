@@ -12,9 +12,9 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgGameCompletionRepository } from './pg-game-completion-repository';
 import { PgSeasonScoringRepository } from './pg-season-scoring-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const seasonId = '01941f29-7c00-7000-8000-000000001701';
 const charterId = '01941f29-7c00-7000-8000-000000001702';
@@ -24,7 +24,7 @@ function id(suffix: number): string {
   return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
 }
 
-integration('PostgreSQL Season scoring ledger', () => {
+describe('PostgreSQL Season scoring ledger', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 12 });
   const repository = new PgSeasonScoringRepository(database);
   let world: TwoHousesWithMembers;

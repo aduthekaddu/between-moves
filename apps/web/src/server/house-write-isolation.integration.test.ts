@@ -92,9 +92,9 @@ import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -826,7 +826,7 @@ async function houseState(database: Pool, houseId: string): Promise<unknown> {
   return result.rows[0]?.state;
 }
 
-integration('BM-017 current House write-path isolation', () => {
+describe('BM-017 current House write-path isolation', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   let harness: IsolationHarness;
 

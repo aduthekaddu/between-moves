@@ -18,9 +18,9 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHouseAuthorizationDenialRecorder } from './house-authorization-observability';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -49,7 +49,7 @@ function creation(
   };
 }
 
-integration('House authorization persistence and denial telemetry', () => {
+describe('House authorization persistence and denial telemetry', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
   const houses: HouseCreationRepository = new PgHouseCreationRepository(database);
 

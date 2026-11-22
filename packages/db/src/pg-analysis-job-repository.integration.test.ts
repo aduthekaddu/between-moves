@@ -6,15 +6,16 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgAnalysisJobRepository } from './pg-analysis-job-repository';
 import { PgGameCompletionRepository } from './pg-game-completion-repository';
 import { resetTwoHousesWithMembers, twoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const integration = process.env.TEST_DATABASE_URL ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const id = (number: number) => `01941f29-7c00-7000-8000-${String(number).padStart(12, '0')}`;
 const gameId = id(770);
 const now = new Date('2026-09-25T10:00:00Z');
 
-integration('BM-044 PostgreSQL analysis job lifecycle', () => {
-  const database = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
+describe('BM-044 PostgreSQL analysis job lifecycle', () => {
+  const database = new Pool({ connectionString: testDatabaseUrl });
   const jobs = new PgAnalysisJobRepository(database);
   let eventId: string;
   let houseId: string;
