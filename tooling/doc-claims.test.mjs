@@ -1,12 +1,16 @@
 // Docs that name code which no longer exists must fail the build.
 //
-// The developer docs make four kinds of claims that can be checked against the tree:
+// The developer docs make five kinds of claims that can be checked against the tree:
 //   path      a backticked repo path, or a relative markdown link, exists
 //   script    `pnpm <script>` and `pnpm --filter <pkg> <script>` name a real package.json script
 //   package   `@between-moves/<name>` is a workspace package (docs and eslint configs)
 //   symbol    "`name` in `path/to/file.ts`" means the file contains `name`
-//   edge      the package diagram, "only `a` depends on `b`" and "`x` may import `y`" lists agree
-//             with the package.json dependencies and the eslint allow-list
+//   edge      the package diagram, "only `a` depends on `b`", "`x` imports no workspace package"
+//             and "`x` may import `y`" lists agree with the package.json dependencies and the
+//             eslint allow-list
+//
+// The package diagram is the Mermaid block that follows DIAGRAM_MARKER. Other diagrams are not
+// checked. The check fails when no doc has the marked diagram.
 //
 // The checker reads the tree under DOC_CLAIMS_ROOT (default: this repository) so it can be
 // pointed at an older checkout.
@@ -18,6 +22,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -30,6 +35,8 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const FIX = 'Fix: update the doc in the same commit as the code it describes.';
 const SCOPE_NAME = '@between-moves/';
+const DIAGRAM_MARKER = '<!-- doc-claims: package-diagram -->';
+const ESLINT_CONFIG = /^eslint\.config\.[cm]?[jt]s$/;
 const TOP_LEVEL_DIRS = ['apps', 'packages', 'ops', 'tooling', 'scripts', 'architecture', '.github'];
 const FILE_EXTENSIONS = 'md|mjs|cjs|ts|tsx|json|sql|yml|yaml|png|example';
 const SKIPPED_DIRS = new Set(['node_modules', '.git', '.next', '.turbo', 'dist', 'coverage']);
@@ -48,6 +55,7 @@ const PNPM_BUILT_INS = new Set(
   ).split(' '),
 );
 // CHANGELOG is history, the traceability matrix is generated and has its own check.
+// Every other .md file in the repo is checked, including anything under docs/.
 const EXCLUDED_DOCS = new Set(['CHANGELOG.md', 'tooling/traceability-matrix.md']);
 
 function listFiles(directory, accept) {
@@ -86,30 +94,47 @@ function loadWorkspace(root) {
 function docFiles(root) {
   return listFiles(root, (name) => name.endsWith('.md'))
     .map((file) => relative(root, file))
-    .filter((file) => !EXCLUDED_DOCS.has(file) && !file.startsWith('docs/'));
+    .filter((file) => !EXCLUDED_DOCS.has(file));
 }
 
-// Yields { line, text, inFence } for every line, tracking fenced code blocks.
+// Yields { line, text, inFence, lang } for every line, tracking fenced code blocks.
 function* docLines(source) {
   let fence = null;
+  let lang = '';
   const lines = source.split('\n');
   for (let index = 0; index < lines.length; index += 1) {
     const text = lines[index];
     const marker = /^\s*(`{3,}|~{3,})/.exec(text);
     if (marker) {
-      if (fence === null) fence = marker[1];
-      else if (marker[1].startsWith(fence[0]) && marker[1].length >= fence.length) fence = null;
+      if (fence === null) {
+        fence = marker[1];
+        lang = text.trim().slice(marker[1].length).trim().split(/\s+/)[0].toLowerCase();
+      } else if (marker[1].startsWith(fence[0]) && marker[1].length >= fence.length) {
+        fence = null;
+        lang = '';
+      }
       continue;
     }
-    yield { line: index + 1, text, inFence: fence !== null };
+    yield { line: index + 1, text, inFence: fence !== null, lang };
   }
 }
 
+// Every `pnpm ...` command in a shell line: each part of an `a && b; c | d` chain, after any
+// leading `$ ` prompt and `NAME=value` environment words.
+function pnpmCommands(line) {
+  return line
+    .split(/\s*(?:&&|\|\||[|;>])\s*/)
+    .map((part) =>
+      part
+        .trim()
+        .replace(/^\$\s+/, '')
+        .replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+/, ''),
+    )
+    .filter((part) => /^pnpm\s/.test(part));
+}
+
 function parsePnpm(command) {
-  const words = command
-    .split(/\s*(?:&&|\|\||[|;>])\s*/)[0]
-    .trim()
-    .split(/\s+/);
+  const words = command.trim().split(/\s+/);
   assert.equal(words[0], 'pnpm');
   let filter;
   let index = 1;
@@ -133,50 +158,92 @@ function parsePnpm(command) {
   return { filter, name, explicitRun: false };
 }
 
-// `<name>`, `*`, `...` and `NNNN` (a migration number) stand for a value, not a real name.
-// Yields { line, text } for each line of every ```mermaid block that starts with `flowchart`.
-function flowcharts(source) {
+// The ```mermaid block that follows each DIAGRAM_MARKER line. `chart` is null when the marker
+// has no mermaid block right after it. Body lines are { line, text }.
+function markedDiagrams(source) {
   const lines = source.split('\n');
-  const charts = [];
+  const found = [];
   for (let index = 0; index < lines.length; index += 1) {
-    if (!/^\s*```mermaid/.test(lines[index])) continue;
+    if (lines[index].trim() !== DIAGRAM_MARKER) continue;
+    let fence = index + 1;
+    while (fence < lines.length && lines[fence].trim() === '') fence += 1;
+    if (!/^\s*```mermaid\s*$/.test(lines[fence] ?? '')) {
+      found.push({ line: index + 1, chart: null });
+      continue;
+    }
     const body = [];
-    let end = index + 1;
+    let end = fence + 1;
     for (; end < lines.length && !/^\s*```/.test(lines[end]); end += 1) {
       body.push({ line: end + 1, text: lines[end] });
     }
-    if (body.some(({ text }) => /^\s*flowchart\b/.test(text))) {
-      charts.push({ line: index + 1, body });
-    }
+    found.push({ line: fence + 1, chart: { line: fence + 1, body } });
     index = end;
   }
-  return charts;
+  return found;
 }
 
-// The lint allow-list as eslint.config.mjs sets it: { 'db' => Set('domain', ...) }.
-// Subjects are `apps/<name>` for an app and `<name>` for a package.
-async function lintAllowLists(root) {
-  const config = join(root, 'eslint.config.mjs');
+// Every eslint.config.* under root, as ESLint would load it: { file, entries }. Importing the
+// config means a name built by a helper, or written with any quote style, is seen like any other.
+async function loadEslintConfigs(root) {
+  const loaded = [];
+  for (const file of listFiles(root, (name) => ESLINT_CONFIG.test(name))) {
+    const { default: exported } = await import(pathToFileURL(file).href);
+    loaded.push({ file, entries: [await exported].flat() });
+  }
+  return loaded;
+}
+
+// Every string in a config value, skipping plugins and parsers, which are code, not settings.
+function* configStrings(value, seen = new Set()) {
+  if (typeof value === 'string') yield value;
+  else if (Array.isArray(value)) for (const item of value) yield* configStrings(item, seen);
+  else if (value && typeof value === 'object' && !seen.has(value)) {
+    seen.add(value);
+    for (const [key, item] of Object.entries(value)) {
+      if (key !== 'plugins' && key !== 'parser') yield* configStrings(item, seen);
+    }
+  }
+}
+
+// The lint allow-list in the root eslint config: { 'db' => { full: Set, typeOnly: Set } }.
+// Subjects are `apps/<name>` for an app and `<name>` for a package. `full` names may be imported
+// as values, `typeOnly` names only with `import type`.
+function lintAllowLists(entries) {
   const lists = new Map();
-  if (!existsSync(config)) return lists;
-  const { default: entries } = await import(pathToFileURL(config).href);
+  const nameOf = (item) => item.replace(/^!/, '').replace(/\/\*$/, '').slice(SCOPE_NAME.length);
   for (const entry of entries) {
-    const group = entry.rules?.['no-restricted-imports']?.[1]?.patterns?.[0]?.group;
-    const glob = entry.files?.[0];
-    if (!group || !glob) continue;
-    const allowed = new Set(
-      group
-        .filter((item) => item.startsWith(`!${SCOPE_NAME}`) && !item.endsWith('/*'))
-        .map((item) => item.slice(`!${SCOPE_NAME}`.length)),
-    );
-    const target = /^(apps\/[^/]+|packages\/(?:\{([^}]+)\}|[^/]+))\/src\//.exec(glob);
-    if (!target) continue;
-    const subjects = target[2] ? target[2].split(',') : [target[1].replace(/^packages\//, '')];
-    for (const subject of subjects) lists.set(subject, allowed);
+    const patterns = entry.rules?.['no-restricted-imports']?.[1]?.patterns ?? [];
+    const globs = [entry.files ?? []].flat().filter((glob) => typeof glob === 'string');
+    if (patterns.length === 0 || globs.length === 0) continue;
+    const allowed = new Set();
+    const typeOnly = new Set();
+    for (const { group = [], allowTypeImports } of patterns) {
+      if (group.includes(`${SCOPE_NAME}*`)) {
+        for (const item of group.filter((item) => item.startsWith(`!${SCOPE_NAME}`))) {
+          allowed.add(nameOf(item));
+        }
+      } else {
+        for (const item of group.filter((item) => item.startsWith(SCOPE_NAME))) {
+          if (allowTypeImports) typeOnly.add(nameOf(item));
+          else allowed.delete(nameOf(item));
+        }
+      }
+    }
+    const list = {
+      full: new Set([...allowed].filter((name) => !typeOnly.has(name))),
+      typeOnly: new Set([...typeOnly].filter((name) => allowed.has(name))),
+    };
+    for (const glob of globs) {
+      const target = /^(apps\/[^/]+|packages\/(?:\{([^}]+)\}|[^/]+))\/src\//.exec(glob);
+      if (!target) continue;
+      const subjects = target[2] ? target[2].split(',') : [target[1].replace(/^packages\//, '')];
+      for (const subject of subjects) lists.set(subject, list);
+    }
   }
   return lists;
 }
 
+// `<name>`, `*`, `...` and `NNNN` (a migration number) stand for a value, not a real name.
 const isPlaceholder = (text) => /[<>*]|\.\.\.|\bN{3,}/.test(text);
 
 export async function findStaleClaims(root) {
@@ -194,13 +261,17 @@ export async function findStaleClaims(root) {
         .flatMap((field) => Object.keys(entry.manifest[field] ?? {}))
         .filter((name) => packageNames.has(name) && name !== entry.manifest.name),
     );
-  const bySubject = (subject) =>
-    workspace.find((entry) =>
+  const bySubject = (token) => {
+    const subject = token.replace(/^packages\//, '');
+    return workspace.find((entry) =>
       subject.startsWith('apps/')
         ? entry.dir === subject
         : entry.manifest.name === `${SCOPE_NAME}${subject}`,
     );
-  const lintAllowed = await lintAllowLists(root);
+  };
+  const eslintConfigs = await loadEslintConfigs(root);
+  const rootConfig = eslintConfigs.find(({ file }) => dirname(file) === root);
+  const lintAllowed = lintAllowLists(rootConfig?.entries ?? []);
   const fileCache = new Map();
   const read = (path) => {
     if (!fileCache.has(path)) fileCache.set(path, readFileSync(join(root, path), 'utf8'));
@@ -264,24 +335,58 @@ export async function findStaleClaims(root) {
   const sameSet = (a, b) => a.size === b.size && [...a].every((item) => b.has(item));
   const listOf = (names) => [...names].sort().join(', ') || 'nothing';
 
-  // "Today only `apps/web` depends on `contracts`." and the bullet list of what a layer
-  // "may import", which AGENTS.md says is the lint allow-list.
+  // "Today only `apps/web` depends on `contracts`.", "`x` imports no workspace package." and the
+  // bullet list of what a layer "may import", which AGENTS.md says is the lint allow-list.
   function checkDependencyProse(doc, line, text) {
-    const only = /only `([^`]+)` depends on `([^`]+)`/.exec(text);
-    if (only) {
-      const target = bySubject(shortName(only[2]));
+    for (const only of [
+      /`([^`]+)` is the only workspace package that (?:declares a dependency on|depends on) `([^`]+)`/,
+      /only `([^`]+)` depends on `([^`]+)`/,
+    ]) {
+      const match = only.exec(text);
+      if (!match) continue;
+      const target = bySubject(shortName(match[2]));
       const dependents = new Set(
         workspace
           .filter((entry) => target && dependenciesOf(entry).has(target.manifest.name))
           .map((entry) => entry.dir),
       );
-      if (!target || !sameSet(dependents, new Set([only[1]]))) {
+      if (!target || !sameSet(dependents, new Set([match[1]]))) {
         report(
           doc,
           line,
           'edge',
-          `only \`${only[1]}\` depends on \`${only[2]}\``,
+          `only \`${match[1]}\` depends on \`${match[2]}\``,
           `disagrees with the package.json files, where the dependents are ${listOf(dependents)}.`,
+        );
+      }
+    }
+    const none =
+      /((?:`[^`]+`(?:,\s*|\s+and\s+|,\s*and\s+)?)+)\s+depends? on no workspace package/.exec(text);
+    for (const subject of none ? tokensIn(none[1]) : []) {
+      const entry = bySubject(subject);
+      if (!entry || dependenciesOf(entry).size > 0) {
+        report(
+          doc,
+          line,
+          'edge',
+          `\`${subject}\` depends on no workspace package`,
+          `disagrees with its package.json, which depends on ${entry ? listOf([...dependenciesOf(entry)].map(shortName)) : 'no such package'}.`,
+        );
+      }
+    }
+    const imports = /^- (.+?) imports no workspace package\b/.exec(text);
+    for (const subject of imports ? tokensIn(imports[1]) : []) {
+      const allowed = lintAllowed.get(subject);
+      const entry = bySubject(subject);
+      const lintNames = allowed ? [...allowed.full, ...allowed.typeOnly] : [];
+      const depNames = entry ? [...dependenciesOf(entry)].map(shortName) : [];
+      if (!allowed || !entry || lintNames.length > 0 || depNames.length > 0) {
+        report(
+          doc,
+          line,
+          'edge',
+          `\`${subject}\` imports no workspace package`,
+          `disagrees with eslint.config.mjs (${allowed ? listOf(lintNames) : 'no entry for it'}) or package.json (${listOf(depNames)}).`,
         );
       }
     }
@@ -292,15 +397,25 @@ export async function findStaleClaims(root) {
           .filter((token) => token !== 'import type')
           .map(shortName),
       );
+      const typeOnlyClaim = /only with `import type`/.test(may[2]);
+      const claimedFull = typeOnlyClaim ? new Set() : claimed;
+      const claimedTypeOnly = typeOnlyClaim ? claimed : new Set();
       for (const subject of tokensIn(may[1])) {
         const allowed = lintAllowed.get(subject);
-        if (!allowed || !sameSet(allowed, claimed)) {
+        if (
+          !allowed ||
+          !sameSet(allowed.full, claimedFull) ||
+          !sameSet(allowed.typeOnly, claimedTypeOnly)
+        ) {
+          const actual = allowed
+            ? `${listOf(allowed.full)}${allowed.typeOnly.size ? `, and ${listOf(allowed.typeOnly)} only as a type` : ''}`
+            : 'no entry for it';
           report(
             doc,
             line,
             'edge',
-            `\`${subject}\` may import ${listOf(claimed)}`,
-            `disagrees with eslint.config.mjs, which allows ${allowed ? listOf(allowed) : 'no entry for it'}.`,
+            `\`${subject}\` may import ${listOf(claimed)}${typeOnlyClaim ? ' only as a type' : ''}`,
+            `disagrees with eslint.config.mjs, which allows ${actual}.`,
           );
         }
       }
@@ -322,34 +437,49 @@ export async function findStaleClaims(root) {
     }
   }
 
-  // The package diagram: each arrow must be a dependency in a package.json, and each
-  // dependency must be an arrow.
+  // The package diagram: every node is a workspace package, each arrow is a dependency in a
+  // package.json, and each dependency is an arrow. A line it cannot read is a finding, so a
+  // change of form cannot turn the check off.
   function checkDiagram(doc, chart) {
     const ids = new Map();
-    for (const { text } of chart.body) {
-      for (const node of text.matchAll(/(\w+)\["([^"]+)"\]/g)) ids.set(node[1], node[2]);
-    }
     const drawn = new Map();
-    for (const { line, text } of chart.body) {
-      const arrow = /^\s*(\w+)\s*-->\s*(\w+)/.exec(text);
-      if (!arrow) continue;
-      const [from, to] = [ids.get(arrow[1]), ids.get(arrow[2])];
-      if (
-        !from ||
-        !to ||
-        !bySubject(from.replace(/^packages\//, '')) ||
-        !bySubject(to.replace(/^packages\//, ''))
-      ) {
-        report(
-          doc,
-          line,
-          'edge',
-          `\`${text.trim()}\``,
-          'names a node that is not a workspace package.',
-        );
-        continue;
-      }
-      drawn.set(`${from} --> ${to}`, line);
+    const unreadable = (line, text, why) =>
+      report(doc, line, 'edge', `\`${text.trim()}\``, `${why} The checker cannot read it.`);
+    const lines = chart.body.filter(({ text }) => text.trim() !== '' && !/^\s*%%/.test(text));
+    const [first, ...rest] = lines;
+    if (!first || !/^\s*(?:flowchart|graph)\s+(?:TD|TB|BT|LR|RL)\s*$/.test(first.text)) {
+      report(
+        doc,
+        first?.line ?? chart.line,
+        'edge',
+        'the package diagram',
+        'is not a `flowchart TD` block, which is the only form the checker reads.',
+      );
+      return;
+    }
+    for (const { line, text } of rest) {
+      const node = /^\s*(\w+)\["([^"]+)"\]\s*$/.exec(text);
+      if (node) {
+        const entry = workspace.find((e) => e.dir === node[2] && e.dir !== '.');
+        if (!entry) {
+          report(doc, line, 'edge', `node \`${node[2]}\``, 'is not a workspace package.');
+        }
+        ids.set(node[1], node[2]);
+      } else if (/^\s*\w+(?:\s*-->\s*\w+)+\s*$/.test(text)) {
+        const chain = text.split('-->').map((id) => id.trim());
+        for (let at = 0; at + 1 < chain.length; at += 1) {
+          const [from, to] = [ids.get(chain[at]), ids.get(chain[at + 1])];
+          if (!from || !to) {
+            report(
+              doc,
+              line,
+              'edge',
+              `\`${text.trim()}\``,
+              'uses an id that has no labelled node.',
+            );
+          } else drawn.set(`${from} --> ${to}`, line);
+        }
+      } else unreadable(line, text, 'Only `id["label"]` nodes and `a --> b` arrows are allowed.');
     }
     const real = new Set();
     for (const entry of workspace.filter((e) => e.dir !== '.')) {
@@ -399,7 +529,7 @@ export async function findStaleClaims(root) {
 
   function filesUnder(path) {
     const full = join(root, path);
-    return existsSync(full) && !path.match(/\.\w+$/)
+    return statSync(full).isDirectory()
       ? listFiles(full, () => true).map((file) => relative(root, file))
       : [path];
   }
@@ -423,13 +553,29 @@ export async function findStaleClaims(root) {
     }
   }
 
+  let packageDiagrams = 0;
   for (const doc of docFiles(root)) {
     const docDir = dirname(doc);
-    for (const chart of flowcharts(readFileSync(join(root, doc), 'utf8'))) checkDiagram(doc, chart);
-    for (const { line, text, inFence } of docLines(readFileSync(join(root, doc), 'utf8'))) {
+    const source = readFileSync(join(root, doc), 'utf8');
+    for (const { line, chart } of markedDiagrams(source)) {
+      if (chart) {
+        packageDiagrams += 1;
+        checkDiagram(doc, chart);
+      } else {
+        report(doc, line, 'edge', 'the package diagram marker', 'has no mermaid block after it.');
+      }
+    }
+    for (const { line, text, inFence, lang } of docLines(source)) {
       if (inFence) {
-        const command = /^\s*(?:\$\s+)?(pnpm\s.*)$/.exec(text);
-        if (command) checkScript(doc, line, command[1].trim());
+        if (['', 'bash', 'sh', 'shell', 'console', 'zsh'].includes(lang)) {
+          for (const command of pnpmCommands(text)) checkScript(doc, line, command);
+          checkPackageNames(doc, line, text);
+          for (const word of text.split(/[\s=]+/)) {
+            if (word.includes('/') && !isPlaceholder(word) && repoPath.test(word)) {
+              checkPath(doc, line, word);
+            }
+          }
+        }
         continue;
       }
 
@@ -438,8 +584,9 @@ export async function findStaleClaims(root) {
 
       for (const match of text.matchAll(/`([^`]+)`/g)) {
         const token = match[1].trim();
-        if (/^pnpm\s/.test(token)) checkScript(doc, line, token);
-        else if (isPlaceholder(token) || token.includes(' ')) continue;
+        if (/^pnpm\s/.test(token)) {
+          for (const command of pnpmCommands(token)) checkScript(doc, line, command);
+        } else if (isPlaceholder(token) || token.includes(' ')) continue;
         else if (token.includes('/') && repoPath.test(token)) checkPath(doc, line, token);
         else if (
           barePath.test(token) &&
@@ -474,18 +621,34 @@ export async function findStaleClaims(root) {
     }
   }
 
+  // The package diagram must exist while the workspace has dependencies to draw.
+  const hasEdges = workspace.some((entry) => dependenciesOf(entry).size > 0);
+  if (hasEdges && packageDiagrams === 0) {
+    report(
+      'ARCHITECTURE.md',
+      1,
+      'edge',
+      'the package diagram',
+      `is missing: no doc has a mermaid flowchart right after \`${DIAGRAM_MARKER}\`.`,
+    );
+  }
+
   // A lint allow-list that names a package that does not exist is the same mistake in code.
-  for (const config of listFiles(root, (name) => /^eslint\.config\.m?js$/.test(name))) {
-    const source = readFileSync(config, 'utf8');
-    for (const match of source.matchAll(/'@between-moves\/([A-Za-z0-9._-]+)'/g)) {
-      const name = `${SCOPE_NAME}${match[1]}`;
-      if (!packageNames.has(name)) {
-        const line = source.slice(0, match.index).split('\n').length;
-        findings.push(
-          `${relative(root, config)}:${line} [package] \`${name}\` is not a workspace package. ` +
-            'Fix: remove it from the allow-list, or create the package in the same commit.',
-        );
+  for (const { file, entries } of eslintConfigs) {
+    const source = readFileSync(file, 'utf8');
+    const names = new Set();
+    for (const text of configStrings(entries)) {
+      for (const match of text.matchAll(/@between-moves\/([A-Za-z0-9._-]+)/g)) {
+        names.add(`${SCOPE_NAME}${match[1]}`);
       }
+    }
+    for (const name of [...names].filter((candidate) => !packageNames.has(candidate))) {
+      const at = source.indexOf(name);
+      const line = at < 0 ? 1 : source.slice(0, at).split('\n').length;
+      findings.push(
+        `${relative(root, file)}:${line} [package] \`${name}\` is not a workspace package. ` +
+          'Fix: remove it from the allow-list, or create the package in the same commit.',
+      );
     }
   }
 
@@ -520,7 +683,11 @@ const allowList = (files, ...names) => ({
 });
 
 const fixtureFiles = {
-  'package.json': JSON.stringify({ name: 'root', scripts: { check: 'x', 'test:e2e': 'x' } }),
+  'package.json': JSON.stringify({
+    name: 'root',
+    type: 'module',
+    scripts: { check: 'x', 'test:e2e': 'x' },
+  }),
   'apps/worker/package.json': JSON.stringify({
     name: '@between-moves/worker',
     scripts: { 'trigger:deploy': 'x' },
@@ -543,6 +710,7 @@ describe('doc claims checker', () => {
           'See [the season](packages/domain/src/season.ts) and `@between-moves/domain`.',
           'Today only `apps/worker` depends on `domain`.',
           '- `apps/worker` may import `domain` and `observability`.',
+          DIAGRAM_MARKER,
           '```mermaid',
           'flowchart TD',
           '  worker["apps/worker"]',
@@ -564,7 +732,7 @@ describe('doc claims checker', () => {
     const findings = await withTree(
       {
         ...fixtureFiles,
-        'eslint.config.mjs': `const ghost = '@between-moves/config';\nexport default [${JSON.stringify(
+        'eslint.config.mjs': `export default [${JSON.stringify(
           allowList('apps/worker/src/**/*.ts', 'domain', 'config'),
         )}];\n`,
         'AGENTS.md': [
@@ -579,6 +747,7 @@ describe('doc claims checker', () => {
           '```',
           'Today only `apps/worker` depends on `observability`.',
           '- `apps/worker` may import `domain`.',
+          DIAGRAM_MARKER,
           '```mermaid',
           'flowchart TD',
           '  worker["apps/worker"]',
@@ -599,8 +768,8 @@ describe('doc claims checker', () => {
       ['AGENTS.md:8', '[script]', 'pnpm db:gone'],
       ['AGENTS.md:10', '[edge]', 'only `apps/worker` depends on `observability`'],
       ['AGENTS.md:11', '[edge]', '`apps/worker` may import domain'],
-      ['AGENTS.md:16', '[edge]', 'diagram arrow apps/worker --> packages/observability'],
-      ['AGENTS.md:12', '[edge]', 'package.json dependency apps/worker --> packages/domain'],
+      ['AGENTS.md:17', '[edge]', 'diagram arrow apps/worker --> packages/observability'],
+      ['AGENTS.md:13', '[edge]', 'package.json dependency apps/worker --> packages/domain'],
       ['eslint.config.mjs:1', '[package]', '@between-moves/config'],
     ];
     assert.equal(findings.length, expected.length, findings.join('\n'));
@@ -611,6 +780,264 @@ describe('doc claims checker', () => {
       assert.ok(hit, `missing ${at} ${kind} ${claim} in\n${findings.join('\n')}`);
       assert.match(hit, /Fix: /);
     }
+  });
+});
+
+// README.md carries a correct package diagram unless a test replaces it.
+const findingsFor = (files) =>
+  withTree({ ...fixtureFiles, 'README.md': diagramDoc(...goodDiagram), ...files }, findStaleClaims);
+const mentions = (findings, ...parts) =>
+  findings.filter((finding) => parts.every((part) => finding.includes(part)));
+
+const diagramDoc = (...body) => [DIAGRAM_MARKER, '```mermaid', ...body, '```'].join('\n');
+const goodDiagram = [
+  'flowchart TD',
+  '  worker["apps/worker"]',
+  '  domain["packages/domain"]',
+  '  worker --> domain',
+];
+
+describe('eslint configs', () => {
+  const ghostPatterns = [
+    '!@between-moves/ghost',
+    '!@between-moves/ghost/*',
+    '@between-moves/ghost/*',
+  ];
+  const forms = {
+    'eslint.config.mjs': (list) => `export default [${list}];\n`,
+    'eslint.config.js': (list) => `export default [${list}];\n`,
+    'eslint.config.cjs': (list) => `module.exports = [${list}];\n`,
+    'eslint.config.ts': (list) => `const entries: object[] = [${list}];\nexport default entries;\n`,
+  };
+  for (const [name, wrap] of Object.entries(forms)) {
+    for (const pattern of ghostPatterns) {
+      for (const quote of ["'", '"']) {
+        it(`flags ${quote}${pattern}${quote} in apps/web/${name}`, async () => {
+          const entry = `{ files: ['a.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ group: [${quote}${pattern}${quote}] }] }] } }`;
+          const findings = await findingsFor({ [`apps/web/${name}`]: wrap(entry) });
+          assert.equal(mentions(findings, `apps/web/${name}`, '@between-moves/ghost').length, 1);
+        });
+      }
+    }
+  }
+
+  it('flags a name that a helper function builds', async () => {
+    const findings = await findingsFor({
+      'eslint.config.mjs': [
+        'const from = (names) => names.map((name) => `!@between-moves/${name}`);',
+        "export default [{ files: ['apps/worker/src/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ group: ['@between-moves/*', ...from(['domain', 'ghost'])] }] }] } }];",
+      ].join('\n'),
+    });
+    assert.equal(mentions(findings, 'eslint.config.mjs', '@between-moves/ghost').length, 1);
+  });
+
+  it('accepts real package names in every form', async () => {
+    const entry =
+      "{ files: ['a.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ group: [\"@between-moves/*\", '!@between-moves/domain', \"!@between-moves/domain/*\"] }] }] } }";
+    assert.deepEqual(
+      await findingsFor({ 'apps/web/eslint.config.cjs': forms['eslint.config.cjs'](entry) }),
+      [],
+    );
+  });
+});
+
+describe('package diagram', () => {
+  const doc = (...body) => ({ 'AGENTS.md': diagramDoc(...body) });
+
+  it('ignores a flowchart that is not marked as the package diagram', async () => {
+    const findings = await findingsFor({
+      'AGENTS.md': [
+        diagramDoc(...goodDiagram),
+        '```mermaid',
+        'flowchart LR',
+        '  request["Request"] --> handler["Handler"]',
+        '  lonely["Not a package"]',
+        '```',
+      ].join('\n'),
+    });
+    assert.deepEqual(findings, []);
+  });
+
+  it('fails when no doc carries the package diagram', async () => {
+    const findings = await findingsFor({ 'README.md': 'No diagram here.\n' });
+    assert.equal(mentions(findings, '[edge]', 'package diagram').length, 1, findings.join('\n'));
+  });
+
+  it('fails when the marked diagram is not a flowchart', async () => {
+    const findings = await findingsFor(doc('stateDiagram-v2', '  [*] --> A'));
+    assert.ok(mentions(findings, '[edge]', 'flowchart').length >= 1, findings.join('\n'));
+  });
+
+  it('fails when the marker has no mermaid block after it', async () => {
+    const findings = await findingsFor({ 'AGENTS.md': `${DIAGRAM_MARKER}\n\nText.\n` });
+    assert.ok(mentions(findings, '[edge]', 'package diagram').length >= 1);
+  });
+
+  it('accepts `graph TD`', async () => {
+    const findings = await findingsFor(doc('graph TD', ...goodDiagram.slice(1)));
+    assert.deepEqual(findings, []);
+  });
+
+  it('flags an isolated node that is not a workspace package', async () => {
+    const findings = await findingsFor(doc(...goodDiagram, '  ghost["packages/config"]'));
+    assert.equal(mentions(findings, 'packages/config', 'not a workspace package').length, 1);
+  });
+
+  it('flags an edge to an id with no label', async () => {
+    const findings = await findingsFor(doc(...goodDiagram, '  worker --> nowhere'));
+    assert.equal(mentions(findings, 'worker --> nowhere').length, 1);
+  });
+
+  it('flags an arrow form it cannot read', async () => {
+    const findings = await findingsFor(doc(...goodDiagram, '  worker -.-> domain'));
+    assert.equal(mentions(findings, 'worker -.-> domain', 'cannot read').length, 1);
+  });
+});
+
+describe('prose claims', () => {
+  it('flags `imports no workspace package` when lint allows one', async () => {
+    const findings = await findingsFor({
+      'AGENTS.md': '- `apps/worker` imports no workspace package.\n',
+    });
+    assert.equal(mentions(findings, '[edge]', 'apps/worker', 'no workspace package').length, 1);
+  });
+
+  it('flags `depend on no workspace package` when a package.json has a dependency', async () => {
+    const findings = await findingsFor({
+      'AGENTS.md': '`apps/worker` and `packages/domain` depend on no workspace package.\n',
+    });
+    assert.equal(mentions(findings, '[edge]', 'apps/worker').length, 1);
+    assert.equal(mentions(findings, 'packages/domain').length, 0);
+  });
+
+  it('flags `is the only workspace package that declares a dependency on`', async () => {
+    const wrong =
+      '`packages/observability` is the only workspace package that declares a dependency on `domain`.\n';
+    assert.equal(mentions(await findingsFor({ 'AGENTS.md': wrong }), '[edge]', 'domain').length, 1);
+    const right =
+      '`apps/worker` is the only workspace package that declares a dependency on `domain`.\n';
+    assert.deepEqual(mentions(await findingsFor({ 'AGENTS.md': right }), '[edge]'), []);
+  });
+
+  const lint = (entries) => ({
+    'eslint.config.mjs': `export default ${JSON.stringify(entries)};\n`,
+  });
+  const restrict = (files, ...patterns) => ({
+    files,
+    rules: { 'no-restricted-imports': ['error', { patterns }] },
+  });
+
+  it('reads every glob in `files`', async () => {
+    const findings = await findingsFor({
+      ...lint([
+        restrict(['packages/domain/src/**/*.ts', 'apps/worker/src/**/*.ts'], {
+          group: ['@between-moves/*', '!@between-moves/domain'],
+        }),
+      ]),
+      'AGENTS.md': '- `apps/worker` may import `domain`.\n',
+    });
+    assert.deepEqual(mentions(findings, '[edge]'), []);
+  });
+
+  it('reads every pattern, not only the first', async () => {
+    const files = lint([
+      restrict(
+        ['apps/worker/src/**/*.ts'],
+        { group: ['@between-moves/*', '!@between-moves/domain', '!@between-moves/observability'] },
+        { group: ['@between-moves/observability', '@between-moves/observability/*'] },
+      ),
+    ]);
+    const findings = await findingsFor({
+      ...files,
+      'AGENTS.md': '- `apps/worker` may import `domain` and `observability`.\n',
+    });
+    assert.equal(mentions(findings, '[edge]', 'apps/worker').length, 1, findings.join('\n'));
+  });
+
+  it('checks the type-only rule', async () => {
+    const files = lint([
+      restrict(
+        ['packages/domain/src/**/*.ts'],
+        { group: ['@between-moves/*', '!@between-moves/observability'] },
+        {
+          group: ['@between-moves/observability', '@between-moves/observability/*'],
+          allowTypeImports: true,
+        },
+      ),
+    ]);
+    const typeOnly =
+      '- `domain` may import `@between-moves/observability` only with `import type`.\n';
+    const plain = '- `domain` may import `observability`.\n';
+    assert.deepEqual(
+      mentions(await findingsFor({ ...files, 'AGENTS.md': typeOnly }), '[edge]'),
+      [],
+    );
+    assert.equal(mentions(await findingsFor({ ...files, 'AGENTS.md': plain }), '[edge]').length, 1);
+    const open = lint([
+      restrict(['packages/domain/src/**/*.ts'], {
+        group: ['@between-moves/*', '!@between-moves/observability'],
+      }),
+    ]);
+    assert.equal(
+      mentions(await findingsFor({ ...open, 'AGENTS.md': typeOnly }), '[edge]').length,
+      1,
+    );
+  });
+});
+
+describe('commands and files', () => {
+  it('checks every command in a chain', async () => {
+    const findings = await findingsFor({
+      'AGENTS.md': [
+        'Run `pnpm check && pnpm gone` then `pnpm check; pnpm also-gone`.',
+        '```bash',
+        'pnpm check && pnpm fenced-gone',
+        '```',
+      ].join('\n'),
+    });
+    assert.equal(mentions(findings, 'pnpm gone').length, 1);
+    assert.equal(mentions(findings, 'pnpm also-gone').length, 1);
+    assert.equal(mentions(findings, 'pnpm fenced-gone').length, 1);
+  });
+
+  it('checks fenced commands that start with environment variables', async () => {
+    const findings = await findingsFor({
+      'AGENTS.md': ['```bash', 'APP_ENV=production TEST_DATABASE_URL=x pnpm env-gone', '```'].join(
+        '\n',
+      ),
+    });
+    assert.equal(mentions(findings, 'pnpm env-gone').length, 1);
+  });
+
+  it('checks package names and repo paths in fenced shell commands', async () => {
+    const findings = await findingsFor({
+      'AGENTS.md': [
+        '```bash',
+        'psql -f ops/gone.sql',
+        'pnpm --filter @between-moves/ghost check',
+        '```',
+      ].join('\n'),
+    });
+    assert.equal(mentions(findings, '[path]', 'ops/gone.sql').length, 1);
+    assert.equal(mentions(findings, '[script]', '@between-moves/ghost').length, 1);
+  });
+
+  it('reads a symbol claim against a dotted directory and an extensionless file', async () => {
+    const findings = await findingsFor({
+      '.github/workflows/ci.yml': 'name: ci\n',
+      'ops/Dockerfile': 'FROM node\n',
+      'AGENTS.md': [
+        '`ci` in `.github` and `FROM` in `ops/Dockerfile` are real.',
+        '`missing` in `.github` is wrong.',
+      ].join('\n'),
+    });
+    assert.equal(mentions(findings, '[symbol]').length, 1, findings.join('\n'));
+    assert.equal(mentions(findings, 'missing').length, 1);
+  });
+
+  it('checks docs under docs/', async () => {
+    const findings = await findingsFor({ 'docs/guide.md': 'See `packages/domain/src/gone.ts`.\n' });
+    assert.equal(mentions(findings, 'docs/guide.md:1', '[path]').length, 1);
   });
 });
 

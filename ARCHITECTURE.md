@@ -6,6 +6,8 @@ Between Moves is a pnpm workspace. `apps/web` serves the house in the browser. `
 
 An arrow means the package depends on the one it points at. The edges are the `@between-moves/*` entries in each `package.json`.
 
+<!-- doc-claims: package-diagram -->
+
 ```mermaid
 flowchart TD
   web["apps/web"]
