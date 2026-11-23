@@ -1,0 +1,61 @@
+packages/db/src/pg-house-chat-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_6d1dd1c9aaa146 8
+  s_b9d9ac6a3eb0fb::t_9fb38a1ef2d28a 31-35
+packages/db/src/pg-move-shelf-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_25c6a8288d693f 7
+  s_b9d9ac6a3eb0fb::t_9a064130591f43 69-71
+packages/db/src/pg-game-reaction-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_47722a691d52f3 7
+  s_b9d9ac6a3eb0fb::t_99d0a0eeb93aab 28
+packages/db/src/pg-game-completion-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_a9e370c369728a 47-52
+  s_b9d9ac6a3eb0fb::t_dbe3071c50894b 8
+packages/db/src/house-reads.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_7e2c8ac1210f8e 11
+  s_b9d9ac6a3eb0fb::t_76ab9a7f4718c7 195-200
+packages/db/src/product-metrics.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_883a43d2b8f619 6
+  s_b9d9ac6a3eb0fb::t_a055b6ebb06a17 37-41
+packages/db/src/pg-nudge-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_49a1e400fe9dc1 8
+  s_b9d9ac6a3eb0fb::t_37812031f7d27d 34
+packages/db/src/pg-analysis-job-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_576f7b64df2e3b 8
+  s_b9d9ac6a3eb0fb::t_8ca0f15e981f21 28-32
+packages/db/src/pg-game-position-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_61758b110344f3 7
+  s_b9d9ac6a3eb0fb::t_296b4464e48be1 29-33
+packages/db/src/games-schema.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_894d4c1bc0b251 5
+  s_b9d9ac6a3eb0fb::t_31bfd33882aaf5 22-27
+packages/db/src/invitation-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_247af02069e75c 9,538,542-551
+packages/db/src/night-lifecycle-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_e6898f4363c4d3 9-10,43,45,72-79,81
+packages/db/src/pg-game-seat-acceptance-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_8cf8d7d12cc542 9,61-66
+packages/db/src/pg-game-seat-cancellation-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_f84e68a824e0ec 11,70-75
+packages/db/src/pg-submit-move-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_5f9dd58e4efa81 16,180-185
+packages/db/src/season-closing.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_cd1d727d528861 7-8,11,265-281,443-447,485-489
+packages/db/src/season-scoring-repository.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_0ffe6588f31d8e 14,37-44,80-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46505b158b3073df57de0c0acc56c193028f7416",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
