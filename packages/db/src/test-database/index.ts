@@ -22,19 +22,33 @@ function present(value: string | undefined): string | undefined {
   return value === undefined || value === '' ? undefined : value;
 }
 
+function parseUrl(name: string, value: string | undefined): string | undefined {
+  const url = present(value);
+  // The message leaves the value out because it holds a password.
+  if (url !== undefined && !URL.canParse(url)) {
+    throw new Error(
+      `${name} is not a valid URL. Start the TLS test database with \`${testDatabaseSetupCommand}\`.`,
+    );
+  }
+  return url;
+}
+
 function fromSettings(settings: Settings): TestDatabase | undefined {
-  const url = present(settings.TEST_DATABASE_URL);
+  const url = parseUrl('TEST_DATABASE_URL', settings.TEST_DATABASE_URL);
   if (url === undefined) return undefined;
-  return { url, runtimeUrl: present(settings.TEST_RUNTIME_DATABASE_URL) };
+  return {
+    url,
+    runtimeUrl: parseUrl('TEST_RUNTIME_DATABASE_URL', settings.TEST_RUNTIME_DATABASE_URL),
+  };
 }
 
 /**
  * The PostgreSQL that integration tests and e2e use: the environment when it sets
  * TEST_DATABASE_URL, otherwise the settings `pnpm db:test:up` saved. Throws when neither exists.
  */
-export function requireTestDatabase(): TestDatabase {
+export function requireTestDatabase(environment: Settings = process.env): TestDatabase {
   const database =
-    fromSettings(process.env) ??
+    fromSettings(environment) ??
     (existsSync(settingsFile)
       ? fromSettings(parseEnv(readFileSync(settingsFile, 'utf8')))
       : undefined);
@@ -48,6 +62,23 @@ export function requireTestDatabase(): TestDatabase {
 
 export function requireTestDatabaseUrl(): string {
   return requireTestDatabase().url;
+}
+
+/**
+ * The DATABASE_URL the web app gets in e2e: the runtime role when `pnpm db:test:up` made one,
+ * otherwise the test database owner. Throws when the environment sets DATABASE_URL to any other
+ * value, so an e2e run cannot point the app at a developer's own database.
+ */
+export function requireE2eAppDatabaseUrl(environment: Settings = process.env): string {
+  const database = requireTestDatabase(environment);
+  const url = database.runtimeUrl ?? database.url;
+  const configured = present(environment.DATABASE_URL);
+  if (configured !== undefined && configured !== url) {
+    throw new Error(
+      'DATABASE_URL is set to a database other than the test database. E2E runs the app against the test database only. Unset DATABASE_URL and run again.',
+    );
+  }
+  return url;
 }
 
 /** Runs once before integration tests or e2e are collected, so a missing database fails the run. */

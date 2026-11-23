@@ -25,7 +25,8 @@ export default defineConfig({
     command: 'pnpm build && pnpm start --port 3100',
     url: 'http://127.0.0.1:3100/healthz',
     env: e2eEnvironment,
-    reuseExistingServer: !process.env.CI,
+    // A server already on this port may use another database, so e2e always starts its own.
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });
