@@ -1,0 +1,81 @@
+apps/web/e2e/night-rail.spec.ts
+  s_b9d9ac6a3eb0fb::t_8fd88d95503191 66-76,78-79
+  s_b9d9ac6a3eb0fb::t_d82d6fb5fc0774 4
+apps/web/e2e/house-home.spec.ts
+  s_b9d9ac6a3eb0fb::t_75245e79b0993d 52-56
+  s_b9d9ac6a3eb0fb::t_5e4c2f4193eaed 5
+apps/web/e2e/pilot-accessibility.spec.ts
+  s_b9d9ac6a3eb0fb::t_8aae9b4a340854 33
+  s_b9d9ac6a3eb0fb::t_e93c1275502053 4
+apps/web/e2e/move-entry.spec.ts
+  s_b9d9ac6a3eb0fb::t_9f95d08d4c0b68 58-62
+  s_b9d9ac6a3eb0fb::t_8a87b1f2b3d4d3 4
+apps/web/e2e/game-reactions.spec.ts
+  s_b9d9ac6a3eb0fb::t_50c2388d9ae86d 39
+  s_b9d9ac6a3eb0fb::t_567cbed828e053 4
+apps/web/e2e/closing-book.spec.ts
+  s_b9d9ac6a3eb0fb::t_7bc78678c1df85 24-26
+  s_b9d9ac6a3eb0fb::t_5fb1f7ef8a9a7c 194,197-201,205-207
+  s_b9d9ac6a3eb0fb::t_6c3859841cf458 98-107
+  s_b9d9ac6a3eb0fb::t_13cbb8af849336 5
+apps/web/e2e/night-lifecycle.spec.ts
+  s_b9d9ac6a3eb0fb::t_37477bbc5f03ea 63-73
+  s_b9d9ac6a3eb0fb::t_b552c4c69c84cf 4
+apps/web/e2e/game-notes.spec.ts
+  s_b9d9ac6a3eb0fb::t_7757a67c30d5a1 39
+  s_b9d9ac6a3eb0fb::t_acf2150158ee79 4
+apps/web/e2e/season-renewal.spec.ts
+  s_b9d9ac6a3eb0fb::t_3837980e3db8d0 105-114
+  s_b9d9ac6a3eb0fb::t_4c64812f242253 330,332
+  s_b9d9ac6a3eb0fb::t_64b78b41ccb2d9 5
+apps/web/src/server/analysis-callback-handler.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_fca1156fd01a73 8
+  s_b9d9ac6a3eb0fb::t_13b51d5077e8b0 39-43
+apps/web/e2e/game-seat-acceptance.spec.ts
+  s_b9d9ac6a3eb0fb::t_9fe031cf74c5f4 48-53
+  s_b9d9ac6a3eb0fb::t_2156c9b67ef1b6 3
+apps/web/e2e/season-close.spec.ts
+  s_b9d9ac6a3eb0fb::t_6c9234d5881da9 61-69
+  s_b9d9ac6a3eb0fb::t_4b09f6e3ea2241 5
+apps/web/src/server/nudge-delivery.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_fa78667f6a1db2 38-42
+  s_b9d9ac6a3eb0fb::t_1dda1e99b57b1c 14-18
+apps/web/src/server/puzzle-publish.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_5e260f18abe047 39-48
+  s_b9d9ac6a3eb0fb::t_03226f25dbb6e7 8
+apps/web/e2e/account-deletion.spec.ts
+  s_b9d9ac6a3eb0fb::t_d6bd091f9ee8f5 57
+  s_b9d9ac6a3eb0fb::t_257e53e0e35e90 4
+apps/web/e2e/live-board.spec.ts
+  s_b9d9ac6a3eb0fb::t_86bc0b62173493 62-66
+  s_b9d9ac6a3eb0fb::t_4134836d5b982b 4
+apps/web/src/server/account-data-rights.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_863af8135bf5b3 14-18
+  s_b9d9ac6a3eb0fb::t_9708d957326be0 131
+apps/web/e2e/house-chat.spec.ts
+  s_b9d9ac6a3eb0fb::t_d78263618147ed 18-24
+  s_b9d9ac6a3eb0fb::t_10972890bbc084 56-66,68-69
+  s_b9d9ac6a3eb0fb::t_1312e5b14ba326 4
+apps/web/src/server/game-terminal-completion.integration.test.ts
+  s_b9d9ac6a3eb0fb::t_a652906bb70186 3-7
+  s_b9d9ac6a3eb0fb::t_e01fd8fff1be59 203-208
+apps/web/e2e/puzzle-publish.spec.ts
+  s_b9d9ac6a3eb0fb::t_97e67287c2676e 31-40
+  s_b9d9ac6a3eb0fb::t_47fbb3e463bc9c 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ada370ae73c4bd507a1404a94a6f187032bcae3",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
