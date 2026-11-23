@@ -43,9 +43,10 @@ export type Command =
 type Settle = { readonly kind: 'accepted'; readonly san: string } | { readonly kind: 'flag' };
 
 /**
- * Whether the snapshot can be trusted. At most one read of the Game is out at a time.
- * `ahead` is a board from a Move answer that the snapshot does not have yet; only a read that
- * lands at its version or later clears it, so a fresh board never has one.
+ * Whether the snapshot can be trusted. `reading` is the one current read of the Game; an answer to
+ * an earlier read still applies when it is newer than the snapshot. `ahead` is a board from a Move
+ * answer that the snapshot does not have yet; only a read that lands at its version or later
+ * clears it, so a fresh board never has one.
  */
 export type Sync =
   | { readonly kind: 'fresh'; readonly reading: number | null }
@@ -53,8 +54,6 @@ export type Sync =
       readonly kind: 'stale';
       readonly reading: number;
       readonly background: boolean;
-      /** News arrived after this read went out, so the Game is read once more after it lands. */
-      readonly readAgain: boolean;
       readonly settle: Settle | null;
       readonly ahead: KnownBoard | null;
     }
@@ -259,39 +258,21 @@ function startRead(state: BoardState, background: boolean): Step {
           kind: 'stale',
           reading: requestId,
           background,
-          readAgain: false,
           settle: null,
           ahead: aheadOf(state.sync),
         };
   return [{ ...state, nextRequestId: requestId + 1, sync }, [{ kind: 'readGame', requestId }]];
 }
 
-/** After a Move answer the board must be read again, after any read already out. */
+/** After a Move answer the board reads the Game again at once; a read already out becomes earlier. */
 function readAfterAnswer(state: BoardState, ahead: KnownBoard | null, settle: Settle | null): Step {
   const kept = ahead !== null && ahead.version > state.snapshot.version ? ahead : null;
-  const reading = readingOf(state.sync);
-  if (reading !== null) {
-    return [
-      {
-        ...state,
-        sync: { kind: 'stale', reading, background: false, readAgain: true, settle, ahead: kept },
-      },
-      [],
-    ];
-  }
   const requestId = state.nextRequestId;
   return [
     {
       ...state,
       nextRequestId: requestId + 1,
-      sync: {
-        kind: 'stale',
-        reading: requestId,
-        background: false,
-        readAgain: false,
-        settle,
-        ahead: kept,
-      },
+      sync: { kind: 'stale', reading: requestId, background: false, settle, ahead: kept },
     },
     [{ kind: 'readGame', requestId }],
   ];
@@ -457,30 +438,27 @@ function readAnswered(
   answer: MoveEntryPosition | null,
 ): Step {
   const { sync } = state;
-  if (sync.kind === 'failed' || sync.reading !== requestId) return [state, []];
   const snapshot = answer !== null && (!state.live || answer.mode === 'live') ? answer : null;
-  const background = sync.kind === 'fresh' || sync.background;
-
-  if (sync.kind === 'stale' && sync.readAgain) {
-    const [applied, effects] =
-      snapshot !== null && snapshot.version > state.snapshot.version
-        ? applySnapshot(state, snapshot, background)
-        : [state, []];
-    const ahead =
-      sync.ahead !== null && sync.ahead.version > applied.snapshot.version ? sync.ahead : null;
-    const next = applied.nextRequestId;
+  if (sync.kind === 'failed' || sync.reading !== requestId) {
+    if (snapshot === null || snapshot.version <= state.snapshot.version) return [state, []];
+    const [applied, effects] = applySnapshot(state, snapshot, true);
+    if (applied.sync.kind === 'fresh') return [applied, effects];
+    const { ahead } = applied.sync;
     return [
       {
         ...applied,
-        nextRequestId: next + 1,
-        sync: { ...sync, reading: next, readAgain: false, ahead },
+        sync: {
+          ...applied.sync,
+          ahead: ahead !== null && ahead.version > snapshot.version ? ahead : null,
+        },
       },
-      [...effects, { kind: 'readGame', requestId: next }],
+      effects,
     ];
   }
-
+  const background = sync.kind === 'fresh' || sync.background;
   const settle = sync.kind === 'stale' ? sync.settle : null;
-  if (snapshot === null || snapshot.version < knownVersion(state)) {
+  const ahead = aheadOf(sync);
+  if (snapshot === null || (ahead !== null && snapshot.version < ahead.version)) {
     const failed: BoardState = {
       ...state,
       sync: { kind: 'failed', ahead: aheadOf(sync) },
@@ -503,7 +481,12 @@ function readAnswered(
     ];
   }
 
-  const [applied, effects] = applySnapshot(state, snapshot, background);
+  // An earlier read can already have brought a newer snapshot than this one.
+  const [applied, effects] =
+    snapshot.version >= state.snapshot.version
+      ? applySnapshot(state, snapshot, background)
+      : [state, []];
+  const newest = applied.snapshot;
   const landed: BoardState = {
     ...applied,
     sync: { kind: 'fresh', reading: null },
@@ -519,9 +502,9 @@ function readAnswered(
       message:
         settle.kind === 'flag'
           ? 'Time expired. Game complete.'
-          : snapshot.state === 'completed'
+          : newest.state === 'completed'
             ? `Move accepted: ${settle.san}. Game complete.`
-            : `Move accepted: ${settle.san}. ${turnLabel(snapshot.sideToMove)}.`,
+            : `Move accepted: ${settle.san}. ${turnLabel(newest.sideToMove)}.`,
     },
     effects,
   ];

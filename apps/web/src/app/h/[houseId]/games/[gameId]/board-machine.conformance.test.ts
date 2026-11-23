@@ -52,7 +52,8 @@ const side = (ply: number) => (ply % 2 === 0 ? 'white' : 'black');
 
 interface Message {
   readonly type: 'get' | 'getr' | 'post' | 'postr';
-  readonly cur: boolean;
+  /** The reducer's request id for a read; the model's `cur` is whether it is the current read. */
+  readonly request: number;
   readonly ok: boolean;
   readonly v: number;
   readonly p: number;
@@ -76,7 +77,7 @@ interface World {
 
 const getRequest: Message = {
   type: 'get',
-  cur: true,
+  request: 0,
   ok: true,
   v: 0,
   p: 0,
@@ -97,7 +98,7 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function asSet(messages: readonly Message[]): Message[] {
+function asSet<T>(messages: readonly T[]): T[] {
   const unique = new Map(messages.map((message) => [canonical(message), message]));
   return [...unique.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, message]) => message);
 }
@@ -163,7 +164,14 @@ function abstract(world: World) {
     fails: world.fails,
     heard: world.heard,
     mode: board.live ? 'live' : 'correspondence',
-    net: world.net,
+    net: asSet(
+      world.net.map(({ request, ...message }) => ({
+        ...message,
+        cur:
+          (message.type !== 'get' && message.type !== 'getr') ||
+          (sync.kind !== 'failed' && sync.reading === request),
+      })),
+    ),
     nextCmd: world.nextCmd,
     rv: board.reviewPly ?? NotReviewing,
     screen: {
@@ -178,12 +186,11 @@ function abstract(world: World) {
     snap: { v: board.snapshot.version, p: board.snapshot.currentPly },
     sync:
       sync.kind === 'stale'
-        ? { kind: 'stale', reading: true, bg: sync.background, again: sync.readAgain, ahead }
+        ? { kind: 'stale', reading: true, bg: sync.background, ahead }
         : {
             kind: sync.kind,
             reading: sync.kind === 'fresh' && sync.reading !== null,
             bg: true,
-            again: false,
             ahead,
           },
   };
@@ -202,7 +209,7 @@ function dispatch(world: World, events: readonly BoardEvent[], extra: Partial<Wo
   }
   const sent: Message[] = effects.flatMap((effect): Message[] =>
     effect.kind === 'readGame'
-      ? [getRequest]
+      ? [{ ...getRequest, request: effect.requestId }]
       : effect.kind === 'sendMove'
         ? [
             {
@@ -303,8 +310,6 @@ function clientSteps(world: World): [string, World][] {
   for (const message of world.net) {
     const net = world.net.filter((other) => other !== message);
     if (message.type === 'getr') {
-      const { sync } = board;
-      const reading = sync.kind === 'failed' ? null : sync.reading;
       steps.push([
         'Delivery',
         dispatch(
@@ -312,7 +317,7 @@ function clientSteps(world: World): [string, World][] {
           [
             {
               type: 'readAnswered',
-              requestId: message.cur && reading !== null ? reading : -1,
+              requestId: message.request,
               snapshot: message.ok
                 ? snapshotAt(message.v, message.p, board.live ? 'live' : 'correspondence')
                 : null,

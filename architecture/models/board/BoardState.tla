@@ -22,7 +22,7 @@ IsRead(m) == m.type \in {"get", "getr"}
 Max(a, b) == IF a > b THEN a ELSE b
 ViewerTurn(p) == p % 2 = 0
 Side(p) == IF p % 2 = 0 THEN "white" ELSE "black"
-Fresh(reading) == [kind |-> "fresh", reading |-> reading, bg |-> TRUE, again |-> FALSE, ahead |-> NoAhead]
+Fresh(reading) == [kind |-> "fresh", reading |-> reading, bg |-> TRUE, ahead |-> NoAhead]
 Kept(ahead, s) == IF ahead.has /\ ahead.v > s.v THEN ahead ELSE NoAhead
 
 LiveBoard ==
@@ -63,7 +63,7 @@ StartRead(bg) ==
   IF sync.reading
   THEN UNCHANGED <<sync, net>>
   ELSE /\ sync' = IF bg /\ sync.kind = "fresh" THEN Fresh(TRUE)
-                  ELSE [kind |-> "stale", reading |-> TRUE, bg |-> bg, again |-> FALSE, ahead |-> sync.ahead]
+                  ELSE [kind |-> "stale", reading |-> TRUE, bg |-> bg, ahead |-> sync.ahead]
        /\ net' = net \cup {GetReq}
 
 Send(id, base) ==
@@ -227,35 +227,35 @@ RetryCleared(bg, v) ==
 ReadArrives(m) ==
   /\ m.type = "getr"
   /\ heard' = IF m.ok THEN Max(heard, m.v) ELSE heard
+  /\ net' = net \ {m}
   /\ IF ~(m.cur /\ sync.reading)
-     THEN /\ net' = net \ {m}
-          /\ UNCHANGED <<snap, sync, cmd, canon, drawn>>
-     ELSE IF Machine /\ sync.again
-     THEN LET fresher == m.ok /\ m.v > snap.v
-              s2 == IF fresher THEN [v |-> m.v, p |-> m.p] ELSE snap
-          IN /\ snap' = s2
-             /\ cmd' = IF fresher THEN RetryCleared(sync.bg, m.v) ELSE cmd
-             /\ sync' = [sync EXCEPT !.again = FALSE, !.ahead = Kept(sync.ahead, s2)]
-             /\ net' = (net \ {m}) \cup {GetReq}
-             /\ UNCHANGED <<canon, drawn>>
-     ELSE /\ net' = net \ {m}
-          /\ IF ~m.ok \/ m.v < Known
-             THEN /\ sync' = [kind |-> "failed", reading |-> FALSE, bg |-> TRUE, again |-> FALSE, ahead |-> sync.ahead]
-                  /\ UNCHANGED <<snap, cmd, canon, drawn>>
-             ELSE /\ snap' = [v |-> m.v, p |-> m.p]
-                  /\ cmd' = RetryCleared(sync.bg, m.v)
-                  /\ sync' = Fresh(FALSE)
-                  /\ canon' = IF Machine THEN canon ELSE [v |-> m.v, p |-> m.p]
-                  /\ drawn' = IF ~Machine /\ (Variant = "before80fbdd8" \/ cmd.kind # "staged")
-                              THEN [kind |-> "live", p |-> m.p] ELSE drawn
+     THEN IF Machine /\ m.ok /\ m.v > snap.v
+          THEN /\ snap' = [v |-> m.v, p |-> m.p]
+               /\ cmd' = RetryCleared(TRUE, m.v)
+               /\ sync' = IF sync.kind = "fresh" THEN sync
+                          ELSE [sync EXCEPT !.ahead = Kept(sync.ahead, [v |-> m.v, p |-> m.p])]
+               /\ UNCHANGED <<canon, drawn>>
+          ELSE UNCHANGED <<snap, sync, cmd, canon, drawn>>
+     ELSE IF ~m.ok \/ (IF Machine THEN sync.ahead.has /\ m.v < sync.ahead.v ELSE m.v < canon.v)
+     THEN /\ sync' = [kind |-> "failed", reading |-> FALSE, bg |-> TRUE, ahead |-> sync.ahead]
+          /\ UNCHANGED <<snap, cmd, canon, drawn>>
+     ELSE /\ snap' = IF m.v >= snap.v THEN [v |-> m.v, p |-> m.p] ELSE snap
+          /\ cmd' = IF m.v >= snap.v THEN RetryCleared(sync.bg, m.v) ELSE cmd
+          /\ sync' = Fresh(FALSE)
+          /\ canon' = IF Machine THEN canon ELSE [v |-> m.v, p |-> m.p]
+          /\ drawn' = IF ~Machine /\ (Variant = "before80fbdd8" \/ cmd.kind # "staged")
+                      THEN [kind |-> "live", p |-> m.p] ELSE drawn
   /\ UNCHANGED <<server, accepted, mode, rv, nextCmd, fails, captured>>
   /\ screen' = BoardShown'
 
 ReadAfterAnswer(ahead, s, n) ==
-  IF sync.reading
-  THEN /\ sync' = [kind |-> "stale", reading |-> TRUE, bg |-> FALSE, again |-> Machine, ahead |-> Kept(ahead, s)]
+  IF Machine
+  THEN /\ sync' = [kind |-> "stale", reading |-> TRUE, bg |-> FALSE, ahead |-> Kept(ahead, s)]
+       /\ net' = Orphaned(n) \cup {GetReq}
+  ELSE IF sync.reading
+  THEN /\ sync' = [sync EXCEPT !.kind = "stale"]
        /\ net' = n
-  ELSE /\ sync' = [kind |-> "stale", reading |-> TRUE, bg |-> FALSE, again |-> FALSE, ahead |-> Kept(ahead, s)]
+  ELSE /\ sync' = [kind |-> "stale", reading |-> TRUE, bg |-> FALSE, ahead |-> NoAhead]
        /\ net' = n \cup {GetReq}
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition moveAnswered
@@ -339,9 +339,9 @@ NoBoardFromNowhere == Known <= server.v /\ LiveBoard.p <= server.p
 
 DotFollowsBoard == Dot = Side(screen.p)
 
-OneReadAtATime ==
-  LET reads == {m \in net : IsRead(m)}
-  IN Cardinality(reads) <= 1 /\ (sync.reading <=> reads # {})
+OneCurrentRead ==
+  LET current == {m \in net : IsRead(m) /\ m.cur}
+  IN Cardinality(current) <= 1 /\ (sync.reading <=> current # {})
 
 FreshHasNoAhead == sync.kind = "fresh" => ~sync.ahead.has
 

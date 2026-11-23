@@ -148,7 +148,7 @@ describe('board machine', () => {
     expect(retried.state.snapshot.moves).toHaveLength(2);
   });
 
-  it('reads once more after a Move is accepted while an earlier read is out', () => {
+  it('reads again at once after an accepted Move, and an earlier read still counts', () => {
     const live = { ...start, mode: 'live' as const };
     const accepted = {
       kind: 'accepted' as const,
@@ -166,20 +166,27 @@ describe('board machine', () => {
       ...playE4,
       { type: 'moveAnswered', requestId: 2, answer: accepted },
     ]);
+    expect(sent.effects.filter((effect) => effect.kind === 'readGame')).toEqual([
+      { kind: 'readGame', requestId: 1 },
+      { kind: 'readGame', requestId: 3 },
+    ]);
     expect(placement(sent.state)).toBe(e4Board);
-    const early = run(sent.state, [{ type: 'readAnswered', requestId: 1, snapshot: live }]);
-    expect(early.effects).toEqual([{ kind: 'readGame', requestId: 3 }]);
-    expect(placement(early.state)).toBe(e4Board);
-    const landed = run(early.state, [
+    const landed = run(sent.state, [
       { type: 'readAnswered', requestId: 3, snapshot: { ...afterE4, mode: 'live' } },
     ]);
     expect(landed.state.sync).toEqual({ kind: 'fresh', reading: null });
     expect(landed.state.message).toBe('Move accepted: e4. Black to move.');
+    const late = run(landed.state, [
+      { type: 'readAnswered', requestId: 1, snapshot: live },
+      { type: 'readAnswered', requestId: 1, snapshot: { ...afterE4, mode: 'live', version: 2 } },
+    ]);
+    expect(late.state.snapshot.version).toBe(2);
+    expect(placement(late.state)).toBe(e4Board);
   });
 
-  it('ignores answers to requests it is not waiting on', () => {
+  it('ignores late answers that bring nothing newer, and timers for other Moves', () => {
     const staged = run(initialBoardState(start), playE4).state;
-    expect(run(staged, [{ type: 'readAnswered', requestId: 9, snapshot: afterE5 }]).state).toBe(
+    expect(run(staged, [{ type: 'readAnswered', requestId: 9, snapshot: start }]).state).toBe(
       staged,
     );
     expect(
