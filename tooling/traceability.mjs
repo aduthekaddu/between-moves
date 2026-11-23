@@ -11,21 +11,28 @@ const criteriaPath = join(root, 'tooling/traceability-criteria.json');
 const matrixPath = join(root, 'tooling/traceability-matrix.md');
 const requiredCriteria = ['BM-051:AC-1', 'BM-051:AC-2', 'BM-051:AC-3'];
 
-// How each mapped test file proves that its tagged test ran. Vitest and node:test files run
-// here and their own reports decide. Playwright specs need a built app and a database, so
-// they are read instead: only plain `test(...)` calls count, and modifiers that skip or
-// invert a test are refused anywhere in the file.
+// The runners that mapped files use today, and how each proves that a tagged test ran.
+// Vitest and node:test files run here and their own reports decide. Playwright specs need a
+// built app and a database, so they are read instead: only plain `test(...)` calls count, and
+// modifiers that skip or invert a test are refused anywhere in the file.
 const RUNNERS = [
   {
     name: 'Vitest',
-    pattern: /^(apps|packages)\/[^/]+\/.+\.test\.tsx?$/,
+    pattern: /^apps\/web\/src\/.+\.test\.ts$/,
     banned: ['only', 'fails'],
+    assertion: expectAssertion,
   },
-  { name: 'node:test', pattern: /^tooling\/[^/]+\.test\.mjs$/, banned: ['only'] },
+  {
+    name: 'node:test',
+    pattern: /^tooling\/[^/]+\.test\.mjs$/,
+    banned: ['only'],
+    assertion: nodeAssertion,
+  },
   {
     name: 'Playwright, read only',
-    pattern: /^apps\/[^/]+\/e2e\/.+\.spec\.ts$/,
+    pattern: /^apps\/web\/e2e\/.+\.spec\.ts$/,
     banned: ['only', 'skip', 'fixme', 'fail'],
+    assertion: expectAssertion,
     readOnly: true,
   },
 ];
@@ -61,8 +68,9 @@ function children(node) {
     );
 }
 
+/** Visit every node; `visit` returns false to skip a node's children. */
 function walk(node, visit) {
-  visit(node);
+  if (visit(node) === false) return;
   for (const child of children(node)) walk(child, visit);
 }
 
@@ -76,14 +84,30 @@ function titleText(node) {
 const isFunction = (node) =>
   node.type === 'ArrowFunctionExpression' || node.type === 'FunctionExpression';
 
-/** Every call titled with the tag: `it(t, fn)`, `it(t, options, fn)`, `it.each(rows)(t, fn)`. */
-function taggedCalls(ast, tag) {
+function calleeNames(node) {
+  if (node.type === 'Identifier') return [node.name];
+  if (node.type === 'CallExpression') return calleeNames(node.callee);
+  if (node.type !== 'MemberExpression') return [];
+  return [...calleeNames(node.object), ...(node.computed ? [] : [node.property.name])];
+}
+
+/**
+ * A call that defines one test, with its callback: `it(t, fn)`, `it(t, options, fn)`,
+ * `it.each(rows)(t, fn)`, `test(...)` and node:test `t.test(...)`. A bare `describe` or
+ * `suite` is not a test.
+ */
+function testCall(node) {
+  if (node.type !== 'CallExpression') return null;
+  const body = node.arguments.findLast(isFunction);
+  const isTest = calleeNames(node.callee).some((name) => name === 'it' || name === 'test');
+  return body && isTest ? { node, body, title: titleText(node.arguments[0]) } : null;
+}
+
+function testCalls(ast) {
   const calls = [];
   walk(ast, (node) => {
-    const body = node.type === 'CallExpression' ? node.arguments.findLast(isFunction) : null;
-    if (body && titleText(node.arguments[0])?.includes(tag)) {
-      calls.push({ node, body });
-    }
+    const call = testCall(node);
+    if (call) calls.push(call);
   });
   return calls;
 }
@@ -152,11 +176,13 @@ function calleeWords(node, words) {
   } else if (node.type !== 'Identifier') argumentWords(node, words);
 }
 
-function assertedWords(body) {
+/** Words asserted in one test body, without the bodies of tests nested inside it. */
+function assertedWords(body, assertionOf) {
   const words = [];
   walk(body, (node) => {
+    if (testCall(node)) return false;
     if (node.type !== 'CallExpression') return;
-    const assertion = expectAssertion(node) ?? nodeAssertion(node);
+    const assertion = assertionOf(node);
     if (!assertion) return;
     const found = [];
     for (const arg of assertion.args) argumentWords(arg, found);
@@ -175,7 +201,7 @@ function asserts(words, token) {
   return words.some((word) => (!negated || word.negated) && matches(word.text));
 }
 
-/** A banned name as an identifier, a property, a key, or a computed `x['only']`. */
+/** A banned name as an identifier, a property, a key, a quoted key, or a computed `x['only']`. */
 function bannedName(ast, banned) {
   let found = null;
   walk(ast, (node) => {
@@ -184,7 +210,9 @@ function bannedName(ast, banned) {
         ? node.name
         : node.type === 'MemberExpression' && node.computed
           ? titleText(node.property)
-          : null;
+          : node.type === 'Property' && node.key.type === 'Literal'
+            ? String(node.key.value)
+            : null;
     if (!found && banned.includes(name)) found = { name, line: node.loc.start.line };
   });
   return found;
@@ -225,12 +253,16 @@ function offsetOf(source, line, column) {
 
 /**
  * [BM-051:AC-3] The tagged tests in one mapped file that ran and passed, with the words they
- * assert. Each runner result binds to the innermost tagged call around its reported position.
+ * assert. Each runner result binds to the innermost test call around its reported position,
+ * and counts only when that call's own title carries the tag.
  */
-function provenTests(row, entry, source, results) {
+function provenTests(row, entry, source, run) {
   const runner = runnerFor(entry.path);
   if (!runner) {
-    return { problem: `no runner handles this path. Map a Vitest, node:test or Playwright file.` };
+    return {
+      problem:
+        'no runner handles this path. Map a Vitest file (apps/web/src/**/*.test.ts), a node:test file (tooling/*.test.mjs) or a Playwright spec (apps/web/e2e/**/*.spec.ts).',
+    };
   }
   let ast;
   try {
@@ -249,30 +281,34 @@ function provenTests(row, entry, source, results) {
       problem: `line ${banned.line} uses \`${banned.name}\`, which skips, inverts or narrows tests. Remove it.`,
     };
   }
-  const ran = runner.readOnly ? playwrightResults(ast) : (results ?? []);
-  const failed = ran.find((result) => result.status === 'failed');
+  const { tests, failures } = runner.readOnly
+    ? { tests: playwrightResults(ast), failures: [] }
+    : (run ?? { tests: [], failures: [] });
+  const failed = tests.find((result) => result.status === 'failed');
   if (failed) return { problem: `test "${failed.title}" failed. Fix the test.` };
+  if (failures.length > 0) return { problem: `${failures[0]}. Fix the run.` };
 
   const tag = `[${row.id}]`;
-  const calls = taggedCalls(ast, tag).map((call) => ({ ...call, results: [] }));
-  for (const result of ran.filter((result) => result.title.includes(tag) && result.line)) {
+  const calls = testCalls(ast).map((call) => ({ ...call, results: [] }));
+  for (const result of tests.filter((result) => result.title.includes(tag) && result.line)) {
     const offset = offsetOf(source, result.line, result.column ?? 1);
     const around = calls
       .filter(({ node }) => node.range[0] <= offset && offset < node.range[1])
       .sort((a, b) => a.node.range[1] - a.node.range[0] - (b.node.range[1] - b.node.range[0]));
     around[0]?.results.push(result);
   }
-  if (calls.length === 0) return { problem: `no test has ${tag} in its title.` };
-  const proven = calls.filter(
+  const tagged = calls.filter((call) => call.title?.includes(tag));
+  if (tagged.length === 0) return { problem: `no test has ${tag} in its title.` };
+  const proven = tagged.filter(
     (call) => call.results.length > 0 && call.results.every((r) => r.status === 'passed'),
   );
   if (proven.length === 0) {
-    const seen = [...new Set(calls.flatMap((call) => call.results.map((r) => r.status)))];
+    const seen = [...new Set(tagged.flatMap((call) => call.results.map((r) => r.status)))];
     return {
       problem: `no test titled ${tag} ran and passed under ${runner.name} (${seen.length ? `reported ${seen.join(', ')}` : 'not reported'}).`,
     };
   }
-  return { proven: proven.map((call) => assertedWords(call.body)) };
+  return { proven: proven.map((call) => assertedWords(call.body, runner.assertion)) };
 }
 
 function missingTokens(proven, tokens) {
@@ -308,26 +344,32 @@ export function runnablePaths(criteria) {
 }
 
 /**
- * Run Vitest files per workspace package and node:test files in-process. Returns a Map from
- * the repo-relative path to `{ title, line, column, status }` rows.
+ * Run the mapped Vitest files in one Vitest process and the node:test files in one `node --test`
+ * process. Returns a Map from the repo-relative path to `{ tests, failures }`: `tests` holds
+ * `{ title, line, column, status }` rows, and `failures` names each failed file, suite or hook
+ * and a nonzero exit, any of which leaves the file unproven.
  */
-export async function runTests(rootDir, paths, { vitestBin } = {}) {
-  const results = new Map(paths.map((path) => [path, []]));
-  const vitestByPackage = Map.groupBy(
-    paths.filter((path) => runnerFor(path).name === 'Vitest'),
-    (path) => path.split('/').slice(0, 2).join('/'),
-  );
-  for (const [packageDir, files] of vitestByPackage) {
-    const cwd = join(rootDir, packageDir);
-    const dir = mkdtempSync(join(tmpdir(), 'traceability-'));
-    const outputFile = join(dir, 'vitest.json');
-    try {
-      const filters = files.map((path) => relative(cwd, join(rootDir, path)));
+export function runTests(rootDir, paths, { vitestBin } = {}) {
+  const results = new Map(paths.map((path) => [path, { tests: [], failures: [] }]));
+  const filesFor = (name) => paths.filter((path) => runnerFor(path).name === name);
+  const failedExit = (name, files, child) => {
+    if (child.error) throw child.error;
+    if (child.status === 0) return;
+    for (const path of files) {
+      results.get(path).failures.push(`${name} exited with code ${child.status ?? child.signal}`);
+    }
+  };
+  const dir = mkdtempSync(join(tmpdir(), 'traceability-'));
+  try {
+    const vitestFiles = filesFor('Vitest');
+    if (vitestFiles.length > 0) {
+      const cwd = join(rootDir, 'apps/web');
+      const outputFile = join(dir, 'vitest.json');
       const child = spawnSync(
         vitestBin ?? join(cwd, 'node_modules/.bin/vitest'),
         [
           'run',
-          ...filters,
+          ...vitestFiles.map((path) => relative(cwd, join(rootDir, path))),
           '--reporter=json',
           `--outputFile=${outputFile}`,
           '--includeTaskLocation',
@@ -338,15 +380,12 @@ export async function runTests(rootDir, paths, { vitestBin } = {}) {
       try {
         report = JSON.parse(readFileSync(outputFile, 'utf8'));
       } catch (cause) {
-        throw new Error(
-          `Vitest wrote no report in ${packageDir}:\n${child.stderr}${child.stdout}`,
-          {
-            cause,
-          },
-        );
+        throw new Error(`Vitest wrote no report:\n${child.stderr}${child.stdout}`, { cause });
       }
       for (const file of report.testResults) {
-        results.get(relative(rootDir, file.name))?.push(
+        const entry = results.get(relative(rootDir, file.name));
+        if (!entry) continue;
+        entry.tests.push(
           ...file.assertionResults.map((test) => ({
             title: test.title,
             line: test.location?.line,
@@ -354,35 +393,49 @@ export async function runTests(rootDir, paths, { vitestBin } = {}) {
             status: test.status,
           })),
         );
+        if (file.status === 'failed') {
+          const message = file.message?.split('\n')[0] || 'no message';
+          entry.failures.push(`Vitest failed outside a test (${message})`);
+        }
       }
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
+      failedExit('Vitest', vitestFiles, child);
     }
-  }
-  const nodeFiles = paths.filter((path) => runnerFor(path).name === 'node:test');
-  if (nodeFiles.length > 0) {
-    // A run nested inside a node:test file reports to its parent, so drop that context.
-    const env = { ...process.env };
-    delete env.NODE_TEST_CONTEXT;
-    const child = spawnSync(
-      process.execPath,
-      [
-        '--test',
-        `--test-reporter=${join(root, 'tooling/node-test-report.mjs')}`,
-        ...nodeFiles.map((path) => join(rootDir, path)),
-      ],
-      { env, encoding: 'utf8' },
-    );
-    if (child.error) throw child.error;
-    for (const line of child.stdout.split('\n').filter((text) => text.startsWith('{'))) {
-      const { file, ...result } = JSON.parse(line);
-      results.get(relative(rootDir, file))?.push(result);
+    const nodeFiles = filesFor('node:test');
+    if (nodeFiles.length > 0) {
+      const events = join(dir, 'node-test.jsonl');
+      // A run nested inside a node:test file reports to its parent, so drop that context.
+      const env = { ...process.env };
+      delete env.NODE_TEST_CONTEXT;
+      const child = spawnSync(
+        process.execPath,
+        [
+          '--test',
+          `--test-reporter=${join(root, 'tooling/node-test-report.mjs')}`,
+          `--test-reporter-destination=${events}`,
+          ...nodeFiles.map((path) => join(rootDir, path)),
+        ],
+        { env, encoding: 'utf8' },
+      );
+      if (child.error) throw child.error;
+      for (const line of readFileSync(events, 'utf8').split('\n').filter(Boolean)) {
+        const { file, kind, ...row } = JSON.parse(line);
+        const entry = file && results.get(relative(rootDir, file));
+        if (!entry) continue;
+        if (kind === 'test') entry.tests.push(row);
+        else if (row.status === 'failed') {
+          const name = row.title === file ? relative(rootDir, file) : row.title;
+          entry.failures.push(`node:test failed outside a test (${kind ?? 'file'} "${name}")`);
+        }
+      }
+      failedExit('node:test', nodeFiles, child);
     }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
   return results;
 }
 
-/** `results(path)` returns the runner rows for a mapped Vitest or node:test file. */
+/** `results(path)` returns `runTests`' entry for a mapped Vitest or node:test file. */
 export function evaluateCriteria(criteria, readEvidence, results = () => []) {
   if (
     !Array.isArray(criteria) ||
@@ -464,7 +517,7 @@ export function renderMatrix(rows) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const criteria = JSON.parse(readFileSync(criteriaPath, 'utf8'));
-  const ran = await runTests(root, runnablePaths(criteria));
+  const ran = runTests(root, runnablePaths(criteria));
   const rows = evaluateCriteria(
     criteria,
     (path) => readFileSync(join(root, path), 'utf8'),
