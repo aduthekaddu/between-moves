@@ -1,0 +1,23 @@
+apps/web/e2e/support/touch-audit.ts
+  s_b9d9ac6a3eb0fb::t_184b89d3b2cacf 27-34
+apps/web/src/app/_landing/landing.css
+  s_b9d9ac6a3eb0fb::t_3c690f491d821d 1195,1199
+apps/web/src/lib/fonts.ts
+  s_b9d9ac6a3eb0fb::t_e369596ab2c417 16-20,29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "54d60ab8f95de9c4ac953c755a1040d7a6c3cbff",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
