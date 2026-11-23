@@ -17,9 +17,13 @@ export default class IntegrationRunReporter implements Reporter {
 
   onTestRunEnd(testModules: ReadonlyArray<TestModule>): void {
     if (!this.runsIntegration) return;
-    const tests = testModules
-      .filter((testModule) => testModule.project.name === integrationProject)
-      .flatMap((testModule) => [...testModule.children.allTests()]);
+    const integrationModules = testModules.filter(
+      (testModule) => testModule.project.name === integrationProject,
+    );
+    // A file filter that matched only unit files leaves this project empty. Vitest fails a run
+    // with no test files at all on its own, so an empty project here is not a skipped database.
+    if (integrationModules.length === 0) return;
+    const tests = integrationModules.flatMap((testModule) => [...testModule.children.allTests()]);
     const skipped = tests.filter((test) => test.result().state === 'skipped');
     if (tests.length > 0 && skipped.length === 0) return;
 

@@ -1,5 +1,6 @@
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import tsParser from '@typescript-eslint/parser';
+import { testDatabaseEnvRule } from './tooling/eslint-test-database-env.mjs';
 
 const boundaryMessage =
   'Package boundary violation: this layer may only import the workspace packages allowed by the architecture.';
@@ -74,15 +75,17 @@ function workspaceImportsAllowedFrom(allowedPackages) {
   ];
 }
 
+const lintedSources = [
+  'apps/worker/src/**/*.ts',
+  'packages/{domain,application,db,adapters,observability}/src/**/*.ts',
+];
+
 export default [
   {
     ignores: ['**/dist/**', '**/node_modules/**'],
   },
   {
-    files: [
-      'apps/worker/src/**/*.ts',
-      'packages/{domain,application,db,adapters,observability}/src/**/*.ts',
-    ],
+    files: lintedSources,
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -95,6 +98,13 @@ export default [
     },
     rules: {
       'boundaries/no-cross-package-relative-imports': 'error',
+    },
+  },
+  {
+    files: lintedSources,
+    ignores: ['packages/db/src/test-database/**'],
+    rules: {
+      'no-restricted-syntax': testDatabaseEnvRule,
     },
   },
   {

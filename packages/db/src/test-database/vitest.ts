@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { configDefaults, type TestProjectInlineConfiguration } from 'vitest/config';
 
 export const integrationProject = 'integration';
-const integrationTestFiles = '**/*.integration.test.ts';
+const integrationTestFiles = '**/*.integration.test.{ts,tsx}';
 const integrationSetup = fileURLToPath(new URL('./vitest-global-setup.ts', import.meta.url));
 const integrationReporter = fileURLToPath(
   new URL('./vitest-integration-reporter.ts', import.meta.url),

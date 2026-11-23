@@ -45,13 +45,13 @@ Set the machine up with the install steps in [README.md](README.md). The scripts
 
 The test runners read `TEST_DATABASE_URL` from the environment, or from `.test-database/env` when the variable is unset.
 
-Each package's Vitest config has two projects. A file named `*.integration.test.ts` belongs to `integration`, and every other test file belongs to `unit`.
+`packages/db` and `apps/web` split their Vitest tests into two projects. A file named `*.integration.test.ts` or `*.integration.test.tsx` belongs to `integration`, and every other test file belongs to `unit`. No other package has the `integration` project, and `pnpm test` fails when an integration test file sits in one. To add one there, spread `databaseTestProjects` from `@between-moves/db/test-database/vitest` into its Vitest config and copy the `test` and `test:integration` scripts from `packages/db/package.json`.
 
 - `pnpm test` runs the `unit` project only. It never needs PostgreSQL, so turbo may replay it from cache.
 - `pnpm test:integration` runs the `integration` project. Turbo never caches it. It checks the database once before it collects a file and fails with the setup command when the database is missing or unreachable. It also fails when any test skips or no test runs.
-- `pnpm test:e2e` makes the same database check in `apps/web/playwright.config.ts`, applies every migration, and fails when any test skips.
+- `pnpm test:e2e` makes the same database check in `apps/web/playwright.config.ts`, applies every migration, and fails when any test skips. It starts its own web server on port 3100 with the test database's runtime role, and stops when `DATABASE_URL` names any other database.
 
-Do not add a per-file skip guard for a missing database. `@between-moves/db/test-database` exports `requireTestDatabaseUrl`, which throws the setup message instead. `packages/db/src/season-closing.integration.test.ts` rolls every migration down, then up, before each test.
+Do not add a per-file skip guard for a missing database. `@between-moves/db/test-database` exports `requireTestDatabaseUrl`, which throws the setup message instead. ESLint rejects `TEST_DATABASE_URL` and `TEST_RUNTIME_DATABASE_URL` in any file outside `packages/db/src/test-database/`. `packages/db/src/season-closing.integration.test.ts` rolls every migration down, then up, before each test.
 
 ## Change the database
 
