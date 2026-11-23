@@ -24,7 +24,14 @@ export interface TouchAudit {
  * It reads the DOM and the layout only, so it holds for any route.
  */
 export async function auditTouch(page: Page): Promise<TouchAudit> {
-  await page.evaluate(() => document.fonts.ready);
+  // Measure the settled page: an entrance animation that clips a control is not a cover.
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    const finite = document
+      .getAnimations()
+      .filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);
+    await Promise.all(finite.map((animation) => animation.finished.catch(() => undefined)));
+  });
   return page.evaluate(
     ({ minTarget, minFont }) => {
       for (const details of document.querySelectorAll('details')) details.open = true;
