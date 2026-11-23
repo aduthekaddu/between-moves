@@ -1,0 +1,21 @@
+AGENTS.md
+  s_b9d9ac6a3eb0fb::t_06a37f57feb6b4 33-34
+CONTRIBUTING.md
+  s_b9d9ac6a3eb0fb::t_c7a9cc8ecb0d44 19-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e4999c8f48d874e0ad68f3ead2b417ddd80c7fa",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
