@@ -1,0 +1,3 @@
+---- MODULE NudgeOutboxLive ----
+EXTENDS NudgeOutbox
+====
