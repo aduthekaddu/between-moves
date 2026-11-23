@@ -16,6 +16,8 @@ Set the machine up with the install steps in [README.md](README.md). The scripts
    pnpm check
    ```
 
+   Lint includes `pnpm lint:css`, which rejects a field under 16px or a control under 24px tall in `apps/web` CSS. Its message names the fix.
+
 3. When the change touches a BM-051 security criterion, regenerate the matrix and check it.
 
    ```bash

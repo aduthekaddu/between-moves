@@ -30,6 +30,8 @@ Reviewed SQL lives in `packages/db/migrations/NNNN_name/`. `pnpm db:generate` wr
 
 Point database integration tests at a disposable database. They read `TEST_DATABASE_URL` and skip when it is unset. `packages/db/src/season-closing.integration.test.ts` rolls every migration down before each test.
 
+Phone and touch rules live in `apps/web/src/app/globals.css`: fields are at least 1rem, and every control has a 24px `--target-size` floor. `pnpm lint:css` (part of `pnpm lint`, source in `tooling/css-guards.mjs`) rejects CSS that sets a field under 16px or a control under 24px tall, and fails when either base rule is removed. `apps/web/e2e/phone-touch.spec.ts` measures the real page at 320 and 360 px; run `pnpm test:e2e` when you change a page's layout or CSS.
+
 `pnpm check` runs lint, typecheck, and the test script. It does not run `pnpm build`. CI runs that build as its own step. Run `pnpm traceability:check` when you change a BM-051 security criterion. Run `pnpm test:e2e` when you change a page.
 
 Regenerate `tooling/traceability-matrix.md` with `pnpm traceability:generate`. Leave the generated file as the command wrote it.
