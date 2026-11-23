@@ -57,9 +57,9 @@ Synced at commit 48bfd77. The model describes those files as of that commit. Aft
 
 Run these from the repo root. The first needs no Java. The others need Java 17 or newer, or Docker.
 
-1. `pnpm --filter @between-moves/web exec vitest run board-machine move-entry` runs the reducer tests, the page tests that replay past bugs, and the conformance walk. The walk takes about 15 seconds.
-2. `pnpm formal:check` runs TLC on the pass config and every bug config. About 20 seconds.
-3. `pnpm formal:board-conformance` hashes the graph TLC finds at the bounds in `board-conformance.json`. About 10 seconds.
+1. `pnpm --filter @between-moves/web exec vitest run board-machine move-entry` runs the reducer tests, the page tests that replay past bugs, and the conformance walk. The walk takes about 25 seconds.
+2. `pnpm formal:check` runs TLC on the pass config and every bug config. About 30 seconds.
+3. `pnpm formal:board-conformance` hashes the graph TLC finds at the bounds in `board-conformance.json`. About 15 seconds.
 
 Done means all three pass.
 
