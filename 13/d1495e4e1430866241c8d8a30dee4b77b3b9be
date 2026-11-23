@@ -1,0 +1,27 @@
+CONTRIBUTING.md
+  s_b9d9ac6a3eb0fb::t_bf9ae316320a33 56-57
+tooling/database-test-guards.test.mjs
+  s_b9d9ac6a3eb0fb::t_38b9973d1da44b 43-58,113-189
+tooling/eslint-test-fixtures.mjs
+  s_b9d9ac6a3eb0fb::t_5fceb338e2fc74 1-41
+apps/web/eslint.config.mjs
+  s_b9d9ac6a3eb0fb::t_07a6fa089a983f 5,17-20
+eslint.config.mjs
+  s_b9d9ac6a3eb0fb::t_84149d790ebf6e 4,111-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "13d1495e4e1430866241c8d8a30dee4b77b3b9be",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
