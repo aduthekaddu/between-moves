@@ -1,0 +1,25 @@
+.claude/skills/verify-nudge-outbox/SKILL.md
+  s_b9d9ac6a3eb0fb::t_873656156d2d10 12,19-20,46,48-54,60
+architecture/models/nudge-outbox/NudgeOutboxLive.bug-reader-never-passes.cfg
+  s_b9d9ac6a3eb0fb::t_df642a9ace19bb 2
+architecture/models/nudge-outbox/NudgeOutboxLive.cfg
+  s_b9d9ac6a3eb0fb::t_f1496b47b3d7d2 1-16
+architecture/models/nudge-outbox/NudgeOutboxLive.tla
+  s_b9d9ac6a3eb0fb::t_871a0edfc64d01 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db9a197b3a20a34836ed841887e329e38d87e97b",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
