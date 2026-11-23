@@ -95,12 +95,14 @@ Commit ==
                           /\ net' = Orphaned(net)
                      ELSE UNCHANGED <<sync, net>>
   /\ UNCHANGED <<server, accepted, mode, snap, fails, heard, canon>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition squareTapped -> tapSquare
 DismissRetry ==
   /\ cmd.kind = "retryable" /\ CanMove
   /\ cmd' = NoCommand
   /\ UNCHANGED <<server, accepted, mode, snap, sync, rv, net, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition undoPressed
 Undo ==
@@ -108,24 +110,28 @@ Undo ==
   /\ cmd' = NoCommand
   /\ drawn' = IF Machine THEN drawn ELSE [kind |-> "live", p |-> canon.p]
   /\ UNCHANGED <<server, accepted, mode, snap, sync, rv, net, nextCmd, fails, heard, canon, captured>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition undoWindowEnded -> releaseStaged
 UndoTimerFires ==
   /\ cmd.kind = "staged"
   /\ Send(cmd.id, cmd.base)
   /\ UNCHANGED <<server, accepted, mode, snap, rv, nextCmd, fails, heard, canon>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition pageHidden -> releaseStaged
 PageHides ==
   /\ cmd.kind = "staged"
   /\ Send(cmd.id, cmd.base)
   /\ UNCHANGED <<server, accepted, mode, snap, rv, nextCmd, fails, heard, canon>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition retryPressed
 Retry ==
   /\ cmd.kind = "retryable"
   /\ Send(cmd.id, cmd.base)
   /\ UNCHANGED <<server, accepted, mode, snap, rv, nextCmd, fails, heard, canon>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition reconcileWanted
 Reconcile(bg) ==
@@ -133,41 +139,48 @@ Reconcile(bg) ==
   /\ mode = "live" \/ bg
   /\ StartRead(bg)
   /\ UNCHANGED <<server, accepted, mode, snap, cmd, rv, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition refreshRequested
 RefreshPressed ==
   /\ StartRead(FALSE)
   /\ UNCHANGED <<server, accepted, mode, snap, cmd, rv, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition reviewStepped
 StepBack ==
   /\ snap.p > 0 /\ rv # 0
   /\ rv' = IF Reviewing THEN rv - 1 ELSE snap.p - 1
   /\ UNCHANGED <<server, accepted, mode, snap, sync, cmd, net, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts transition reviewShown
 BackToGame ==
   /\ rv # NotReviewing
   /\ rv' = NotReviewing
   /\ UNCHANGED <<server, accepted, mode, snap, sync, cmd, net, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* packages/db/src/pg-game-completion-repository.ts and the draw offer writes
 ServerBumps ==
   /\ server.v < MaxVersion
   /\ server' = [server EXCEPT !.v = @ + 1]
   /\ UNCHANGED <<accepted, mode, snap, sync, cmd, rv, net, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* packages/db/src/pg-submit-move-repository.ts from the opponent, or this seat in another tab
 ServerMoves ==
   /\ server.v < MaxVersion /\ server.p < MaxPly
   /\ server' = [v |-> server.v + 1, p |-> server.p + 1]
   /\ UNCHANGED <<accepted, mode, snap, sync, cmd, rv, net, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/api/houses/[houseId]/games/[gameId]/route.ts GET
 ServerAnswersRead(m) ==
   /\ m.type = "get"
   /\ net' = (net \ {m}) \cup {[m EXCEPT !.type = "getr", !.v = server.v, !.p = server.p]}
   /\ UNCHANGED <<server, accepted, mode, snap, sync, cmd, rv, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* packages/db/src/pg-submit-move-repository.ts submitMove, which replays a known clientCommandId
 ServerAnswersMove(m) ==
@@ -192,6 +205,7 @@ ServerAnswersMove(m) ==
            /\ net' = answer("flag", 0, 0)
            /\ UNCHANGED accepted
   /\ UNCHANGED <<mode, snap, sync, cmd, rv, nextCmd, fails, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 \* apps/web/src/app/h/[houseId]/games/[gameId]/board-store.ts readGame and sendMove catch
 NetworkFails(m) ==
@@ -204,6 +218,7 @@ NetworkFails(m) ==
      \/ /\ m.type = "postr" /\ m.kind # "unreachable"
         /\ net' = (net \ {m}) \cup {[m EXCEPT !.kind = "unreachable", !.v = 0, !.p = 0]}
   /\ UNCHANGED <<server, accepted, mode, snap, sync, cmd, rv, nextCmd, heard, canon, captured, drawn>>
+  /\ screen' = BoardShown'
 
 RetryCleared(bg, v) ==
   IF cmd.kind = "retryable" /\ (~bg \/ v # Known) THEN NoCommand ELSE cmd
@@ -234,6 +249,7 @@ ReadArrives(m) ==
                   /\ drawn' = IF ~Machine /\ (Variant = "before80fbdd8" \/ cmd.kind # "staged")
                               THEN [kind |-> "live", p |-> m.p] ELSE drawn
   /\ UNCHANGED <<server, accepted, mode, rv, nextCmd, fails, captured>>
+  /\ screen' = BoardShown'
 
 ReadAfterAnswer(ahead, s, n) ==
   IF sync.reading
@@ -288,17 +304,16 @@ MoveArrives(m) ==
                     /\ cmd' = [cmd EXCEPT !.kind = "retryable"] /\ net' = n
                     /\ UNCHANGED <<snap, sync, canon, captured>>
   /\ UNCHANGED <<server, accepted, mode, rv, nextCmd, fails>>
+  /\ screen' = BoardShown'
 
 ServerAnswers == \E m \in net : ServerAnswersRead(m) \/ ServerAnswersMove(m)
 Delivery == \E m \in net : ReadArrives(m) \/ MoveArrives(m)
 
-Step ==
+Next ==
   \/ Commit \/ DismissRetry \/ Undo \/ UndoTimerFires \/ PageHides \/ Retry
   \/ Reconcile(TRUE) \/ Reconcile(FALSE) \/ RefreshPressed \/ StepBack \/ BackToGame
   \/ ServerBumps \/ ServerMoves \/ ServerAnswers \/ Delivery
   \/ \E m \in net : NetworkFails(m)
-
-Next == Step /\ screen' = BoardShown'
 
 Spec == Init /\ [][Next]_vars
 
