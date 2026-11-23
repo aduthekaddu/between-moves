@@ -12,7 +12,7 @@ Read `ops/deploy.md` when you deploy the web app or the worker.
 
 ## Rules that are easy to miss
 
-pnpm stops with `ERR_PNPM_UNSUPPORTED_ENGINE` on a Node outside `engines.node`. Run under the Node in `.node-version`, for example `mise exec -- pnpm check`. `pnpm exec` and raw `node`, `turbo` and `eslint` calls can skip that check.
+pnpm stops with `ERR_PNPM_UNSUPPORTED_ENGINE` on a Node outside `engines.node`. The root and every workspace package declare it, so `pnpm <script>`, `pnpm -C <dir> <script>` and a script run inside a package directory all stop. A new workspace package must declare it too. Put the Node from `.node-version` first on `PATH` and run pnpm through Corepack, as the README says: `mise exec -- pnpm check`. A standalone pnpm binary (not the Corepack one) may check its own bundled Node instead of the one on `PATH`, and then fails on every script. `pnpm exec` and raw `node`, `turbo` and `eslint` calls skip the check.
 
 `eslint.config.mjs` is the import allow-list. Each package `package.json` is the dependency list, and that list is narrower.
 
