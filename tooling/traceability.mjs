@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, resolve } from 'node:path';
 import { parse } from '@typescript-eslint/parser';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const root = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
 // [BM-051:AC-3] Require tagged code and test evidence for every listed criterion.
 const criteriaPath = join(root, 'tooling/traceability-criteria.json');
 const matrixPath = join(root, 'tooling/traceability-matrix.md');
@@ -93,13 +93,27 @@ function calleeNames(node) {
 
 /**
  * A call that defines one test, with its callback: `it(t, fn)`, `it(t, options, fn)`,
- * `it.each(rows)(t, fn)`, `test(...)` and node:test `t.test(...)`. A bare `describe` or
- * `suite` is not a test.
+ * `it.each(rows)(t, fn)`, `test(...)` and node:test `t.test(...)`. `describe`, `suite`, Playwright
+ * `test.step` and the hooks are not tests.
  */
+const NOT_TESTS = new Set([
+  'describe',
+  'suite',
+  'step',
+  'before',
+  'after',
+  'beforeAll',
+  'afterAll',
+  'beforeEach',
+  'afterEach',
+]);
 function testCall(node) {
   if (node.type !== 'CallExpression') return null;
   const body = node.arguments.findLast(isFunction);
-  const isTest = calleeNames(node.callee).some((name) => name === 'it' || name === 'test');
+  const names = calleeNames(node.callee);
+  const isTest =
+    names.some((name) => name === 'it' || name === 'test') &&
+    !names.some((name) => NOT_TESTS.has(name));
   return body && isTest ? { node, body, title: titleText(node.arguments[0]) } : null;
 }
 
@@ -184,24 +198,35 @@ function assertedWords(body, assertionOf) {
     if (node.type !== 'CallExpression') return;
     const assertion = assertionOf(node);
     if (!assertion) return;
-    const found = [];
-    for (const arg of assertion.args) argumentWords(arg, found);
-    for (const text of found) words.push({ text: text.toLowerCase(), negated: assertion.negated });
+    assertion.args.forEach((arg, index) => {
+      const found = [];
+      argumentWords(arg, found);
+      // The first argument is what is checked; the rest say what it is checked against.
+      for (const text of found) {
+        words.push({ text: text.toLowerCase(), negated: assertion.negated, subject: index === 0 });
+      }
+    });
   });
   return words;
 }
 
-/** `not:x` needs a negated assertion. A number matches whole numbers only, so 429 is not 1429. */
+/**
+ * `not:x` needs a negated assertion. Under `.not`, only the checked value (the first argument)
+ * can satisfy another word: `expect(s).not.toBe(429)` does not assert 429. A number matches
+ * whole numbers only, so 429 is not 1429.
+ */
 function asserts(words, token) {
   const negated = token.startsWith('not:');
   const text = (negated ? token.slice(4) : token).toLowerCase();
   const matches = /^\d+$/.test(text)
     ? (word) => new RegExp(`\\b${text}\\b`).test(word)
     : (word) => word.includes(text);
-  return words.some((word) => (!negated || word.negated) && matches(word.text));
+  return words.some(
+    (word) => (negated ? word.negated : !word.negated || word.subject) && matches(word.text),
+  );
 }
 
-/** A banned name as an identifier, a property, a key, a quoted key, or a computed `x['only']`. */
+/** A banned name as an identifier, a property, a key (quoted or computed), or `x['only']`. */
 function bannedName(ast, banned) {
   let found = null;
   walk(ast, (node) => {
@@ -210,8 +235,8 @@ function bannedName(ast, banned) {
         ? node.name
         : node.type === 'MemberExpression' && node.computed
           ? titleText(node.property)
-          : node.type === 'Property' && node.key.type === 'Literal'
-            ? String(node.key.value)
+          : node.type === 'Property'
+            ? titleText(node.key)
             : null;
     if (!found && banned.includes(name)) found = { name, line: node.loc.start.line };
   });
@@ -232,7 +257,7 @@ function playwrightResults(ast) {
   const visit = (statements) => {
     for (const statement of statements) {
       const call = statement.type === 'ExpressionStatement' ? statement.expression : null;
-      if (isCall(call, 'test')) {
+      if (isCall(call, 'test') && call.arguments.some(isFunction)) {
         const { line, column } = call.loc.start;
         results.push({ title: titleText(call.arguments[0]) ?? '', line, column: column + 1 });
       } else if (isCall(call, 'describe')) {
@@ -349,11 +374,12 @@ export function runnablePaths(criteria) {
  * `{ title, line, column, status }` rows, and `failures` names each failed file, suite or hook
  * and a nonzero exit, any of which leaves the file unproven.
  */
-export function runTests(rootDir, paths, { vitestBin } = {}) {
+export function runTests(givenRoot, paths, { vitestBin } = {}) {
+  // The runners report physical paths, so a symlinked root would match none of them.
+  const rootDir = realpathSync(givenRoot);
   const results = new Map(paths.map((path) => [path, { tests: [], failures: [] }]));
   const filesFor = (name) => paths.filter((path) => runnerFor(path).name === name);
   const failedExit = (name, files, child) => {
-    if (child.error) throw child.error;
     if (child.status === 0) return;
     for (const path of files) {
       results.get(path).failures.push(`${name} exited with code ${child.status ?? child.signal}`);
@@ -376,6 +402,7 @@ export function runTests(rootDir, paths, { vitestBin } = {}) {
         ],
         { cwd, encoding: 'utf8' },
       );
+      if (child.error) throw child.error;
       let report;
       try {
         report = JSON.parse(readFileSync(outputFile, 'utf8'));
@@ -436,7 +463,7 @@ export function runTests(rootDir, paths, { vitestBin } = {}) {
 }
 
 /** `results(path)` returns `runTests`' entry for a mapped Vitest or node:test file. */
-export function evaluateCriteria(criteria, readEvidence, results = () => []) {
+export function evaluateCriteria(criteria, readEvidence, results = () => undefined) {
   if (
     !Array.isArray(criteria) ||
     requiredCriteria.some((id) => !criteria.some((row) => row.id === id))

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { after, test } from 'node:test';
@@ -119,6 +119,11 @@ const runnerCases = {
     banned(1, 'fails'),
     'static',
   ],
+  [`${fx}/fails-template-key.test.ts`]: [
+    `it('${tag} x', { [\`fails\`]: true }, () => { ${good} });`,
+    banned(1, 'fails'),
+    'static',
+  ],
   [`${fx}/each-empty.test.ts`]: [
     `it.each([])('${tag} %s', () => { ${good} });`,
     /^Vitest failed outside a test \(No test suite found in file \/.+\/each-empty\.test\.ts\)\. Fix the run\.$/,
@@ -160,6 +165,15 @@ const runnerCases = {
     `${nodeHead}test('${tag} x', () => { assert.ok(true, '429 retry-after'); assert.equal(1, 1, '429'); assert.throws(() => { throw new Error('x'); }, 'retry-after'); assert.match('x', /x/, '429'); });`,
     gap('"429", "retry-after"'),
   ],
+  'tooling/only-template-key.test.mjs': [
+    `${nodeHead}test('${tag} x', { [\`only\`]: true }, () => { ${nodeGood} });`,
+    banned(2, 'only'),
+    'static',
+  ],
+  'tooling/not-equal.test.mjs': [
+    `${nodeHead}test('${tag} x', () => { const r = { status: 200, h: 'retry-after' }; assert.notEqual(r.status, 429); assert.equal(r.h, 'retry-after'); });`,
+    gap('"429"'),
+  ],
   'tooling/hook.test.mjs': [
     `${nodeHead}after(() => { throw new Error('hook'); }); test('${tag} x', () => { ${nodeGood} });`,
     'node:test failed outside a test (file "tooling/hook.test.mjs"). Fix the run.',
@@ -167,7 +181,7 @@ const runnerCases = {
   ],
 };
 
-const fixtureDir = mkdtempSync(join(tmpdir(), 'traceability-fixtures-'));
+const fixtureDir = realpathSync(mkdtempSync(join(tmpdir(), 'traceability-fixtures-')));
 after(() => rmSync(fixtureDir, { recursive: true, force: true }));
 mkdirSync(join(fixtureDir, fx), { recursive: true });
 mkdirSync(join(fixtureDir, 'tooling'), { recursive: true });
@@ -267,6 +281,22 @@ const specCases = {
   ],
   'test.fixme is refused': [`test.fixme('${tag} x', () => { ${good} });`, banned(2, 'fixme')],
   'test.fail is refused': [`test.fail('${tag} x', () => { ${good} });`, banned(2, 'fail')],
+  'a tagged describe does not bind to a test that takes a function reference': [
+    `test.describe('${tag} s', () => { const run = () => { ${good} }; test('${tag} x', run); });`,
+    'no test has [BM-051:AC-2] in its title.',
+  ],
+  'a tagged hook is not a test': [
+    `test.beforeEach('${tag} x', () => { ${good} });`,
+    'no test has [BM-051:AC-2] in its title.',
+  ],
+  'a hook beside a test does not change the result': [
+    `test.describe('s', () => { test.beforeEach(() => {}); test('${tag} x', () => { ${good} }); });`,
+    null,
+  ],
+  'assertions inside test.step count for the enclosing test': [
+    `test('${tag} x', async () => { await test.step('s', async () => { ${good} }); });`,
+    null,
+  ],
   'a test behind a condition does not count': [
     `if (process.env.X) { test('${tag} x', () => { ${good} }); }`,
     notReported('Playwright, read only'),
@@ -310,6 +340,11 @@ const wordCases = {
     ['429', 'not:userId'],
     null,
   ],
+  'a negated matcher argument does not satisfy a positive word': [
+    `expect(s).not.toBe(429); expect(r.headers.get('retry-after')).not.toBeNull();`,
+    ['429', 'retry-after'],
+    gap('"429"'),
+  ],
   'a node:assert call in a Playwright spec is not an assertion': [
     `assert.equal(s, 429); assert.equal(h, 'retry-after');`,
     ['429', 'retry-after'],
@@ -336,6 +371,38 @@ test('[BM-051:AC-3] tokens split across two tagged tests do not count', () => {
     ),
   );
   assertProblem(problems, specPath, gap('"retry-after"'));
+});
+
+test('[BM-051:AC-3] evaluateCriteria without a results function reports a Vitest row as not run', () => {
+  const path = `${fx}/two-arg.test.ts`;
+  const files = { ...base, [path]: `it('${tag} x', () => { ${good} });` };
+  const rows = evaluateCriteria(
+    criteriaFor([{ path, asserts: ['429'] }, backing]),
+    (file) => files[file],
+  );
+  assertProblem(rows[1].problems, path, notReported('Vitest'));
+});
+
+test('[BM-051:AC-3] runTests reads results through a symlinked root', () => {
+  const link = join(mkdtempSync(join(tmpdir(), 'traceability-link-')), 'root');
+  symlinkSync(fixtureDir, link);
+  after(() => rmSync(dirname(link), { recursive: true, force: true }));
+  const paths = [`${fx}/control-options.test.ts`, 'tooling/control.test.mjs'];
+  const results = runTests(link, paths, { vitestBin });
+  for (const path of paths) {
+    assert.deepEqual(results.get(path).failures, []);
+    assert.equal(results.get(path).tests.length, 1, path);
+  }
+});
+
+test('[BM-051:AC-3] runTests reports a Vitest that cannot start as that error', () => {
+  assert.throws(
+    () =>
+      runTests(fixtureDir, [`${fx}/control-each.test.ts`], {
+        vitestBin: join(fixtureDir, 'missing'),
+      }),
+    { code: 'ENOENT' },
+  );
 });
 
 test('[BM-051:AC-3] one mapped test must assert every word the criterion requires', () => {
