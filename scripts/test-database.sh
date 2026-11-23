@@ -54,9 +54,13 @@ runtime_password="$(openssl rand -hex 16)"
 key_dir="$(mktemp -d)"
 trap 'rm -rf "$key_dir"' EXIT
 
-openssl req -new -x509 -nodes -days 2 -subj '/CN=localhost' \
+# openssl writes progress dots to stderr, so print its output only when it fails.
+if ! openssl req -new -x509 -nodes -days 2 -subj '/CN=localhost' \
   -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
-  -keyout "$key_dir/server.key" -out "$settings_dir/server.crt" 2>/dev/null
+  -keyout "$key_dir/server.key" -out "$settings_dir/server.crt" 2>"$key_dir/openssl.log"; then
+  cat "$key_dir/openssl.log" >&2
+  exit 1
+fi
 
 docker run -d --name "$container" -p "127.0.0.1:$port:5432" \
   -e POSTGRES_DB="$database" -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD="$admin_password" \
