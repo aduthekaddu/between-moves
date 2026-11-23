@@ -20,17 +20,19 @@ describe('board legal-move hints', () => {
   });
 
   it('works on boards without kings, as the server allows', () => {
-    expect([...(legalMoves(requireFen('8/8/8/8/8/8/4P3/8 w - - 0 1')).get('e2') ?? new Map()).keys()]).toEqual([
-      'e3',
-      'e4',
-    ]);
+    expect([
+      ...(legalMoves(requireFen('8/8/8/8/8/8/4P3/8 w - - 0 1')).get('e2') ?? new Map()).keys(),
+    ]).toEqual(['e3', 'e4']);
   });
 
   it('names a proposal the way the scoresheet will', () => {
     expect(proposalOutcome(start, { from: 'g1', to: 'f3' })?.san).toBe('Nf3');
     expect(
-      proposalOutcome(requireFen('8/4P3/8/8/8/8/8/k6K w - - 0 1'), { from: 'e7', to: 'e8', promotion: 'n' })
-        ?.san,
+      proposalOutcome(requireFen('8/4P3/8/8/8/8/8/k6K w - - 0 1'), {
+        from: 'e7',
+        to: 'e8',
+        promotion: 'n',
+      })?.san,
     ).toBe('e8=N');
     expect(proposalOutcome(start, { from: 'e2', to: 'e5' })).toBeNull();
   });

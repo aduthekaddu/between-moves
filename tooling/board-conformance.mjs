@@ -27,7 +27,8 @@ export function parseTla(text) {
   };
   const expect = (token) => {
     skip();
-    if (!text.startsWith(token, at)) throw new Error(`expected ${token} at ${at}: ${text.slice(at, at + 40)}`);
+    if (!text.startsWith(token, at))
+      throw new Error(`expected ${token} at ${at}: ${text.slice(at, at + 40)}`);
     at += token.length;
   };
   const list = (close, item) => {
@@ -113,7 +114,13 @@ function unescapeDot(text) {
 
 /** The summary both sides compare: distinct states, edges between different states, and a hash. */
 export function graphSummary(initial, edges) {
-  const id = (state) => createHash('sha256').update(canonical(state)).digest('hex').slice(0, 16);
+  const names = new Map();
+  const id = (state) => {
+    const key = canonical(state);
+    const name = createHash('sha256').update(key).digest('hex').slice(0, 16);
+    names.set(name, key);
+    return name;
+  };
   const states = new Set();
   const lines = new Set();
   for (const state of initial) {
@@ -132,7 +139,7 @@ export function graphSummary(initial, edges) {
     states: states.size,
     edges: sorted.length - initial.length,
     sha256: createHash('sha256').update(sorted.join('\n')).digest('hex'),
-    lines: sorted,
+    lines: [...sorted, ...[...names].sort().map(([name, key]) => `state ${name} ${key}`)],
   };
 }
 
@@ -176,7 +183,8 @@ async function main(argv) {
     if (run.exitCode !== 0) throw new Error(`TLC exited ${run.exitCode}\n${run.output}`);
     const { initial, edges } = readDot(readFileSync(join(work, 'graph.dot'), 'utf8'));
     const model = graphSummary(initial, edges);
-    if (process.env.BOARD_GRAPH_OUT) writeFileSync(process.env.BOARD_GRAPH_OUT, model.lines.join('\n'));
+    if (process.env.BOARD_GRAPH_OUT)
+      writeFileSync(process.env.BOARD_GRAPH_OUT, model.lines.join('\n'));
     const found = { states: model.states, edges: model.edges, sha256: model.sha256 };
     console.log(`board-conformance: model graph ${JSON.stringify(found)}`);
     if (argv.includes('--write')) {

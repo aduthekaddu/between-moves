@@ -120,7 +120,11 @@ function snapshotAt(v: number, p: number, mode: string): MoveEntryPosition {
     ...(mode === 'live'
       ? {
           serverNow: '2026-09-24T12:00:00.000Z',
-          liveClock: { whiteMs: 60_000, blackMs: 60_000, turnStartedAt: '2026-09-24T12:00:00.000Z' },
+          liveClock: {
+            whiteMs: 60_000,
+            blackMs: 60_000,
+            turnStartedAt: '2026-09-24T12:00:00.000Z',
+          },
         }
       : {}),
   };
@@ -262,7 +266,11 @@ function clientSteps(world: World): [string, World][] {
       { nextCmd: world.nextCmd + 1 },
     );
     const { command } = played.board;
-    if (command.kind !== 'none' && command.kind !== 'retryable' && command.command.clientCommandId === commandId) {
+    if (
+      command.kind !== 'none' &&
+      command.kind !== 'retryable' &&
+      command.command.clientCommandId === commandId
+    ) {
       steps.push(['Commit', played]);
     }
   }
@@ -348,7 +356,8 @@ function environmentSteps(world: World): [string, World][] {
   const { server, net } = world;
   const mode = world.board.live ? 'live' : 'correspondence';
   const steps: [string, World][] = [];
-  if (server.v < MaxVersion) steps.push(['ServerBumps', { ...world, server: { ...server, v: server.v + 1 } }]);
+  if (server.v < MaxVersion)
+    steps.push(['ServerBumps', { ...world, server: { ...server, v: server.v + 1 } }]);
   if (server.v < MaxVersion && server.p < MaxPly) {
     steps.push(['ServerMoves', { ...world, server: { v: server.v + 1, p: server.p + 1 } }]);
   }
@@ -360,7 +369,10 @@ function environmentSteps(world: World): [string, World][] {
       net: asSet([...rest, added]),
     });
     if (message.type === 'get') {
-      steps.push(['ServerAnswers', withNet({ ...message, type: 'getr', v: server.v, p: server.p })]);
+      steps.push([
+        'ServerAnswers',
+        withNet({ ...message, type: 'getr', v: server.v, p: server.p }),
+      ]);
     }
     if (message.type === 'post') {
       const known = world.accepted[message.id - 1]!;
@@ -417,7 +429,12 @@ function environmentSteps(world: World): [string, World][] {
 }
 
 function explore() {
-  const id = (key: string) => createHash('sha256').update(key).digest('hex').slice(0, 16);
+  const names = new Map<string, string>();
+  const id = (key: string) => {
+    const name = createHash('sha256').update(key).digest('hex').slice(0, 16);
+    names.set(name, key);
+    return name;
+  };
   const lines = new Set<string>();
   const seen = new Set<string>();
   const queue: [World, string][] = [];
@@ -448,7 +465,10 @@ function explore() {
     }
   }
   const sorted = [...lines].sort();
-  if (process.env.BOARD_GRAPH_OUT) writeFileSync(process.env.BOARD_GRAPH_OUT, sorted.join('\n'));
+  if (process.env.BOARD_GRAPH_OUT) {
+    const states = [...names].sort().map(([name, key]) => `state ${name} ${key}`);
+    writeFileSync(process.env.BOARD_GRAPH_OUT, [...sorted, ...states].join('\n'));
+  }
   return {
     states: seen.size,
     edges: sorted.length - modes.length,

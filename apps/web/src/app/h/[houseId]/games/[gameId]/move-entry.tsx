@@ -106,7 +106,9 @@ export function MoveEntry({
   const movable = movableSquares(state, env, legal);
   const selectedFrom = selection.kind === 'none' ? null : selection.from;
   const targets =
-    selection.kind === 'piece' ? new Set((legal.get(selection.from) ?? new Map()).keys()) : noSquares;
+    selection.kind === 'piece'
+      ? new Set((legal.get(selection.from) ?? new Map()).keys())
+      : noSquares;
 
   useEffect(() => {
     // A staged Move must not be lost when the reader leaves: send it as the page goes away.

@@ -248,7 +248,10 @@ describe('live move entry', () => {
   });
 
   it('shows a live Move with its check and last-move marks while it sends and once accepted', async () => {
-    const live: MoveEntryPosition = { ...initial, currentFen: requireFen('4k3/8/8/8/8/8/8/R3K3 w - - 0 1') };
+    const live: MoveEntryPosition = {
+      ...initial,
+      currentFen: requireFen('4k3/8/8/8/8/8/8/R3K3 w - - 0 1'),
+    };
     fetchMock.mockResolvedValue(json(live));
     await mount(live);
     let answer: (response: Response) => void = () => {};
@@ -478,7 +481,11 @@ describe('correspondence move entry', () => {
   });
 
   it('drops the check mark when the staged Move leaves check', async () => {
-    await mount({ ...correspondence, currentFen: requireFen('k3r3/8/8/8/8/8/8/4K3 w - - 0 1'), inCheck: true });
+    await mount({
+      ...correspondence,
+      currentFen: requireFen('k3r3/8/8/8/8/8/8/4K3 w - - 0 1'),
+      inCheck: true,
+    });
     expect(square('e1')?.getAttribute('aria-label')).toBe('e1, white king, in check');
     await click('[data-square="e1"]');
     await click('[data-square="d1"]');
@@ -490,7 +497,11 @@ describe('correspondence move entry', () => {
   });
 
   it('keeps the check mark with the Move while it sends and once it is accepted', async () => {
-    await mount({ ...correspondence, currentFen: requireFen('k3r3/8/8/8/8/8/8/4K3 w - - 0 1'), inCheck: true });
+    await mount({
+      ...correspondence,
+      currentFen: requireFen('k3r3/8/8/8/8/8/8/4K3 w - - 0 1'),
+      inCheck: true,
+    });
     let answer: (response: Response) => void = () => {};
     fetchMock.mockImplementation((_url: string, options?: RequestInit) =>
       options?.method === 'POST'

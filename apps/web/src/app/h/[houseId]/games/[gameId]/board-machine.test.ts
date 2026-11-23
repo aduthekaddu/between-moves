@@ -60,7 +60,10 @@ function run(state: BoardState, events: readonly BoardEvent[], environment = env
 }
 
 function placement(state: BoardState): string {
-  const shown = shownPosition(state, replayPositions(state.snapshot.moves, state.snapshot.currentFen));
+  const shown = shownPosition(
+    state,
+    replayPositions(state.snapshot.moves, state.snapshot.currentFen),
+  );
   return shown.fen.split(' ')[0]!;
 }
 
@@ -83,7 +86,12 @@ describe('board machine', () => {
   });
 
   it('takes in what a read brings during the Undo window, and Undo shows it (304aa9e)', () => {
-    const resigned = { ...start, version: 1, state: 'completed' as const, result: 'black_win' as const };
+    const resigned = {
+      ...start,
+      version: 1,
+      state: 'completed' as const,
+      result: 'black_win' as const,
+    };
     const { state, effects } = run(initialBoardState(start), [
       { type: 'reconcileWanted', background: true },
       ...playE4,
@@ -123,7 +131,17 @@ describe('board machine', () => {
       {
         type: 'moveAnswered',
         requestId: 3,
-        answer: { kind: 'accepted', move: { ply: 1, uci: 'e2e4', san: 'e4', fenAfter: afterE4.currentFen, sideToMove: 'black', version: 1 } },
+        answer: {
+          kind: 'accepted',
+          move: {
+            ply: 1,
+            uci: 'e2e4',
+            san: 'e4',
+            fenAfter: afterE4.currentFen,
+            sideToMove: 'black',
+            version: 1,
+          },
+        },
       },
     ]);
     expect(retried.state.snapshot.version).toBe(3);
@@ -134,7 +152,14 @@ describe('board machine', () => {
     const live = { ...start, mode: 'live' as const };
     const accepted = {
       kind: 'accepted' as const,
-      move: { ply: 1, uci: 'e2e4', san: 'e4', fenAfter: afterE4.currentFen, sideToMove: 'black' as const, version: 1 },
+      move: {
+        ply: 1,
+        uci: 'e2e4',
+        san: 'e4',
+        fenAfter: afterE4.currentFen,
+        sideToMove: 'black' as const,
+        version: 1,
+      },
     };
     const sent = run(initialBoardState(live), [
       { type: 'reconcileWanted', background: true },
@@ -154,7 +179,9 @@ describe('board machine', () => {
 
   it('ignores answers to requests it is not waiting on', () => {
     const staged = run(initialBoardState(start), playE4).state;
-    expect(run(staged, [{ type: 'readAnswered', requestId: 9, snapshot: afterE5 }]).state).toBe(staged);
+    expect(run(staged, [{ type: 'readAnswered', requestId: 9, snapshot: afterE5 }]).state).toBe(
+      staged,
+    );
     expect(
       run(staged, [{ type: 'moveAnswered', requestId: 9, answer: { kind: 'unreachable' } }]).state,
     ).toBe(staged);

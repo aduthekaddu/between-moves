@@ -263,18 +263,11 @@ function startRead(state: BoardState, background: boolean): Step {
           settle: null,
           ahead: aheadOf(state.sync),
         };
-  return [
-    { ...state, nextRequestId: requestId + 1, sync },
-    [{ kind: 'readGame', requestId }],
-  ];
+  return [{ ...state, nextRequestId: requestId + 1, sync }, [{ kind: 'readGame', requestId }]];
 }
 
 /** After a Move answer the board must be read again, after any read already out. */
-function readAfterAnswer(
-  state: BoardState,
-  ahead: KnownBoard | null,
-  settle: Settle | null,
-): Step {
+function readAfterAnswer(state: BoardState, ahead: KnownBoard | null, settle: Settle | null): Step {
   const kept = ahead !== null && ahead.version > state.snapshot.version ? ahead : null;
   const reading = readingOf(state.sync);
   if (reading !== null) {
@@ -304,7 +297,12 @@ function readAfterAnswer(
   ];
 }
 
-function send(state: BoardState, command: SubmitCommand, keepalive: boolean, env: Environment): Step {
+function send(
+  state: BoardState,
+  command: SubmitCommand,
+  keepalive: boolean,
+  env: Environment,
+): Step {
   if (state.command.kind === 'sending' || (state.live && !env.wideEnough)) return [state, []];
   const requestId = state.nextRequestId;
   return [
