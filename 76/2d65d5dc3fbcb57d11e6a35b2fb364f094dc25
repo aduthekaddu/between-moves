@@ -1,0 +1,40 @@
+tooling/toolchain-pins.test.mjs
+  s_b9d9ac6a3eb0fb::t_5c4799331718b2 2-3,11-17,20-69,73-75,80,83-92,101-113
+  s_b9d9ac6a3eb0fb::t_7b4c292af9f6cb 114-121
+AGENTS.md
+  s_b9d9ac6a3eb0fb::t_be3ff9761079c9 15
+README.md
+  s_b9d9ac6a3eb0fb::t_05b9d8a61cb3b7 14-20
+apps/web/package.json
+  s_b9d9ac6a3eb0fb::t_8c1ad98efa5f79 6-8
+apps/worker/package.json
+  s_b9d9ac6a3eb0fb::t_c6c9a470a44761 6-8
+packages/adapters/package.json
+  s_b9d9ac6a3eb0fb::t_76768dd5da4188 9-11
+packages/application/package.json
+  s_b9d9ac6a3eb0fb::t_513c63c7e1b812 9-11
+packages/contracts/package.json
+  s_b9d9ac6a3eb0fb::t_ffca2895ec575a 9-11
+packages/db/package.json
+  s_b9d9ac6a3eb0fb::t_8e2a9fcca7d321 11-13
+packages/domain/package.json
+  s_b9d9ac6a3eb0fb::t_979174753ba671 10-12
+packages/observability/package.json
+  s_b9d9ac6a3eb0fb::t_b514a283e2fcdc 9-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "762d65d5dc3fbcb57d11e6a35b2fb364f094dc25",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
