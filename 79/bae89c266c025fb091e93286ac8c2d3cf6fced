@@ -1,0 +1,27 @@
+tooling/board-conformance.mjs
+  s_b9d9ac6a3eb0fb::t_9ad4cea8d1482c 1-205
+apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.conformance.test.ts
+  s_b9d9ac6a3eb0fb::t_ec1c5cc6af2331 1-467
+apps/web/src/app/h/[houseId]/games/[gameId]/board-conformance.json
+  s_b9d9ac6a3eb0fb::t_c11c41187cbbd5 1-13
+architecture/models/board/BoardState.tla
+  s_b9d9ac6a3eb0fb::t_40709aa8e9a374 98,105,113,120,127,134,142,148,155,162,169,176,183,208,221,252,307,312
+tooling/formal-check.mjs
+  s_b9d9ac6a3eb0fb::t_3da49170741a7a 175,198,232-233,239,268-270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "79bae89c266c025fb091e93286ac8c2d3cf6fced",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
