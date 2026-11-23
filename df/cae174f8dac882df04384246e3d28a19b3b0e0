@@ -1,0 +1,36 @@
+tooling/database-test-guards.test.mjs
+  s_b9d9ac6a3eb0fb::t_05f2c19095d96b 1-109
+  s_b9d9ac6a3eb0fb::t_45a493105ab863 110-112
+tooling/eslint-test-database-env.mjs
+  s_b9d9ac6a3eb0fb::t_2a6a8fdb4d6cc9 1-11
+AGENTS.md
+  s_b9d9ac6a3eb0fb::t_0cb94105afc1f5 31
+CONTRIBUTING.md
+  s_b9d9ac6a3eb0fb::t_9935a965dd0b1f 48,52,54
+apps/web/eslint.config.mjs
+  s_b9d9ac6a3eb0fb::t_f767542e1a9a11 4,13
+eslint.config.mjs
+  s_b9d9ac6a3eb0fb::t_bd146ee9b79b44 3,78-82,88,103-109
+package.json
+  s_b9d9ac6a3eb0fb::t_428e78f54a1ce7 15,17,19
+packages/db/src/test-database/vitest-integration-reporter.ts
+  s_b9d9ac6a3eb0fb::t_52eaaeea3fac3a 20-26
+packages/db/src/test-database/vitest.ts
+  s_b9d9ac6a3eb0fb::t_7e1ca3fe9e0cdb 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dfcae174f8dac882df04384246e3d28a19b3b0e0",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
