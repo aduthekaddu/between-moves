@@ -36,81 +36,8 @@ function row(overrides: Partial<TestNoteRow> = {}): TestNoteRow {
   };
 }
 
-describe('PostgreSQL Game-note repository mapping', () => {
-  it('[BM-032] [DR-NOTE-01] maps a created note and forwards House scope', async () => {
-    const savedAt = new Date('2026-09-16T08:01:00.000Z');
-    const { pool, query } = database([row()]);
-
-    await expect(
-      new PgGameNoteRepository(pool).save(context, {
-        id: '01941f29-7c00-7000-8000-000000000702',
-        gameId,
-        body: 'A sharp finish',
-        savedAt,
-      }),
-    ).resolves.toEqual({
-      membershipId,
-      authorDisplayName: 'Ada',
-      body: 'A sharp finish',
-      createdAt: new Date('2026-09-16T08:00:00.000Z'),
-      editedAt: null,
-    });
-    expect(query).toHaveBeenCalledWith(expect.stringContaining('where g.house_id = $1'), [
-      context.houseId,
-      gameId,
-      context.viewerId,
-      '01941f29-7c00-7000-8000-000000000702',
-      'A sharp finish',
-      savedAt,
-    ]);
-  });
-
-  it('[BM-032] [DR-NOTE-01] maps edited timestamps and filters empty left joins on read', async () => {
-    const createdAt = '2026-09-16T08:00:00.000Z';
-    const editedAt = '2026-09-16T08:05:00.000Z';
-    const { pool, query } = database([
-      row({ created_at: createdAt, edited_at: editedAt }),
-      row({ membership_id: null, author_display_name: null, body: null }),
-    ]);
-
-    await expect(new PgGameNoteRepository(pool).readForGame(context, gameId)).resolves.toEqual({
-      currentMembershipId: membershipId,
-      notes: [
-        {
-          membershipId,
-          authorDisplayName: 'Ada',
-          body: 'A sharp finish',
-          createdAt: new Date(createdAt),
-          editedAt: new Date(editedAt),
-        },
-      ],
-    });
-    expect(query).toHaveBeenCalledWith(expect.stringContaining('left join game_notes'), [
-      context.houseId,
-      gameId,
-      context.viewerId,
-    ]);
-  });
-
-  it('[BM-032] maps a missing saved Game to a not-found domain error', async () => {
-    const { pool } = database([]);
-
-    await expect(
-      new PgGameNoteRepository(pool).save(context, {
-        id: '01941f29-7c00-7000-8000-000000000703',
-        gameId,
-        body: 'Unavailable',
-        savedAt: new Date('2026-09-16T08:00:00.000Z'),
-      }),
-    ).rejects.toMatchObject({ code: 'not_found' });
-  });
-
-  it('[BM-032] returns no view when a completed Game is outside the query scope', async () => {
-    const { pool } = database([]);
-
-    await expect(new PgGameNoteRepository(pool).readForGame(context, gameId)).resolves.toBeNull();
-  });
-
+// The database schema cannot return these rows, so only a stub pool can reach the parse guards.
+describe('PostgreSQL Game-note row guards', () => {
   it('[BM-032] rejects malformed rows and timestamps instead of exposing invalid notes', async () => {
     const malformed = database([row({ membership_id: null })]);
     await expect(
