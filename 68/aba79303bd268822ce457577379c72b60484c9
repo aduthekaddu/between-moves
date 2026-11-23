@@ -1,0 +1,21 @@
+.claude/skills/verify-nudge-outbox/SKILL.md
+  s_b9d9ac6a3eb0fb::t_8c30f73345b310 75
+architecture/models/nudge-outbox/NudgeOutbox.tla
+  s_b9d9ac6a3eb0fb::t_3ab648d8cd4abd 19-24,26-29,31,53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68aba79303bd268822ce457577379c72b60484c9",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
