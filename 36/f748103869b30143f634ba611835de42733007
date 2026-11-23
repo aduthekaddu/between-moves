@@ -1,0 +1,34 @@
+tooling/traceability.mjs
+  s_b9d9ac6a3eb0fb::t_9a461e77253be5 1-3,5,14-53,76-98,100-131,134-139,141-152,158-159,162,165,168-234,237-242,244,246-250,252-254,256-273,275-290,297-386,402-407,409,428,435
+  s_b9d9ac6a3eb0fb::t_e61a7e13004d15 160-161,163
+  s_b9d9ac6a3eb0fb::t_e98fcbfb2155a9 408,429-430,432,434,436-438,440-442,445-452,458-459,461-462,467-472
+tooling/traceability.test.mjs
+  s_b9d9ac6a3eb0fb::t_547b44d7127e29 2-7,9-22,24-115,117-119,121,125-129,136-139,142-148,150-176,178-231,233-238,240-241,243-251,253
+  s_b9d9ac6a3eb0fb::t_b7a9f177982f59 252,254-256,258-261
+AGENTS.md
+  s_b9d9ac6a3eb0fb::t_b52bf748d709eb 35
+package.json
+  s_b9d9ac6a3eb0fb::t_d2f01a9c2fb359 25
+tooling/node-test-report.mjs
+  s_b9d9ac6a3eb0fb::t_bcb7d22c14df21 1-9
+tooling/traceability-criteria.json
+  s_b9d9ac6a3eb0fb::t_efe2c1ce6cdb51 5-13,21,33,45,60,64,68,72,76,80,84,91
+tooling/traceability-matrix.md
+  s_b9d9ac6a3eb0fb::t_d724e5c2bfbbdc 5-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "36f748103869b30143f634ba611835de42733007",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
