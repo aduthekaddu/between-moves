@@ -9,10 +9,11 @@ NoAhead == [has |-> FALSE, v |-> 0, p |-> 0]
 NoCommand == [kind |-> "none", id |-> 0, base |-> 0]
 
 VARIABLES server, accepted, mode, snap, sync, cmd, rv, net, nextCmd, fails, heard,
-          canon, captured, drawn
+          canon, captured, drawn, screen
 
-vars == <<server, accepted, mode, snap, sync, cmd, rv, net, nextCmd, fails, heard,
+core == <<server, accepted, mode, snap, sync, cmd, rv, net, nextCmd, fails, heard,
           canon, captured, drawn>>
+vars == <<core, screen>>
 
 Msg(type, cur, ok, v, p, id, base, kind) ==
   [type |-> type, cur |-> cur, ok |-> ok, v |-> v, p |-> p, id |-> id, base |-> base, kind |-> kind]
@@ -36,7 +37,7 @@ BoardShown ==
   ELSE IF ~Machine THEN drawn
   ELSE IF Pending /\ cmd.base = LiveBoard.p THEN [kind |-> "preview", p |-> cmd.base + 1]
   ELSE [kind |-> "live", p |-> LiveBoard.p]
-Dot == IF Machine THEN Side(BoardShown.p) ELSE Side(snap.p)
+Dot == IF Machine THEN Side(screen.p) ELSE Side(snap.p)
 CanMove == sync.kind = "fresh" /\ ViewerTurn(snap.p) /\ cmd.kind \in {"none", "retryable"}
 
 Init ==
@@ -54,6 +55,7 @@ Init ==
   /\ canon = [v |-> 0, p |-> 0]
   /\ captured = [v |-> 0, p |-> 0]
   /\ drawn = [kind |-> "live", p |-> 0]
+  /\ screen = BoardShown
 
 Orphaned(n) == {IF IsRead(m) THEN [m EXCEPT !.cur = FALSE] ELSE m : m \in n}
 
@@ -223,7 +225,7 @@ ReadArrives(m) ==
              /\ UNCHANGED <<canon, drawn>>
      ELSE /\ net' = net \ {m}
           /\ IF ~m.ok \/ m.v < Known
-             THEN /\ sync' = [sync EXCEPT !.kind = "failed", !.reading = FALSE, !.again = FALSE]
+             THEN /\ sync' = [kind |-> "failed", reading |-> FALSE, bg |-> TRUE, again |-> FALSE, ahead |-> sync.ahead]
                   /\ UNCHANGED <<snap, cmd, canon, drawn>>
              ELSE /\ snap' = [v |-> m.v, p |-> m.p]
                   /\ cmd' = RetryCleared(sync.bg, m.v)
@@ -290,35 +292,37 @@ MoveArrives(m) ==
 ServerAnswers == \E m \in net : ServerAnswersRead(m) \/ ServerAnswersMove(m)
 Delivery == \E m \in net : ReadArrives(m) \/ MoveArrives(m)
 
-Next ==
+Step ==
   \/ Commit \/ DismissRetry \/ Undo \/ UndoTimerFires \/ PageHides \/ Retry
   \/ Reconcile(TRUE) \/ Reconcile(FALSE) \/ RefreshPressed \/ StepBack \/ BackToGame
   \/ ServerBumps \/ ServerMoves \/ ServerAnswers \/ Delivery
   \/ \E m \in net : NetworkFails(m)
 
+Next == Step /\ screen' = BoardShown'
+
 Spec == Init /\ [][Next]_vars
 
 FairSpec ==
   /\ Spec
-  /\ WF_vars(UndoTimerFires)
-  /\ WF_vars(Reconcile(TRUE))
-  /\ WF_vars(\E m \in net : ServerAnswersRead(m))
-  /\ WF_vars(\E m \in net : ServerAnswersMove(m))
-  /\ WF_vars(\E m \in net : ReadArrives(m))
-  /\ WF_vars(\E m \in net : MoveArrives(m))
+  /\ WF_core(UndoTimerFires)
+  /\ WF_core(Reconcile(TRUE))
+  /\ WF_core(\E m \in net : ServerAnswersRead(m))
+  /\ WF_core(\E m \in net : ServerAnswersMove(m))
+  /\ WF_core(\E m \in net : ReadArrives(m))
+  /\ WF_core(\E m \in net : MoveArrives(m))
 
 StagedMoveStaysShown ==
   Pending /\ ~Reviewing /\ cmd.base = LiveBoard.p
-    => BoardShown = [kind |-> "preview", p |-> cmd.base + 1]
+    => screen = [kind |-> "preview", p |-> cmd.base + 1]
 
 IdleBoardShowsNewest ==
-  ~Pending /\ ~Reviewing => BoardShown = [kind |-> "live", p |-> LiveBoard.p]
+  ~Pending /\ ~Reviewing => screen = [kind |-> "live", p |-> LiveBoard.p]
 
 NoAnswerDropped == Known >= heard
 
 NoBoardFromNowhere == Known <= server.v /\ LiveBoard.p <= server.p
 
-DotFollowsBoard == Dot = Side(BoardShown.p)
+DotFollowsBoard == Dot = Side(screen.p)
 
 OneReadAtATime ==
   LET reads == {m \in net : IsRead(m)}
