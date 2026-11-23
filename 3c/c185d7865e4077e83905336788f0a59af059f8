@@ -1,0 +1,19 @@
+.claude/skills/verify-board-state/SKILL.md
+  s_b9d9ac6a3eb0fb::t_daa27821f27a00 60-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3cc185d7865e4077e83905336788f0a59af059f8",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
