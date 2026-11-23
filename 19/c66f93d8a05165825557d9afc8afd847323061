@@ -1,0 +1,27 @@
+tooling/migrations-only-schema.mjs
+  s_b9d9ac6a3eb0fb::t_aee578dd6199cd 1-65
+tooling/migrations-only-schema.test.mjs
+  s_b9d9ac6a3eb0fb::t_8572f186470684 1-79
+CONTRIBUTING.md
+  s_b9d9ac6a3eb0fb::t_570d371e0ad39d 44
+package.json
+  s_b9d9ac6a3eb0fb::t_ea863ff2e45a1c 15-16,18
+pnpm-lock.yaml
+  s_b9d9ac6a3eb0fb::t_be5a8f85e3f271 407-409,413-415,3511-3514,3519-3520,4598-4599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "19c66f93d8a05165825557d9afc8afd847323061",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
