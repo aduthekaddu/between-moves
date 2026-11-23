@@ -16,10 +16,11 @@ export interface TouchAudit {
 /**
  * Measures the page as a finger sees it. It opens every `<details>`, then checks that
  * - every visible input, select and textarea computes to at least 16px text,
- * - every visible interactive element has a hit area of at least 24x24 CSS px, measured by
- *   hit-testing around its box (so an enlarged `::after` counts and a covered corner does not),
- *   except links inside a run of text, disabled controls and anything not rendered,
- * - no two interactive elements overlap, and no control is covered by something else.
+ * - every visible interactive element has a layout box of at least 24x24 CSS px, and some
+ *   24x24 square of it is free to tap (hit-tested, so a caption, sticky bar or overlay on top
+ *   fails), except links inside a run of text, disabled controls and anything not rendered,
+ * - no two interactive elements overlap.
+ * A hit area enlarged only by a pseudo-element does not count; use padding.
  * It reads the DOM and the layout only, so it holds for any route.
  */
 export async function auditTouch(page: Page): Promise<TouchAudit> {
@@ -124,34 +125,39 @@ export async function auditTouch(page: Page): Promise<TouchAudit> {
         return wrapping !== null && wrapping.contains(el) && wrapping.control === el;
       }
 
-      // Smallest box around every point near the element where a tap reaches it.
-      function hitBox(el: Element, box: Element): { width: number; height: number } {
-        const rect = box.getBoundingClientRect();
-        const reach = 14;
-        let left = Infinity;
-        let right = -Infinity;
-        let top = Infinity;
-        let bottom = -Infinity;
-        const step = 2;
-        const x0 = Math.max(0, Math.floor(rect.left - reach));
-        const x1 = Math.min(innerWidth - 1, Math.ceil(rect.right + reach));
-        const y0 = Math.max(0, Math.floor(rect.top - reach));
-        const y1 = Math.min(innerHeight - 1, Math.ceil(rect.bottom + reach));
-        for (let y = y0; y <= y1; y += step) {
-          for (let x = x0; x <= x1; x += step) {
-            if (!belongsTo(el, document.elementFromPoint(x, y))) continue;
-            left = Math.min(left, x);
-            right = Math.max(right, x + step);
-            top = Math.min(top, y);
-            bottom = Math.max(bottom, y + step);
+      // A 24x24 square of the target's own layout box where every tap lands on the target.
+      // The size comes from the layout box, so sampling never adds to it; hit-testing only
+      // finds what covers the square. Points sit 2px apart, so a cover thinner than 2px is
+      // missed. Nine squares are tried (corners, edge middles, centre) before it fails.
+      function clearSquare(el: Element, box: Element): Element | null | 'clear' {
+        let cover: Element | null = null;
+        const offsets = Array.from({ length: 12 }, (_, i) => 0.5 + 2 * i).concat(minTarget - 0.5);
+        for (const fragment of box.getClientRects()) {
+          const left = Math.max(fragment.left, 0);
+          const right = Math.min(fragment.right, innerWidth);
+          const top = Math.max(fragment.top, 0);
+          const bottom = Math.min(fragment.bottom, innerHeight);
+          if (right - left < minTarget || bottom - top < minTarget) continue;
+          const xs = [left, (left + right - minTarget) / 2, right - minTarget];
+          const ys = [top, (top + bottom - minTarget) / 2, bottom - minTarget];
+          for (const y0 of [ys[1]!, ys[0]!, ys[2]!]) {
+            for (const x0 of [xs[1]!, xs[0]!, xs[2]!]) {
+              let clear = true;
+              for (const dy of offsets) {
+                for (const dx of offsets) {
+                  const hit = document.elementFromPoint(x0 + dx, y0 + dy);
+                  if (belongsTo(el, hit)) continue;
+                  cover ??= hit;
+                  clear = false;
+                  break;
+                }
+                if (!clear) break;
+              }
+              if (clear) return 'clear';
+            }
           }
         }
-        if (left === Infinity) return { width: 0, height: 0 };
-        // Never report more than the box the browser lays out plus the sampling step.
-        return {
-          width: Math.min(right - left, rect.width + 2 * reach),
-          height: Math.min(bottom - top, rect.height + 2 * reach),
-        };
+        return cover;
       }
 
       const problems: string[] = [];
@@ -196,15 +202,25 @@ export async function auditTouch(page: Page): Promise<TouchAudit> {
         }
       }
 
-      // Size: a box that is already 24x24 passes. A smaller one is hit-tested, so an
-      // enlarged ::after counts and a covered corner does not.
-      for (const { el, box, rect } of controls) {
-        if (rect.width >= minTarget && rect.height >= minTarget) continue;
-        box.scrollIntoView({ block: 'center', inline: 'nearest' });
-        const reached = hitBox(el, box);
-        if (reached.width < minTarget || reached.height < minTarget) {
+      // Size and cover, for every control. The largest layout fragment must be 24x24, and
+      // after scrolling it to the middle some 24x24 square of it must be free to tap.
+      for (const { el, box } of controls) {
+        const fragments = [...box.getClientRects()];
+        const fits = fragments.some((r) => r.width >= minTarget && r.height >= minTarget);
+        if (!fits) {
+          const largest = fragments.reduce((a, b) =>
+            b.width * b.height > a.width * a.height ? b : a,
+          );
           problems.push(
-            `target ${describe(el)} is ${Math.round(reached.width)}x${Math.round(reached.height)}px; the minimum is ${minTarget}x${minTarget}px (give it padding or min-block-size, or lift the base rule in globals.css)`,
+            `target ${describe(el)} is ${Math.floor(largest.width)}x${Math.floor(largest.height)}px; the minimum is ${minTarget}x${minTarget}px (give it padding or min-block-size, or lift the base rule in globals.css)`,
+          );
+          continue;
+        }
+        box.scrollIntoView({ block: 'center', inline: 'nearest' });
+        const result = clearSquare(el, box);
+        if (result !== 'clear') {
+          problems.push(
+            `target ${describe(el)} has no clear ${minTarget}x${minTarget}px area; ${result === null ? 'it is off screen' : `${describe(result)} covers it`} (move the cover, or give the target room)`,
           );
         }
       }

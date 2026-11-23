@@ -16,7 +16,7 @@ Set the machine up with the install steps in [README.md](README.md). The scripts
    pnpm check
    ```
 
-   Lint includes `pnpm lint:css`, which rejects a field under 16px or a control under 24px tall in `apps/web` CSS. Its message names the fix.
+   Lint includes `pnpm lint:css`. It rejects a field `font-size` in `apps/web` CSS that it cannot prove is 1rem or more, and any change to the base rules in `globals.css`. Its message names the fix. Control sizes and covers are checked only by `pnpm test:e2e`.
 
 3. When the change touches a BM-051 security criterion, regenerate the matrix and check it.
 

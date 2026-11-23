@@ -6,6 +6,7 @@ import {
 } from '@between-moves/db/testing';
 import { expect, test } from '@playwright/test';
 import { makeSignature } from 'better-auth/crypto';
+import { unusedPreloads } from './support/unused-preloads';
 
 /**
  * A page must not fetch what it does not show. Next.js serialises the root not-found page
@@ -60,40 +61,7 @@ test.describe('page loading', () => {
       const response = await page.goto(path, { waitUntil: 'load' });
       expect(response?.status()).toBe(200);
 
-      // Preloads the document declares, and who in the document uses each one.
-      const unused = await page.evaluate(() => {
-        const absolute = (value: string | null): string | null =>
-          value === null || value === '' ? null : new URL(value, location.href).href;
-        const used = new Set<string>();
-        for (const image of document.querySelectorAll('img')) {
-          used.add(absolute(image.currentSrc) ?? '');
-          used.add(absolute(image.getAttribute('src')) ?? '');
-          for (const part of (image.getAttribute('srcset') ?? '').split(',')) {
-            used.add(absolute(part.trim().split(/\s+/)[0] ?? null) ?? '');
-          }
-        }
-        for (const source of document.querySelectorAll('source[srcset]')) {
-          for (const part of (source.getAttribute('srcset') ?? '').split(',')) {
-            used.add(absolute(part.trim().split(/\s+/)[0] ?? null) ?? '');
-          }
-        }
-        for (const sheet of document.querySelectorAll('link[rel="stylesheet"]')) {
-          used.add(absolute(sheet.getAttribute('href')) ?? '');
-        }
-        for (const script of document.querySelectorAll('script[src]')) {
-          used.add(absolute(script.getAttribute('src')) ?? '');
-        }
-        const fontsInUse = [...document.fonts].some((face) => face.status === 'loaded');
-        const findings: string[] = [];
-        for (const link of document.querySelectorAll('link[rel="preload"]')) {
-          const href = absolute(link.getAttribute('href'));
-          const as = link.getAttribute('as');
-          if (href === null) continue;
-          if (as === 'font' ? fontsInUse : used.has(href)) continue;
-          findings.push(`preload as=${as ?? '?'} ${href}`);
-        }
-        return findings;
-      });
+      const unused = await unusedPreloads(page);
       expect(unused, `${path} declares preloads that nothing on the page uses`).toEqual([]);
 
       // Chrome reports a preload that went unused a few seconds after load.

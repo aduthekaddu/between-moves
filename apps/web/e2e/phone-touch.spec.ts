@@ -275,7 +275,7 @@ test.describe('phone and touch guards', () => {
             return {
               name: heading.textContent ?? '',
               textRects: [...range.getClientRects()].map(rect),
-              button: rect(article.querySelector('button')!.getBoundingClientRect()),
+              button: rect(article.querySelector('.house-chat__remove')!.getBoundingClientRect()),
               card: rect(article.getBoundingClientRect()),
             };
           }),
