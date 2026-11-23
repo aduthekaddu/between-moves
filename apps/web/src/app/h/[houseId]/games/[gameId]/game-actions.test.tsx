@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { GameActions } from './game-actions';
 import type { MoveEntryPosition } from './move-entry-wire';
+import { requireFen } from './board-model';
 
 const ada = '01941f29-7c00-7000-8000-000000000301';
 const bea = '01941f29-7c00-7000-8000-000000000302';
@@ -11,7 +12,7 @@ const uuidV7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 
 const position: MoveEntryPosition = {
   mode: 'correspondence',
-  currentFen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+  currentFen: requireFen('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1'),
   currentPly: 1,
   sideToMove: 'black',
   version: 1,

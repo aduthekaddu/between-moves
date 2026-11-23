@@ -1,4 +1,5 @@
 import type { GameCompletionReason, GamePositionMove, SideToMove } from '@between-moves/domain';
+import { parseFen, type Fen } from './board-model';
 import { isGameCompletionReason } from './game-ending';
 
 export interface MoveEntryPosition {
@@ -9,7 +10,7 @@ export interface MoveEntryPosition {
     readonly blackMs: number;
     readonly turnStartedAt: Date | string | null;
   };
-  readonly currentFen: string;
+  readonly currentFen: Fen;
   readonly currentPly: number;
   readonly sideToMove: SideToMove;
   readonly version: number;
@@ -36,9 +37,34 @@ export interface AcceptedMoveBody {
   readonly ply: number;
   readonly uci: string;
   readonly san: string;
-  readonly fenAfter: string;
+  readonly fenAfter: Fen;
   readonly sideToMove: SideToMove;
   readonly version: number;
+}
+
+/** The position a 409 reports, when it names one the client can draw. */
+export interface MoveConflict {
+  readonly version: number;
+  readonly currentPly: number;
+  readonly currentFen: Fen;
+  readonly sideToMove: SideToMove;
+}
+
+/** What a Move submission came back as. `unreachable` covers a network error or a body that is not JSON. */
+export type MoveAnswer =
+  | { readonly kind: 'accepted'; readonly move: AcceptedMoveBody }
+  | { readonly kind: 'flagFall' }
+  | { readonly kind: 'conflict'; readonly position: MoveConflict | null }
+  | { readonly kind: 'rejected'; readonly illegal: boolean }
+  | { readonly kind: 'unreachable' };
+
+export function moveAnswer(status: number, body: unknown): MoveAnswer {
+  const ok = status >= 200 && status < 300;
+  const accepted = ok ? acceptedMove(body) : null;
+  if (accepted !== null) return { kind: 'accepted', move: accepted };
+  if (ok && flagFall(body)) return { kind: 'flagFall' };
+  if (status === 409) return { kind: 'conflict', position: conflictPosition(body) };
+  return { kind: 'rejected', illegal: status === 422 };
 }
 
 export function acceptedMove(value: unknown): AcceptedMoveBody | null {
@@ -56,7 +82,9 @@ export function acceptedMove(value: unknown): AcceptedMoveBody | null {
   ) {
     return null;
   }
-  return body as unknown as AcceptedMoveBody;
+  const fenAfter = parseFen(body.fenAfter);
+  if (fenAfter === null) return null;
+  return { ...(body as unknown as AcceptedMoveBody), fenAfter };
 }
 
 export function flagFall(value: unknown): boolean {
@@ -69,7 +97,7 @@ export function flagFall(value: unknown): boolean {
   );
 }
 
-export function conflictPosition(value: unknown) {
+export function conflictPosition(value: unknown): MoveConflict | null {
   if (value === null || typeof value !== 'object') return null;
   const problem = value as Record<string, unknown>;
   if (
@@ -89,13 +117,13 @@ export function conflictPosition(value: unknown) {
   ) {
     return null;
   }
-  const turn = meta.fen.split(' ')[1];
-  if (turn !== 'w' && turn !== 'b') return null;
+  const currentFen = parseFen(meta.fen);
+  if (currentFen === null) return null;
   return {
     version: meta.version,
     currentPly: meta.currentPly,
-    currentFen: meta.fen,
-    sideToMove: turn === 'w' ? ('white' as const) : ('black' as const),
+    currentFen,
+    sideToMove: currentFen.split(' ')[1] === 'w' ? 'white' : 'black',
   };
 }
 
@@ -183,7 +211,13 @@ export function moveEntryPosition(value: unknown): MoveEntryPosition | null {
   ) {
     return null;
   }
-  return { ...(body as unknown as MoveEntryPosition), moves: moves as GamePositionMove[] };
+  const currentFen = parseFen(body.currentFen);
+  if (currentFen === null) return null;
+  return {
+    ...(body as unknown as MoveEntryPosition),
+    currentFen,
+    moves: moves as GamePositionMove[],
+  };
 }
 
 /** [BM-028] The viewer's own membership, when they hold a seat and the snapshot names it. */

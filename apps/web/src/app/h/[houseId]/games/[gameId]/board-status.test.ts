@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { boardStatus } from './board-status';
 import type { MoveEntryPosition } from './move-entry-wire';
+import { requireFen } from './board-model';
 
 const position: MoveEntryPosition = {
-  currentFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+  currentFen: requireFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'),
   currentPly: 0,
   sideToMove: 'white',
   version: 0,

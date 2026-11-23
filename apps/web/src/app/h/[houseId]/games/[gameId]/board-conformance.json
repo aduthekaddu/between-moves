@@ -1,0 +1,13 @@
+{
+  "constants": {
+    "Variant": "\"machine\"",
+    "Modes": "{\"live\", \"correspondence\"}",
+    "MaxVersion": "2",
+    "MaxPly": "2",
+    "MaxCommands": "2",
+    "MaxFailures": "1"
+  },
+  "states": 28524,
+  "edges": 109347,
+  "sha256": "96576fcac306fc9398b13c557afa8fe4898dce18278be5269dd63fe4ebd3612f"
+}

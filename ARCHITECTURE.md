@@ -127,6 +127,50 @@ stateDiagram-v2
   s1 --> s3: the game ends
 ```
 
+## Game board
+
+The board's client state lives in one reducer, `transition` in `apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts`. `board-store.ts` holds that state outside React and runs what the reducer asks for: a read of the Game, a Move submission, the five-second Undo timer, and a sound. `move-entry.tsx` renders the state and turns page events into reducer events. Its lint rules forbid `useState`, `useRef` and `useReducer`.
+
+The state keeps one full Game snapshot. The board's pieces, check mark, last Move, label and turn dot all come from one position: the reviewed one, else a staged or sending Move on the newest board, else the newest board. One read of the Game is current at a time. Each answer carries the id of its request, and the reducer alone decides whether it applies: an answer to an earlier read still counts when it is newer than the snapshot. A version is not a ply: a draw offer or a resignation moves the version without a Move.
+
+`architecture/models/board/BoardState.tla` models the reducer with the server and an unordered network. "The board model" in [CONTRIBUTING.md](CONTRIBUTING.md) says how it is checked against the reducer.
+
+The chart shows correspondence play with no network failure. It does not draw steps that stay in one state, such as a background poll.
+
+```mermaid
+---
+title: "Game board, correspondence"
+---
+stateDiagram-v2
+  state "Move not played" as s0 {
+    s1: Board up to date
+    s2: Board waits for a read
+  }
+  state "Move staged, Undo shows" as s3 {
+    s4: Board up to date
+    s5: Board waits for a read
+    [*] --> s4
+  }
+  state "Move sending" as s6 {
+    s7: Board up to date
+    s8: Board waits for a read
+  }
+  [*] --> s1
+  s1 --> s2: you press Refresh board, or a draw or resign settles
+  s1 --> s3: you play a Move
+  s4 --> s1: you press Undo
+  s4 --> s5: you press Refresh board, or a draw or resign settles
+  s4 --> s7: you leave the page or five seconds pass
+  s2 --> s1: a read of the Game lands
+  s5 --> s2: you press Undo
+  s5 --> s8: you leave the page or five seconds pass
+  s7 --> s8: you press Refresh board, or a draw or resign settles
+  s5 --> s4: a read of the Game lands
+  s7 --> s1: the server answers the Move
+  s8 --> s7: a read of the Game lands
+  s6 --> s2: the server answers the Move
+```
+
 ## Open seat
 
 The `open_seats.state` check in the same migration allows `open`, `accepted`, `expired`, and `cancelled`. The seat chart is separate from the game chart because those names are not the game names.

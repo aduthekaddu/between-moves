@@ -84,6 +84,8 @@ jobs:
         run: pnpm formal:selftest
       - name: Check formal models
         run: pnpm formal:check
+      - name: Check the board model's graph against the reducer's
+        run: pnpm formal:board-conformance
 
   quality:
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}

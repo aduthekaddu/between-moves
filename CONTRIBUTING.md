@@ -50,7 +50,16 @@ Each folder is checked on its own, so a module and its configs share a folder. F
 
 A `.tla` file with no `<Name>.cfg` in its folder, a bug config with no `<Name>.cfg` or `<Name>.tla` in its folder, and any other config name also fail the run. So does any file that is not a `.tla`, a `.cfg` or a `README.md`, such as `Name.cfg.disabled`. The script rejects arguments other than `--models <dir>`.
 
-`pnpm formal:selftest` checks the runner itself against `tooling/formal-fixtures/`. It needs Java or Docker too, so `pnpm check` does not run it. CI runs it, then `pnpm formal:check`, in the `formal-models` job.
+`pnpm formal:selftest` checks the runner itself against `tooling/formal-fixtures/`. It needs Java or Docker too, so `pnpm check` does not run it. CI runs it, then `pnpm formal:check`, then `pnpm formal:board-conformance`, in the `formal-models` job.
+
+### The board model
+
+`architecture/models/board/BoardState.tla` models the game board's client state in `apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts`. Two checks keep them in step at the bounds in `board-conformance.json` beside the reducer:
+
+- `pnpm formal:board-conformance` hashes the state graph TLC finds. It needs Java or Docker.
+- `board-machine.conformance.test.ts` walks the reducer through every order of events the model allows and hashes that graph. `pnpm check` runs it.
+
+Both must match the hash in `board-conformance.json`. After an intended change to the model, run `node tooling/board-conformance.mjs --write`, then make the reducer test pass. The `verify-board-state` skill in `.claude/skills/` explains how to read a failure.
 
 ## Run tests that need PostgreSQL
 

@@ -172,7 +172,7 @@ function javaMajor(java) {
   return match[1] === '1' ? Number(match[2]) : Number(match[1]);
 }
 
-function chooseRuntime() {
+export function chooseRuntime() {
   const major = javaMajor('java');
   if (major !== null && major >= MIN_JAVA_MAJOR)
     return { kind: 'java', label: `java ${major} on PATH` };
@@ -195,7 +195,7 @@ export function jarLocation(env) {
   return join(resolve(cacheDir), TLA2TOOLS_VERSION, 'tla2tools.jar');
 }
 
-async function ensureJar() {
+export async function ensureJar() {
   const jar = jarLocation(process.env);
   if (existsSync(jar) && sha256(readFileSync(jar)) === TLA2TOOLS_SHA256) return jar;
 
@@ -229,12 +229,14 @@ function runTlc(runtime, jar, model, cfg) {
   }
 }
 
-function spawnTlc(runtime, jar, model, metaDir, cfg) {
+/** `extraArgs` may name files under `metaDir`; under Docker they are mapped to /meta. */
+export function spawnTlc(runtime, jar, model, metaDir, cfg, extraArgs = []) {
   const tlcArgs = [
     'tlc2.TLC',
     ...TLC_FLAGS,
     '-metadir',
     metaDir,
+    ...extraArgs,
     '-config',
     cfg,
     `${model.name}.tla`,
@@ -263,7 +265,9 @@ function spawnTlc(runtime, jar, model, metaDir, cfg) {
             ...JVM_FLAGS,
             '-cp',
             '/tla2tools.jar',
-            ...tlcArgs.map((arg) => (arg === metaDir ? '/meta' : arg)),
+            ...tlcArgs.map((arg) =>
+              arg.startsWith(metaDir) ? `/meta${arg.slice(metaDir.length)}` : arg,
+            ),
           ],
         ];
   const run = spawnSync(command, args, {

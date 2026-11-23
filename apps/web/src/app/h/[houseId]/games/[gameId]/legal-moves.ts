@@ -1,10 +1,11 @@
 import type { ChessMoveProposal, ChessSquare, SideToMove } from '@between-moves/domain';
 import { Chess, type Move } from 'chess.js';
+import { parseFen, type Fen } from './board-model';
 
 /** Each piece that can move, mapped to its destinations; `true` marks a destination that promotes. */
 export type LegalMoves = ReadonlyMap<ChessSquare, ReadonlyMap<ChessSquare, boolean>>;
 
-function verboseMoves(fen: string): Move[] {
+function verboseMoves(fen: Fen): Move[] {
   try {
     return new Chess(fen, { skipValidation: true }).moves({ verbose: true });
   } catch {
@@ -13,7 +14,7 @@ function verboseMoves(fen: string): Move[] {
 }
 
 /** Board hints only. The server's rules adapter still decides every Move. */
-export function legalMoves(fen: string): LegalMoves {
+export function legalMoves(fen: Fen): LegalMoves {
   const byFrom = new Map<ChessSquare, Map<ChessSquare, boolean>>();
   for (const move of verboseMoves(fen)) {
     const from = move.from as ChessSquare;
@@ -27,19 +28,20 @@ export function legalMoves(fen: string): LegalMoves {
 
 /** Where a proposal will most likely lead, for the board before the server answers. */
 export function proposalOutcome(
-  fen: string,
+  fen: Fen,
   proposal: ChessMoveProposal,
-): { readonly san: string; readonly fen: string } | null {
+): { readonly san: string; readonly fen: Fen } | null {
   try {
     const { san, after } = new Chess(fen, { skipValidation: true }).move(proposal);
-    return { san, fen: after };
+    const next = parseFen(after);
+    return next === null ? null : { san, fen: next };
   } catch {
     return null;
   }
 }
 
 /** Who moves next in a position, and whether that side is in check. */
-export function turnState(fen: string): {
+export function turnState(fen: Fen): {
   readonly sideToMove: SideToMove;
   readonly inCheck: boolean;
 } {
