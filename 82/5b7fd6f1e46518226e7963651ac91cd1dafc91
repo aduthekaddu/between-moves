@@ -1,0 +1,19 @@
+architecture/models/board/BoardState.tla
+  s_7c0159e41a2a9f::t_8b8769a4fc13ed 12,14,16,40,58,228,295,301-302,307-312,316,319,325
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "825b7fd6f1e46518226e7963651ac91cd1dafc91",
+  "prompts": {},
+  "sessions": {
+    "s_7c0159e41a2a9f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20682-f8ad-7c71-a86f-c7a3df665d06",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
