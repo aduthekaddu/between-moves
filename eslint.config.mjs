@@ -1,5 +1,9 @@
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import tsParser from '@typescript-eslint/parser';
+import {
+  rejectVerifiedNudgeDeliveryAssertion,
+  verifiedNudgeDeliveryAllowedFiles,
+} from './tooling/verified-nudge-delivery-lint.mjs';
 
 const boundaryMessage =
   'Package boundary violation: this layer may only import the workspace packages allowed by the architecture.';
@@ -161,6 +165,16 @@ export default [
     files: ['packages/observability/src/**/*.ts'],
     rules: {
       'no-restricted-imports': workspaceImportsAllowedFrom([]),
+    },
+  },
+  {
+    files: [
+      'apps/worker/src/**/*.ts',
+      'packages/{domain,application,db,adapters,observability}/src/**/*.ts',
+    ],
+    ignores: verifiedNudgeDeliveryAllowedFiles,
+    rules: {
+      'no-restricted-syntax': rejectVerifiedNudgeDeliveryAssertion,
     },
   },
 ];

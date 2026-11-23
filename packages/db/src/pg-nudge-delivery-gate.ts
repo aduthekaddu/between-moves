@@ -2,6 +2,7 @@ import {
   NUDGE_DUE_TOPIC,
   type ClaimedOutboxEvent,
   type NudgeDeliveryGate,
+  type NudgeEmail,
   type NudgeStage,
   type VerifiedNudgeDelivery,
 } from '@between-moves/domain';
@@ -91,7 +92,7 @@ export class PgNudgeDeliveryGate implements NudgeDeliveryGate {
       opponentName: row.opponent_name,
       lastMoveSan: row.last_move_san,
       moveDueAt: row.move_due_at,
-    };
+    } satisfies NudgeEmail;
     return delivery as VerifiedNudgeDelivery;
   }
 }
