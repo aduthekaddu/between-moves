@@ -3,6 +3,7 @@ import type {
   NudgeEmail,
   NudgeEmailSender,
   NudgeEmailSendResult,
+  VerifiedNudgeDelivery,
 } from '@between-moves/domain';
 import { ResendEmailClient } from './resend-email-client';
 
@@ -63,15 +64,15 @@ export class ResendNudgeEmailSender implements NudgeEmailSender {
   }
 
   async sendNudge(
-    message: NudgeEmail,
+    delivery: VerifiedNudgeDelivery,
     options: { readonly idempotencyKey: string },
   ): Promise<NudgeEmailSendResult> {
     const now = this.options.now?.() ?? new Date();
     await this.client.send(
       {
-        to: message.email,
-        subject: subject(message),
-        text: body(message, this.options.appOrigin, now),
+        to: delivery.email,
+        subject: subject(delivery),
+        text: body(delivery, this.options.appOrigin, now),
       },
       options.idempotencyKey,
     );
@@ -81,19 +82,19 @@ export class ResendNudgeEmailSender implements NudgeEmailSender {
 
 export interface TestNudgeDelivery {
   readonly idempotencyKey: string;
-  readonly message: NudgeEmail;
+  readonly message: VerifiedNudgeDelivery;
 }
 
 /** Offline, provider-idempotent Nudge sender for deterministic delivery tests. */
 export class TestNudgeEmailSender implements NudgeEmailSender {
-  private readonly sent = new Map<string, NudgeEmail>();
+  private readonly sent = new Map<string, VerifiedNudgeDelivery>();
 
   async sendNudge(
-    message: NudgeEmail,
+    delivery: VerifiedNudgeDelivery,
     options: { readonly idempotencyKey: string },
   ): Promise<NudgeEmailSendResult> {
     if (this.sent.has(options.idempotencyKey)) return 'duplicate';
-    this.sent.set(options.idempotencyKey, message);
+    this.sent.set(options.idempotencyKey, delivery);
     return 'sent';
   }
 

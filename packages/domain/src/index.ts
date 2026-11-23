@@ -509,8 +509,8 @@ export type {
   InvitationEmailDeliveryGate,
   InvitationEmailSender,
   InvitationEmailSendResult,
+  NudgeDeliveryGate,
   NudgeEmail,
-  NudgeEmailReader,
   NudgeEmailSender,
   NudgeEmailSendResult,
   NudgeEnqueueOutcome,
@@ -530,4 +530,5 @@ export type {
   RealtimePublisher,
   ResendDeliveryEvent,
   ResendDeliveryEventType,
+  VerifiedNudgeDelivery,
 } from './delivery';

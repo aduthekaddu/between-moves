@@ -1,5 +1,7 @@
 import type { Clock } from '../shared/clock';
 
+declare const nudgeDeliveryGateBrand: unique symbol;
+
 export const OUTBOX_MAX_ATTEMPTS = 8;
 
 /** A retained delivery that must be parked instead of retried. */
@@ -190,15 +192,21 @@ export interface NudgeEmail {
   readonly moveDueAt: Date | null;
 }
 
-export interface NudgeEmailReader {
-  readForDelivery(event: ClaimedOutboxEvent): Promise<NudgeEmail | null>;
+/** [BM-029] A Nudge email that passed the delivery gate. Only a `NudgeDeliveryGate` issues one. */
+export interface VerifiedNudgeDelivery extends NudgeEmail {
+  readonly [nudgeDeliveryGateBrand]: true;
+}
+
+/** [BM-029] Reads current state at `now` and returns the email only while the Nudge is still due. */
+export interface NudgeDeliveryGate {
+  pass(event: ClaimedOutboxEvent, now: Date): Promise<VerifiedNudgeDelivery | null>;
 }
 
 export type NudgeEmailSendResult = 'sent' | 'duplicate';
 
 export interface NudgeEmailSender {
   sendNudge(
-    message: NudgeEmail,
+    delivery: VerifiedNudgeDelivery,
     options: { readonly idempotencyKey: string },
   ): Promise<NudgeEmailSendResult>;
 }

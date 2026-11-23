@@ -1,9 +1,9 @@
-import type { NudgeEmail } from '@between-moves/domain';
+import { fakeVerifiedNudgeDelivery } from '@between-moves/domain/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { ResendNudgeEmailSender, TestNudgeEmailSender } from './nudge-email';
 
 const sentAt = new Date('2026-09-15T12:00:00.000Z');
-const advance: NudgeEmail = {
+const advance = fakeVerifiedNudgeDelivery({
   email: 'member@example.test',
   houseId: '01941f29-7c00-7000-8000-000000000601',
   houseName: 'Knights at Dusk',
@@ -13,7 +13,7 @@ const advance: NudgeEmail = {
   opponentName: 'Bea',
   lastMoveSan: 'Nf3',
   moveDueAt: new Date('2026-09-16T11:00:00.000Z'),
-};
+});
 
 function sentText(request: ReturnType<typeof vi.fn<typeof fetch>>): string {
   return String(JSON.parse(String(vi.mocked(request).mock.calls[0]?.[1]?.body)).text);

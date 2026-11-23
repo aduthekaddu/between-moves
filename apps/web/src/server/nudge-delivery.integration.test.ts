@@ -7,7 +7,7 @@ import {
 import {
   migrateDown,
   migrateUp,
-  PgNudgeEmailReader,
+  PgNudgeDeliveryGate,
   PgNudgeRepository,
   PgOutboxRepository,
 } from '@between-moves/db';
@@ -94,7 +94,7 @@ integration('Nudge scheduling and delivery flow', () => {
       repository: new PgOutboxRepository(database),
       consumer: createNudgeEmailConsumer({
         clock,
-        reader: new PgNudgeEmailReader(database),
+        gate: new PgNudgeDeliveryGate(database),
         sender: { sendNudge },
         metrics,
       }),
@@ -147,6 +147,58 @@ integration('Nudge scheduling and delivery flow', () => {
     expect(counts.rows).toEqual([{ nudges: 1, events: 1 }]);
   });
 
+  it('[BM-029] skips a retried advance Nudge after its deadline and still sends the overdue one', async () => {
+    const clock = new FakeClock(NOW);
+    const metrics = createDeliveryMetricStubs();
+    let nextEvent = 801;
+    const schedule = createNudgeDispatcher({
+      clock,
+      generateId: () => id(nextEvent++),
+      repository: new PgNudgeRepository(database),
+      metrics,
+    });
+    await expect(schedule.dispatch()).resolves.toMatchObject({ enqueued: 1 });
+
+    const sendNudge = vi.fn<NudgeEmailSender['sendNudge']>(async () => {
+      if (sendNudge.mock.calls.length === 1) {
+        throw new RetriableOutboxError('Resend email request failed (503)');
+      }
+      return 'sent';
+    });
+    const outbox = createOutboxDispatcher({
+      clock,
+      repository: new PgOutboxRepository(database),
+      consumer: createNudgeEmailConsumer({
+        clock,
+        gate: new PgNudgeDeliveryGate(database),
+        sender: { sendNudge },
+        metrics,
+      }),
+      metrics,
+    });
+    await expect(outbox.dispatchBatch()).resolves.toMatchObject({ retried: 1 });
+
+    // The deadline passes 12 hours after the advance Nudge was queued, inside the 23-hour retry window.
+    clock.advance(12 * 60 * 60 * 1_000);
+    await expect(schedule.dispatch()).resolves.toMatchObject({ enqueued: 1 });
+    await expect(outbox.dispatchBatch()).resolves.toEqual({
+      claimed: 2,
+      sent: 2,
+      retried: 0,
+      failed: 0,
+    });
+
+    expect(sendNudge.mock.calls.map(([message]) => message.stage)).toEqual(['advance', 'overdue']);
+    const events = await database.query<{ stage: string; settled: boolean }>(
+      `select payload->>'stage' as stage, sent_at is not null and failed_at is null as settled
+         from outbox_events where topic = 'nudge.due' order by created_at`,
+    );
+    expect(events.rows).toEqual([
+      { stage: 'advance', settled: true },
+      { stage: 'overdue', settled: true },
+    ]);
+  });
+
   async function playMove(ply: number, actor: string, uci: string, san: string): Promise<void> {
     await database.query(
       `insert into moves
@@ -167,6 +219,15 @@ integration('Nudge scheduling and delivery flow', () => {
                   move_due_at = '2026-09-17T00:00:00.000Z' where id = $1`,
           [id(711)],
         );
+      },
+    ],
+    [
+      'the deadline moved at the same ply',
+      async () => {
+        await database.query(`update games set move_due_at = $2 where id = $1`, [
+          id(711),
+          new Date('2026-09-16T06:00:00.000Z'),
+        ]);
       },
     ],
     [
@@ -198,13 +259,13 @@ integration('Nudge scheduling and delivery flow', () => {
       repository: new PgOutboxRepository(database),
       consumer: createNudgeEmailConsumer({
         clock,
-        reader: new PgNudgeEmailReader(database),
+        gate: new PgNudgeDeliveryGate(database),
         sender: { sendNudge },
         metrics,
       }),
       metrics,
     });
-    // A skipped Nudge settles its event like a sent one; a reader error would retry it.
+    // A skipped Nudge settles its event like a sent one; a gate error would retry it.
     await expect(outbox.dispatchBatch()).resolves.toEqual({
       claimed: 1,
       sent: 1,

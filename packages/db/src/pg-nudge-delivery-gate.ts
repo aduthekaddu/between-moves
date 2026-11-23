@@ -1,11 +1,12 @@
 import {
   NUDGE_DUE_TOPIC,
   type ClaimedOutboxEvent,
-  type NudgeEmail,
-  type NudgeEmailReader,
+  type NudgeDeliveryGate,
   type NudgeStage,
+  type VerifiedNudgeDelivery,
 } from '@between-moves/domain';
 import type { Pool, QueryResultRow } from 'pg';
+import { dueNudgesAt } from './due-nudges';
 
 interface NudgeEmailRow extends QueryResultRow {
   email: string;
@@ -34,11 +35,11 @@ function eventPayload(event: ClaimedOutboxEvent): {
   return { recipientMembershipId, ply: Number(ply), stage };
 }
 
-/** [BM-029] Resolves confidential email only inside the trusted Delivery seam. */
-export class PgNudgeEmailReader implements NudgeEmailReader {
+/** [BM-029] Issues a `VerifiedNudgeDelivery` only while the Nudge is still due; holds no lock across the send. */
+export class PgNudgeDeliveryGate implements NudgeDeliveryGate {
   constructor(private readonly database: Pool) {}
 
-  async readForDelivery(event: ClaimedOutboxEvent): Promise<NudgeEmail | null> {
+  async pass(event: ClaimedOutboxEvent, now: Date): Promise<VerifiedNudgeDelivery | null> {
     const payload = eventPayload(event);
     const result = await this.database.query<NudgeEmailRow>(
       `select u.email::text, h.id::text as house_id, h.name as house_name,
@@ -48,22 +49,25 @@ export class PgNudgeEmailReader implements NudgeEmailReader {
                   and mv.ply = delivery.ply) as last_move_san,
               delivery.move_due_at
          from nudge_deliveries delivery
-         join houses h on h.id = delivery.house_id and h.status = 'active'
+         join (${dueNudgesAt('$1')}) due
+           on due.game_id = delivery.game_id and due.house_id = delivery.house_id
+          and due.ply = delivery.ply
+          and due.recipient_membership_id = delivery.recipient_membership_id
+          and due.stage = delivery.stage and due.move_due_at = delivery.move_due_at
+         join houses h on h.id = delivery.house_id
          join memberships m on m.id = delivery.recipient_membership_id
-                           and m.house_id = delivery.house_id and m.status = 'active'
-         join users u on u.id = m.user_id and u.status = 'active'
-         -- The Nudge is about one turn. Once that turn is over, its email would be wrong.
+         join users u on u.id = m.user_id
          join games g on g.id = delivery.game_id and g.house_id = delivery.house_id
-                     and g.state = 'active' and g.current_ply = delivery.ply
          join memberships opponent
            on opponent.house_id = g.house_id
           and opponent.id = case when g.white_membership_id = delivery.recipient_membership_id
                                  then g.black_membership_id else g.white_membership_id end
          join users opponent_user on opponent_user.id = opponent.user_id
-        where delivery.outbox_event_id = $1 and delivery.game_id = $2
-          and delivery.house_id = $3 and delivery.ply = $4
-          and delivery.recipient_membership_id = $5 and delivery.stage = $6`,
+        where delivery.outbox_event_id = $2 and delivery.game_id = $3
+          and delivery.house_id = $4 and delivery.ply = $5
+          and delivery.recipient_membership_id = $6 and delivery.stage = $7`,
       [
+        now,
         event.id,
         event.aggregateId,
         event.houseId,
@@ -77,7 +81,7 @@ export class PgNudgeEmailReader implements NudgeEmailReader {
     if (!row.email || !row.house_name || !row.opponent_name) {
       throw new Error('Invalid Nudge email row');
     }
-    return {
+    const delivery = {
       email: row.email,
       houseId: row.house_id,
       houseName: row.house_name,
@@ -88,5 +92,6 @@ export class PgNudgeEmailReader implements NudgeEmailReader {
       lastMoveSan: row.last_move_san,
       moveDueAt: row.move_due_at,
     };
+    return delivery as VerifiedNudgeDelivery;
   }
 }
