@@ -41,7 +41,7 @@ Export `TEST_DATABASE_URL` and point it at a disposable database. Database integ
 
 Add the next numbered directory under `packages/db/migrations/`, and write its `up.sql` and `down.sql` by hand. That directory is the migration that `pnpm db:migrate` applies.
 
-The numbered migrations are the only copy of the schema. No ORM schema file mirrors them, so a schema change touches SQL only. Repositories in `packages/db/src/` query with `pg` and parse each row where it enters.
+The numbered migrations are the only copy of the schema. No ORM schema file mirrors them. Repositories in `packages/db/src/` query with `pg` and parse each row where it enters, so a schema change also updates the queries and row parsers that read the changed columns. `pnpm test` fails if a Drizzle dependency, config file, table declaration or `db:generate` script comes back (`tooling/migrations-only-schema.test.mjs`).
 
 `pnpm db:migrate:down` reverses the latest migration. It throws when `APP_ENV` is `production`. The guard is `packages/db/src/migrate-cli.ts`.
 
