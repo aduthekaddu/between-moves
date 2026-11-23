@@ -1,0 +1,34 @@
+.claude/skills/verify-board-state/SKILL.md
+  s_b9d9ac6a3eb0fb::t_f0803d68e68bcf 1-87
+  s_b9d9ac6a3eb0fb::t_2adf2e2f93d230 88
+apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.conformance.test.ts
+  s_b9d9ac6a3eb0fb::t_adde7d6def549b 123-127,269-273,359-360,372-375,432-437,468-471
+apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.test.ts
+  s_b9d9ac6a3eb0fb::t_195a726654df66 63-66,89-94,134-144,155-162,182-184
+apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts
+  s_b9d9ac6a3eb0fb::t_14fc2c232ab85e 266,270,300-305
+apps/web/src/app/h/[houseId]/games/[gameId]/legal-moves.test.ts
+  s_b9d9ac6a3eb0fb::t_1f9662e4a7e726 23-25,31-35
+apps/web/src/app/h/[houseId]/games/[gameId]/move-entry.test.tsx
+  s_b9d9ac6a3eb0fb::t_1d75e9a4f5d698 251-254,484-488,500-504
+apps/web/src/app/h/[houseId]/games/[gameId]/move-entry.tsx
+  s_b9d9ac6a3eb0fb::t_07de0375df7b16 109-111
+tooling/board-conformance.mjs
+  s_b9d9ac6a3eb0fb::t_ec4aee69995b22 30-31,117-123,142,186-187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "97e21ccadd8c10f205be71f7282ecb117b07b97f",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
