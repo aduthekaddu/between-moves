@@ -223,7 +223,7 @@ export async function auditTouch(page: Page): Promise<TouchAudit> {
           );
           continue;
         }
-        box.scrollIntoView({ block: 'center', inline: 'nearest' });
+        box.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
         const result = clearSquare(el, box);
         if (result !== 'clear') {
           problems.push(
@@ -231,7 +231,7 @@ export async function auditTouch(page: Page): Promise<TouchAudit> {
           );
         }
       }
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       return { fields, targets, problems };
     },
     { minTarget: MIN_TARGET_PX, minFont: MIN_FIELD_FONT_PX },

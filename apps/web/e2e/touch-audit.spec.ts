@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { auditTouch } from './support/touch-audit';
 
 /**
- * The touch audit on small fixed pages, so each kind of mistake it must catch is shown
- * failing once. Nothing here needs the app or the database.
+ * The touch audit on small fixed pages, so each kind of mistake it must catch (target size, field text size, covers)
+ * is shown failing once. Nothing here needs the app or the database.
  */
 test.use({ viewport: { width: 320, height: 640 }, hasTouch: true, isMobile: true });
 
@@ -22,6 +22,12 @@ test('a control under 24px fails, even by a fraction of a pixel', async ({ page 
   );
   expect(found).toHaveLength(1);
   expect(found[0]).toMatch(/is 22x22px; the minimum is 24x24px/);
+});
+
+test('a field with 15px text fails', async ({ page }) => {
+  const found = await problems(page, '<input style="width:200px;height:32px;font-size:15px">');
+  expect(found).toHaveLength(1);
+  expect(found[0]).toMatch(/has 15px text; iOS zooms/);
 });
 
 test('a control of exactly 24px passes', async ({ page }) => {

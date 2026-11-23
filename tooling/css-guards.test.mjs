@@ -64,6 +64,13 @@ describe('field font size', () => {
     );
   });
 
+  it('rejects all: on a field, which resets the font size and the target floor', () => {
+    for (const value of ['unset', 'initial', 'revert', 'revert-layer']) {
+      assert.equal(messages(`.x input { all: ${value}; }`).length, 1, value);
+    }
+    assert.deepEqual(messages('.card { all: unset; }'), []);
+  });
+
   it('rejects any font shorthand on a field, the bare reset included outside the base file', () => {
     assert.equal(messages('.auth-form__field input { font: inherit; }').length, 1);
     assert.equal(messages('input { font: inherit; }').length, 1);
@@ -96,6 +103,9 @@ describe('what the parser reads', () => {
       '.x input { @media (max-width: 600px) { font-size: 12px; } }',
       '.x { color: red; &:hover { color: blue; } }',
       '@document url-prefix() { input { font-size: 12px; } }',
+      '@scope (.card) { input { font-size: 12px; } }',
+      '@scope (input) { font-size: 12px; }',
+      '@scope (:root) { --target-size: 0px; }',
     ]) {
       const found = messages(css);
       assert.equal(found.length, 1, css);

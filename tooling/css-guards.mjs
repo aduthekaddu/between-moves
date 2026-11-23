@@ -24,7 +24,7 @@ export const BASE_RULES = [
 ];
 
 const FIELD_FIX = `Fields must be at least 1rem so iOS does not zoom. Delete this declaration; globals.css sets "input, select, textarea { font-size: max(1rem, 1em) }" for every field.`;
-const WALKED = /^@(media|supports|container|layer|scope|starting-style)\b/i;
+const WALKED = /^@(media|supports|container|layer|starting-style)\b/i;
 const SKIPPED =
   /^@(keyframes|font-face|property|page|counter-style|font-feature-values|font-palette-values|view-transition)\b/i;
 const FIELD = /(?<![\w\-.#[:"'=])(input|select|textarea)(?![\w-])/i;
@@ -169,6 +169,12 @@ export function checkCss(source, { isBase = false } = {}) {
         violations.push({
           line,
           message: `${rule.selector} { font: ${value} } resets the field's font size. Set font-family or font-weight instead. ${FIELD_FIX}`,
+        });
+      }
+      if (field && property === 'all') {
+        violations.push({
+          line,
+          message: `${rule.selector} { all: ${value} } resets the field's font size and its 24px touch-target floor. Set only the properties you mean to change. ${FIELD_FIX}`,
         });
       }
       if (property === '--target-size') {
