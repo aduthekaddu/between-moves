@@ -18,7 +18,7 @@ Each rule is an invariant or property in `BoardState.tla`. The harm says what a 
 | `NoAnswerDropped`      | The client never drops an answer newer than what it shows.                                                                | An opponent's Move or resignation stays hidden until the next poll (0840393).                                |
 | `NoBoardFromNowhere`   | The client never knows a version or ply the server has not reached.                                                       | The board shows a position that never existed.                                                               |
 | `DotFollowsBoard`      | The turn dot shows the side to move of the drawn position.                                                                | In review, the dot names the wrong side (#66).                                                               |
-| `OneReadAtATime`       | At most one read of the Game is out, and the reducer waits on it.                                                         | Two reads race and the older one wins.                                                                       |
+| `OneCurrentRead` | At most one read of the Game is current, and the reducer waits on it. An answer to an earlier read applies only when it is newer. | Two reads race and the older one decides the board. |
 | `FreshHasNoAhead`      | An up-to-date board has no Move answer newer than its snapshot.                                                           | The board unlocks while it still shows a half-known position.                                                |
 | `MoveNotLost`          | A staged Move leaves only by Undo or by being sent; a sending Move leaves only by its answer.                             | A Move vanishes with no message.                                                                             |
 | `Settles`              | Once the server and the network go quiet, the board ends up to date, matching the server, with no Move waiting.           | The board stays on "Refreshing the board" for good. A reducer that does nothing would pass every other rule. |
@@ -43,7 +43,7 @@ Each action in `BoardState.tla` names, in a comment above it, the reducer case o
 - `move-entry-wire.ts`: `moveAnswer`, which sorts a send's answer into accepted, flag fall, conflict, rejected or unreachable.
 - `move-entry.tsx`: which page events dispatch which reducer events. Focus, visibility, polls and realtime messages send `reconcileWanted`. Refresh board and a settled draw or resign send `refreshRequested`. Leaving the page sends `pageHidden`.
 
-Synced at commit 5d6b0a4. The model describes those files as of that commit. After a change to them, move this commit forward only once the checks below pass and you have read the diff of the covered files against the model's actions.
+Synced at commit 48bfd77. The model describes those files as of that commit. After a change to them, move this commit forward only once the checks below pass and you have read the diff of the covered files against the model's actions.
 
 ## What it leaves out
 

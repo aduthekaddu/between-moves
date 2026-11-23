@@ -131,7 +131,7 @@ stateDiagram-v2
 
 The board's client state lives in one reducer, `transition` in `apps/web/src/app/h/[houseId]/games/[gameId]/board-machine.ts`. `board-store.ts` holds that state outside React and runs what the reducer asks for: a read of the Game, a Move submission, the five-second Undo timer, and a sound. `move-entry.tsx` renders the state and turns page events into reducer events. Its lint rules forbid `useState`, `useRef` and `useReducer`.
 
-The state keeps one full Game snapshot. The board's pieces, check mark, last Move, label and turn dot all come from one position: the reviewed one, else a staged or sending Move on the newest board, else the newest board. At most one read of the Game is out at a time. Each answer carries the id of its request, and the reducer alone decides whether it applies. A version is not a ply: a draw offer or a resignation moves the version without a Move.
+The state keeps one full Game snapshot. The board's pieces, check mark, last Move, label and turn dot all come from one position: the reviewed one, else a staged or sending Move on the newest board, else the newest board. One read of the Game is current at a time. Each answer carries the id of its request, and the reducer alone decides whether it applies: an answer to an earlier read still counts when it is newer than the snapshot. A version is not a ply: a draw offer or a resignation moves the version without a Move.
 
 `architecture/models/board/BoardState.tla` models the reducer with the server and an unordered network. "The board model" in [CONTRIBUTING.md](CONTRIBUTING.md) says how it is checked against the reducer.
 
