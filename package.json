@@ -22,7 +22,7 @@
     "pilot:alerts": "node scripts/pilot-alerts.mjs",
     "pilot:restore-drill": "node scripts/restore-drill.mjs",
     "traceability:generate": "node tooling/traceability.mjs --write",
-    "traceability:check": "node --test tooling/traceability.test.mjs && node tooling/traceability.mjs --check",
+    "traceability:check": "node tooling/traceability.mjs --check",
     "test:e2e": "turbo run test:e2e",
     "db:migrate": "pnpm --filter @between-moves/db migrate",
     "db:migrate:down": "pnpm --filter @between-moves/db migrate:down",

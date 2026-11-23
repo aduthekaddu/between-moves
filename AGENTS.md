@@ -32,7 +32,7 @@ Point database integration tests at a disposable database. They read `TEST_DATAB
 
 `pnpm check` runs lint, typecheck, and the test script. It does not run `pnpm build`. CI runs that build as its own step. Run `pnpm traceability:check` when you change a BM-051 security criterion. Run `pnpm test:e2e` when you change a page.
 
-Each test in `tooling/traceability-criteria.json` lists `asserts` words. The check needs a running test whose title carries the criterion tag (for example `[BM-051:AC-2]`) and whose `expect` or `assert` calls contain every word. Tag the test that asserts the criterion; a tag in a comment or a skipped test does not count.
+The traceability check runs each mapped Vitest and node:test file and counts a tagged test (title carries `[BM-051:AC-2]`, for example) only when the runner reports it passed. That test's `expect(...).matcher(...)` or `assert` calls must contain every word in the mapping's `asserts`; `not:word` needs a negated assertion. One mapped test per criterion must also assert every word in the criterion's `requires`. Playwright specs are read, not run: only plain `test(...)` calls count, and `skip`, `fixme`, `fail` or `only` anywhere in a mapped spec fails the check. `.only` fails it in every mapped file, and `.fails` in Vitest files. The CI job has no database, so map tests that run without `TEST_DATABASE_URL`.
 
 Regenerate `tooling/traceability-matrix.md` with `pnpm traceability:generate`. Leave the generated file as the command wrote it.
 
