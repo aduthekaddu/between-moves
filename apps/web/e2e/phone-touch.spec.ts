@@ -21,8 +21,13 @@ const liveNightId = '01941f29-7c00-7000-8000-000000000983';
 const scheduledNightId = '01941f29-7c00-7000-8000-000000000984';
 const correspondenceId = '01941f29-7c00-7000-8000-000000000985';
 const liveGameId = '01941f29-7c00-7000-8000-000000000986';
-const messageId = '01941f29-7c00-7000-8000-000000000987';
-const longName = 'Maximilian-Alexander-Montgomery-Smith';
+const messageIds = [
+  '01941f29-7c00-7000-8000-000000000987',
+  '01941f29-7c00-7000-8000-000000000988',
+] as const;
+// One name that packs a line up to the Remove button, one with no break point at all.
+const spacedName = 'Maximilian Alexander Montgomery Smith';
+const unbrokenName = 'Wolfeschlegelsteinhausenbergerdorff';
 let database: Database;
 let world: TwoHousesWithMembers;
 
@@ -42,7 +47,11 @@ async function seed(): Promise<void> {
   );
   await database.pool.query('update users set display_name = $2 where id = $1', [
     first.nonOwner.userId,
-    longName,
+    spacedName,
+  ]);
+  await database.pool.query('update users set display_name = $2 where id = $1', [
+    first.member.userId,
+    unbrokenName,
   ]);
   await database.pool.query(
     `insert into seasons (id, house_id, title, state, created_at, updated_at)
@@ -79,7 +88,7 @@ async function seed(): Promise<void> {
     `insert into house_nights
       (id, house_id, season_id, scheduled_start, scheduled_end, state, started_at,
        chat_sequence, created_at, updated_at)
-     values ($1, $3, $4, $5, $6, 'live', $5, 1, $5, $5),
+     values ($1, $3, $4, $5, $6, 'live', $5, 2, $5, $5),
             ($2, $3, $4, $7, $8, 'scheduled', null, 0, $5, $5)`,
     [
       liveNightId,
@@ -94,8 +103,17 @@ async function seed(): Promise<void> {
   );
   await database.pool.query(
     `insert into house_messages (id, house_id, night_id, membership_id, body, sequence, created_at)
-     values ($1, $2, $3, $4, 'Good evening, everyone.', 1, $5)`,
-    [messageId, first.houseId, liveNightId, first.nonOwner.membershipId, at],
+     values ($1, $3, $4, $5, 'Good evening, everyone.', 1, $7),
+            ($2, $3, $4, $6, 'Good evening to you too.', 2, $7)`,
+    [
+      messageIds[0],
+      messageIds[1],
+      first.houseId,
+      liveNightId,
+      first.nonOwner.membershipId,
+      first.member.membershipId,
+      at,
+    ],
   );
   await database.pool.query(
     `insert into games (id, house_id, season_id, mode, state,
@@ -152,18 +170,20 @@ test.describe('phone and touch guards', () => {
         page,
       }, testInfo) => {
         const seen = new Set<string>();
+        const problems: string[] = [];
         for (const route of ['/', '/sign-in', '/sign-up', '/recover', '/no-such-page']) {
           const response = await page.goto(route);
           expect(response?.status(), route).toBe(route === '/no-such-page' ? 404 : 200);
           const audit = await auditTouch(page);
           for (const name of audit.targets) seen.add(name);
-          expect(audit.problems, route).toEqual([]);
+          problems.push(...audit.problems.map((problem) => `${route}: ${problem}`));
           await expectNoSidewaysScroll(page, route);
           await testInfo.attach(`touch-${viewport.width}-${route.replaceAll('/', '_')}.json`, {
             body: Buffer.from(JSON.stringify(audit, null, 2)),
             contentType: 'application/json',
           });
         }
+        expect(problems).toEqual([]);
         // The audit must have looked at the controls this class of bug lives in.
         expect([...seen].some((name) => name.includes('.auth-masthead__back'))).toBe(true);
         expect([...seen].some((name) => name.includes('.lp-sound'))).toBe(true);
@@ -175,6 +195,7 @@ test.describe('phone and touch guards', () => {
         const house = `/h/${first.houseId}`;
         const seen = new Set<string>();
         const fields = new Set<string>();
+        const problems: string[] = [];
         for (const route of [
           '/account',
           house,
@@ -188,13 +209,14 @@ test.describe('phone and touch guards', () => {
           const audit = await auditTouch(page);
           for (const name of audit.targets) seen.add(name);
           for (const name of audit.fields) fields.add(name);
-          expect(audit.problems, route).toEqual([]);
+          problems.push(...audit.problems.map((problem) => `${route}: ${problem}`));
           await expectNoSidewaysScroll(page, route);
           await testInfo.attach(`touch-${viewport.width}-${route.replaceAll('/', '_')}.json`, {
             body: Buffer.from(JSON.stringify(audit, null, 2)),
             contentType: 'application/json',
           });
         }
+        expect(problems).toEqual([]);
         expect([...seen].some((name) => name.includes('Manage Night'))).toBe(true);
         expect([...seen].some((name) => name.includes('.house-chat__remove'))).toBe(true);
         expect([...fields].some((name) => name.includes('select'))).toBe(true);
@@ -232,44 +254,44 @@ test.describe('phone and touch guards', () => {
         const { first } = world;
         await page.setExtraHTTPHeaders({ cookie: await signedCookie(first.member.sessionToken) });
         await page.goto(`/h/${first.houseId}/nights/${liveNightId}`);
-        const message = page.locator('.house-chat__message', { hasText: 'Good evening' });
-        await expect(message.getByRole('heading', { name: longName })).toBeVisible();
-        const remove = message.getByRole('button', { name: `Remove message from ${longName}` });
-        await expect(remove).toBeVisible();
-        const geometry = await message.evaluate((article) => {
-          const name = article.querySelector('h3')!;
-          const range = document.createRange();
-          range.selectNodeContents(name);
-          const textRects = [...range.getClientRects()].map((rect) => ({
-            left: rect.left,
-            right: rect.right,
-            top: rect.top,
-            bottom: rect.bottom,
-          }));
-          const button = article.querySelector('button')!.getBoundingClientRect();
-          const card = article.getBoundingClientRect();
-          return {
-            textRects,
-            button: {
-              left: button.left,
-              right: button.right,
-              top: button.top,
-              bottom: button.bottom,
-            },
-            card: { left: card.left, right: card.right },
-          };
-        });
-        expect(geometry.textRects.length).toBeGreaterThan(0);
-        for (const rect of geometry.textRects) {
-          const crosses =
-            Math.min(rect.right, geometry.button.right) >
-              Math.max(rect.left, geometry.button.left) &&
-            Math.min(rect.bottom, geometry.button.bottom) > Math.max(rect.top, geometry.button.top);
-          expect(
-            crosses,
-            `name text ${JSON.stringify(rect)} runs under Remove ${JSON.stringify(geometry.button)}`,
-          ).toBe(false);
-          expect(rect.right, 'name text leaves the card').toBeLessThanOrEqual(geometry.card.right);
+        const messages = page.locator('.house-chat__message');
+        await expect(messages).toHaveCount(2);
+        for (const name of [spacedName, unbrokenName]) {
+          await expect(
+            page.getByRole('button', { name: `Remove message from ${name}` }),
+          ).toBeVisible();
+        }
+        const rows = await messages.evaluateAll((articles) =>
+          articles.map((article) => {
+            const heading = article.querySelector('h3')!;
+            const range = document.createRange();
+            range.selectNodeContents(heading);
+            const rect = (box: DOMRect) => ({
+              left: box.left,
+              right: box.right,
+              top: box.top,
+              bottom: box.bottom,
+            });
+            return {
+              name: heading.textContent ?? '',
+              textRects: [...range.getClientRects()].map(rect),
+              button: rect(article.querySelector('button')!.getBoundingClientRect()),
+              card: rect(article.getBoundingClientRect()),
+            };
+          }),
+        );
+        for (const row of rows) {
+          expect(row.textRects.length, row.name).toBeGreaterThan(0);
+          for (const text of row.textRects) {
+            const crosses =
+              Math.min(text.right, row.button.right) > Math.max(text.left, row.button.left) &&
+              Math.min(text.bottom, row.button.bottom) > Math.max(text.top, row.button.top);
+            expect(
+              crosses,
+              `${row.name}: name text ${JSON.stringify(text)} runs under Remove ${JSON.stringify(row.button)}`,
+            ).toBe(false);
+            expect(text.right, `${row.name} leaves the card`).toBeLessThanOrEqual(row.card.right);
+          }
         }
       });
     });
