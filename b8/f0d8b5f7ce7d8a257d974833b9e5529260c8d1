@@ -1,0 +1,27 @@
+.github/workflows/ci.yml
+  s_b9d9ac6a3eb0fb::t_2f069cd97fc071 87-88
+AGENTS.md
+  s_b9d9ac6a3eb0fb::t_f93253889b8145 33
+ARCHITECTURE.md
+  s_b9d9ac6a3eb0fb::t_a31f48b11a4f18 130-173
+CONTRIBUTING.md
+  s_b9d9ac6a3eb0fb::t_85a31ac0785d72 53-62
+package.json
+  s_b9d9ac6a3eb0fb::t_9ccccc559f898c 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8f0d8b5f7ce7d8a257d974833b9e5529260c8d1",
+  "prompts": {},
+  "sessions": {
+    "s_b9d9ac6a3eb0fb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f875b26c-5716-453f-9a9a-d0a1b4d39c85",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
