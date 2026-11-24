@@ -1,0 +1,22 @@
+tooling/formal-check.mjs
+  h_9f68edf4527855 159
+tooling/formal-check.test.mjs
+  h_9f68edf4527855 59-76
+tooling/formal-fixtures/init-bug/InitBug.bug-init.cfg
+  h_9f68edf4527855 1-2
+tooling/formal-fixtures/init-bug/InitBug.cfg
+  h_9f68edf4527855 1
+tooling/formal-fixtures/init-bug/InitBug.tla
+  h_9f68edf4527855 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5ed745dd3d804413e3adb626f346d9122b759f4b",
+  "prompts": {},
+  "humans": {
+    "h_9f68edf4527855": {
+      "author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
