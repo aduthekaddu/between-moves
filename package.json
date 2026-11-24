@@ -26,6 +26,8 @@
     "traceability:generate": "node tooling/traceability.mjs --write",
     "traceability:check": "node --test tooling/traceability.test.mjs && node tooling/traceability.mjs --check",
     "test:e2e": "turbo run test:e2e",
+    "formal:check": "node tooling/formal-check.mjs",
+    "formal:selftest": "node --test tooling/formal-check.test.mjs",
     "db:migrate": "pnpm --filter @between-moves/db migrate",
     "db:migrate:down": "pnpm --filter @between-moves/db migrate:down",
     "db:generate": "pnpm --filter @between-moves/db schema:generate",
