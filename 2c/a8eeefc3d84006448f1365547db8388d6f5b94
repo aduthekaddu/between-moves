@@ -1,0 +1,48 @@
+.github/workflows/ci.yml
+  h_9f68edf4527855 12,18,22,36,48,54,65,83,94,124,149
+AGENTS.md
+  h_9f68edf4527855 15,21,23,25
+ARCHITECTURE.md
+  h_9f68edf4527855 9-10,41
+CONTRIBUTING.md
+  h_9f68edf4527855 34-37,42
+README.md
+  h_9f68edf4527855 14-20
+apps/web/package.json
+  h_9f68edf4527855 6-8
+apps/worker/package.json
+  h_9f68edf4527855 6-8
+mise.toml
+  h_9f68edf4527855 1-2
+package.json
+  h_9f68edf4527855 15-16,19-20
+packages/adapters/package.json
+  h_9f68edf4527855 9-11
+packages/application/package.json
+  h_9f68edf4527855 9-11
+packages/contracts/package.json
+  h_9f68edf4527855 9-11
+packages/db/package.json
+  h_9f68edf4527855 11-13
+packages/domain/package.json
+  h_9f68edf4527855 10-12
+packages/observability/package.json
+  h_9f68edf4527855 9-11
+pnpm-workspace.yaml
+  h_9f68edf4527855 1
+tooling/doc-claims.test.mjs
+  h_9f68edf4527855 1-1200
+tooling/toolchain-pins.test.mjs
+  h_9f68edf4527855 1-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2ca8eeefc3d84006448f1365547db8388d6f5b94",
+  "prompts": {},
+  "humans": {
+    "h_9f68edf4527855": {
+      "author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
