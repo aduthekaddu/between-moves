@@ -35,6 +35,9 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const FIX = 'Fix: update the doc in the same commit as the code it describes.';
 const SCOPE_NAME = '@between-moves/';
+// A package name ends in a letter, digit or underscore, so a `.` or `-` that follows a name at
+// the end of a sentence is punctuation and not part of it.
+const PACKAGE_REF = /@between-moves\/([A-Za-z0-9._-]*[A-Za-z0-9_])/g;
 const DIAGRAM_MARKER = '<!-- doc-claims: package-diagram -->';
 const ESLINT_CONFIG = /^eslint\.config\.[cm]?[jt]s$/;
 const TOP_LEVEL_DIRS = ['apps', 'packages', 'ops', 'tooling', 'scripts', 'architecture', '.github'];
@@ -539,7 +542,7 @@ export async function findStaleClaims(root) {
   }
 
   function checkPackageNames(doc, line, text) {
-    for (const match of text.matchAll(/@between-moves\/([A-Za-z0-9._-]+)/g)) {
+    for (const match of text.matchAll(PACKAGE_REF)) {
       const name = `${SCOPE_NAME}${match[1]}`;
       if (!packageNames.has(name)) {
         report(doc, line, 'package', `\`${name}\``, 'is not a workspace package.');
@@ -668,7 +671,7 @@ export async function findStaleClaims(root) {
     const source = readFileSync(file, 'utf8');
     const names = new Set();
     for (const text of configStrings(entries)) {
-      for (const match of text.matchAll(/@between-moves\/([A-Za-z0-9._-]+)/g)) {
+      for (const match of text.matchAll(PACKAGE_REF)) {
         names.add(`${SCOPE_NAME}${match[1]}`);
       }
     }
@@ -940,6 +943,20 @@ describe('package diagram', () => {
 });
 
 describe('prose claims', () => {
+  it('reads a package name without the punctuation that follows it', async () => {
+    const findings = await findingsFor({
+      'AGENTS.md': [
+        'Only @between-moves/domain.',
+        'And @between-moves/domain, then @between-moves/domain;',
+        'and (@between-moves/ghost).',
+      ].join('\n'),
+    });
+    assert.deepEqual(
+      findings.map((finding) => finding.replace(/ Fix: .*/, '')),
+      ['AGENTS.md:3 [package] `@between-moves/ghost` is not a workspace package.'],
+    );
+  });
+
   it('flags `imports no workspace package` when lint allows one', async () => {
     const findings = await findingsFor({
       'AGENTS.md': '- `apps/worker` imports no workspace package.\n',
