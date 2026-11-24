@@ -1,0 +1,14 @@
+tooling/doc-claims.test.mjs
+  h_9f68edf4527855 507-518,748,785,803,829,919-930
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9886e46ce8875b50a7cb3e72844e2ba23ce048a4",
+  "prompts": {},
+  "humans": {
+    "h_9f68edf4527855": {
+      "author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
