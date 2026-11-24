@@ -31,6 +31,10 @@ Set the machine up with the install steps in [README.md](README.md). The scripts
    pnpm test:e2e
    ```
 
+`pnpm check` also runs `pnpm test:docs`. That test fails when a developer doc names a path, `pnpm` script, `@between-moves/*` package, or `symbol in file` that is not in the tree, or when the package diagram and the "may import" lists in `AGENTS.md` and `ARCHITECTURE.md` differ from the `package.json` files and `eslint.config.*`. It checks every `.md` file in the repo except `CHANGELOG.md` and the generated `tooling/traceability-matrix.md`. Update the doc in the same commit as the code.
+
+The check reads one Mermaid diagram as the package diagram: the block that follows `<!-- doc-claims: package-diagram -->` in `ARCHITECTURE.md`. Keep that marker line, the `flowchart TD` header, and the `id["apps/name"]` and `a --> b` line forms. Other diagrams are not checked.
+
 `pnpm check` does not run `pnpm build`, the traceability check, or the browser tests. CI runs `pnpm build` as its own step.
 
 ## Run tests that need PostgreSQL
