@@ -504,6 +504,18 @@ export async function findStaleClaims(root) {
         real.add(`${entry.dir} --> ${workspace.find((e) => e.manifest.name === dep).dir}`);
       }
     }
+    const labelled = new Set(ids.values());
+    for (const entry of workspace.filter((e) => e.dir !== '.')) {
+      if (!labelled.has(entry.dir)) {
+        report(
+          doc,
+          chart.line,
+          'edge',
+          `node \`${entry.dir}\``,
+          'is missing from the diagram. Every workspace package needs a node, even one with no dependency.',
+        );
+      }
+    }
     for (const [edge, line] of drawn) {
       if (!real.has(edge))
         report(
@@ -733,6 +745,7 @@ describe('doc claims checker', () => {
           'flowchart TD',
           '  worker["apps/worker"]',
           '  domain["packages/domain"]',
+          '  obs["packages/observability"]',
           '  worker --> domain',
           '```',
           '```bash',
@@ -769,6 +782,7 @@ describe('doc claims checker', () => {
           '```mermaid',
           'flowchart TD',
           '  worker["apps/worker"]',
+          '  domain["packages/domain"]',
           '  obs["packages/observability"]',
           '  worker --> obs',
           '```',
@@ -786,7 +800,7 @@ describe('doc claims checker', () => {
       ['AGENTS.md:8', '[script]', 'pnpm db:gone'],
       ['AGENTS.md:10', '[edge]', 'only `apps/worker` depends on `observability`'],
       ['AGENTS.md:11', '[edge]', '`apps/worker` may import domain'],
-      ['AGENTS.md:17', '[edge]', 'diagram arrow apps/worker --> packages/observability'],
+      ['AGENTS.md:18', '[edge]', 'diagram arrow apps/worker --> packages/observability'],
       ['AGENTS.md:13', '[edge]', 'package.json dependency apps/worker --> packages/domain'],
       ['eslint.config.mjs:1', '[package]', '@between-moves/config'],
     ];
@@ -812,6 +826,7 @@ const goodDiagram = [
   'flowchart TD',
   '  worker["apps/worker"]',
   '  domain["packages/domain"]',
+  '  obs["packages/observability"]',
   '  worker --> domain',
 ];
 
@@ -899,6 +914,18 @@ describe('package diagram', () => {
   it('flags an isolated node that is not a workspace package', async () => {
     const findings = await findingsFor(doc(...goodDiagram, '  ghost["packages/config"]'));
     assert.equal(mentions(findings, 'packages/config', 'not a workspace package').length, 1);
+  });
+
+  it('flags a workspace package that has no node in the diagram', async () => {
+    const findings = await findingsFor({
+      'README.md': diagramDoc(
+        'flowchart TD',
+        '  worker["apps/worker"]',
+        '  domain["packages/domain"]',
+        '  worker --> domain',
+      ),
+    });
+    assert.equal(mentions(findings, 'node `packages/observability`', 'missing from the diagram').length, 1);
   });
 
   it('flags an edge to an id with no label', async () => {
