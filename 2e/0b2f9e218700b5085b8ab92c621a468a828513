@@ -1,0 +1,16 @@
+tooling/formal-check.mjs
+  h_9f68edf4527855 138-141,162
+tooling/formal-check.test.mjs
+  h_9f68edf4527855 22,55-60,193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2e0b2f9e218700b5085b8ab92c621a468a828513",
+  "prompts": {},
+  "humans": {
+    "h_9f68edf4527855": {
+      "author": "aduthekaddu <138025602+aduthekaddu@users.noreply.github.com>"
+    }
+  }
+}
