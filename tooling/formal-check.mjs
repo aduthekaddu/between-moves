@@ -156,7 +156,7 @@ export function judge(kind, exitCode, output) {
 
 function violationOf(output) {
   const match =
-    /^Error: (Invariant .+ is violated|Action property .+ is violated|Temporal properties were violated)\.?$/m.exec(
+    /^Error: (Invariant .+ is violated(?: by the initial state)?|Property .+ is violated by the initial state|Action property .+ is violated|Temporal properties were violated)[.:]?$/m.exec(
       output,
     );
   return match ? match[1] : null;

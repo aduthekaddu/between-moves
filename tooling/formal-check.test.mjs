@@ -56,6 +56,24 @@ describe('formal-check runner', () => {
     assert.equal(judge('bug', 13, 'Error: Evaluating action property SafeStep failed.').ok, false);
     assert.equal(judge('bug', 13, 'Error: Temporal properties were violated.').ok, true);
     assert.equal(judge('bug', 12, 'Error: Invariant Bounded is violated.').ok, true);
+    assert.equal(
+      judge('bug', 12, 'Error: Invariant StartsInRange is violated by the initial state:\nx = 9')
+        .ok,
+      true,
+    );
+    assert.equal(
+      judge('bug', 13, 'Error: Property Finishes is violated by the initial state:\nx = 9').ok,
+      true,
+    );
+  });
+
+  it('accepts an invariant violation in the initial state as the expected failure', () => {
+    const { code, out } = check(join(here, 'formal-fixtures', 'init-bug'));
+    assert.equal(code, 0, out);
+    assert.match(
+      out,
+      /ok\s+InitBug\.bug-init\.cfg fails as expected \(Invariant InRange is violated by the initial state\)/,
+    );
   });
 
   it('passes a model whose main config passes, and reports each failing bug config as the expected failure', () => {
