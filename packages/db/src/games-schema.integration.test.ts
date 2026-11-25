@@ -3,15 +3,15 @@ import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const seasonId = '01941f29-7c00-7000-8000-000000001001';
 const gameId = '01941f29-7c00-7000-8000-000000001011';
 const standardFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-integration('PostgreSQL Game records', () => {
+describe('PostgreSQL Game records', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
   let world: TwoHousesWithMembers;
 

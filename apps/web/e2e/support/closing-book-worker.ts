@@ -10,8 +10,9 @@ import { PgClosingBookRepository, PgOutboxRepository } from '@between-moves/db';
 import { createDatabase } from '@between-moves/db/database';
 import { SEASON_CLOSING_TOPIC } from '@between-moves/domain';
 import { createDeliveryMetricStubs } from '@between-moves/observability';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const database = createDatabase(process.env.TEST_DATABASE_URL ?? '');
+const database = createDatabase(requireTestDatabaseUrl());
 try {
   const clock = { now: () => new Date() };
   const closingBook = createClosingBookConsumer({

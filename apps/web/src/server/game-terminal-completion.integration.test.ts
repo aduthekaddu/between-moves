@@ -7,9 +7,9 @@ import fc from 'fast-check';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -208,7 +208,7 @@ async function replaySnapshot(database: Pool, gameId: string, initialFen: string
   return applied;
 }
 
-integration('BM-028 real-adapter terminal Game completion', () => {
+describe('BM-028 real-adapter terminal Game completion', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const repository = new PgSubmitMoveRepository(database);
   let world: TwoHousesWithMembers;

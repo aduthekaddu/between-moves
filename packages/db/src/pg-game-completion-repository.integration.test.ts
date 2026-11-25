@@ -6,9 +6,9 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { PgGameCompletionRepository } from './pg-game-completion-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const seasonId = '01941f29-7c00-7000-8000-000000000701';
 const charterId = '01941f29-7c00-7000-8000-000000000702';
@@ -88,7 +88,7 @@ async function events(database: Pool) {
   );
 }
 
-integration('PostgreSQL Game completion repository', () => {
+describe('PostgreSQL Game completion repository', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const repository = new PgGameCompletionRepository(database);
   let world: TwoHousesWithMembers;

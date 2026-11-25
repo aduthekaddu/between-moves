@@ -1,5 +1,6 @@
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import tsParser from '@typescript-eslint/parser';
+import { testDatabaseEnvRule } from './tooling/eslint-test-database-env.mjs';
 import {
   rejectVerifiedNudgeDeliveryAssertion,
   verifiedNudgeDeliveryAllowedFiles,
@@ -78,15 +79,17 @@ function workspaceImportsAllowedFrom(allowedPackages) {
   ];
 }
 
+const lintedSources = [
+  'apps/worker/src/**/*.ts',
+  'packages/{domain,application,db,adapters,observability}/src/**/*.ts',
+];
+
 export default [
   {
     ignores: ['**/dist/**', '**/node_modules/**'],
   },
   {
-    files: [
-      'apps/worker/src/**/*.ts',
-      'packages/{domain,application,db,adapters,observability}/src/**/*.ts',
-    ],
+    files: lintedSources,
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -102,6 +105,29 @@ export default [
     },
   },
   {
+    files: lintedSources,
+    ignores: ['packages/db/src/test-database/**', ...verifiedNudgeDeliveryAllowedFiles],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...testDatabaseEnvRule.slice(1),
+        ...rejectVerifiedNudgeDeliveryAssertion.slice(1),
+      ],
+    },
+  },
+  {
+    files: ['packages/db/src/test-database/**'],
+    rules: {
+      'no-restricted-syntax': rejectVerifiedNudgeDeliveryAssertion,
+    },
+  },
+  {
+    files: verifiedNudgeDeliveryAllowedFiles,
+    rules: {
+      'no-restricted-syntax': testDatabaseEnvRule,
+    },
+  },
+  {
     files: ['apps/worker/src/**/*.ts'],
     rules: {
       'no-restricted-imports': workspaceImportsAllowedFrom([
@@ -110,7 +136,6 @@ export default [
         '@between-moves/db',
         '@between-moves/adapters',
         '@between-moves/contracts',
-        '@between-moves/config',
         '@between-moves/observability',
       ]),
     },
@@ -156,7 +181,6 @@ export default [
       'no-restricted-imports': workspaceImportsAllowedFrom([
         '@between-moves/domain',
         '@between-moves/contracts',
-        '@between-moves/config',
         '@between-moves/observability',
       ]),
     },
@@ -165,16 +189,6 @@ export default [
     files: ['packages/observability/src/**/*.ts'],
     rules: {
       'no-restricted-imports': workspaceImportsAllowedFrom([]),
-    },
-  },
-  {
-    files: [
-      'apps/worker/src/**/*.ts',
-      'packages/{domain,application,db,adapters,observability}/src/**/*.ts',
-    ],
-    ignores: verifiedNudgeDeliveryAllowedFiles,
-    rules: {
-      'no-restricted-syntax': rejectVerifiedNudgeDeliveryAssertion,
     },
   },
 ];

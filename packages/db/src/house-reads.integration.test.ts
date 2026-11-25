@@ -9,9 +9,9 @@ import { PgHouseRosterRepository } from './pg-house-roster-repository';
 import { PgNightAttendanceRepository } from './pg-night-attendance-repository';
 import { PgOpenSeatReadRepository } from './pg-open-seat-read-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const now = new Date('2026-09-02T08:00:00.000Z');
 const seasonId = id(1001);
@@ -102,7 +102,7 @@ async function insertInvitation(
   return invitationId;
 }
 
-integration('PostgreSQL House roster, Invitation, open seat, and attendance reads', () => {
+describe('PostgreSQL House roster, Invitation, open seat, and attendance reads', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 4 });
   const roster = new PgHouseRosterRepository(database);
   const seats = new PgGameSeatRepository(database);

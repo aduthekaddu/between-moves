@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { jarLocation } from './formal-check.mjs';
+import { jarLocation, judge } from './formal-check.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const runner = join(here, 'formal-check.mjs');
@@ -52,6 +52,30 @@ after(() => {
 });
 
 describe('formal-check runner', () => {
+  it('counts a bug config as caught only on a real violation, not on a property evaluation error', () => {
+    assert.equal(judge('bug', 13, 'Error: Evaluating action property SafeStep failed.').ok, false);
+    assert.equal(judge('bug', 13, 'Error: Temporal properties were violated.').ok, true);
+    assert.equal(judge('bug', 12, 'Error: Invariant Bounded is violated.').ok, true);
+    assert.equal(
+      judge('bug', 12, 'Error: Invariant StartsInRange is violated by the initial state:\nx = 9')
+        .ok,
+      true,
+    );
+    assert.equal(
+      judge('bug', 13, 'Error: Property Finishes is violated by the initial state:\nx = 9').ok,
+      true,
+    );
+  });
+
+  it('accepts an invariant violation in the initial state as the expected failure', () => {
+    const { code, out } = check(join(here, 'formal-fixtures', 'init-bug'));
+    assert.equal(code, 0, out);
+    assert.match(
+      out,
+      /ok\s+InitBug\.bug-init\.cfg fails as expected \(Invariant InRange is violated by the initial state\)/,
+    );
+  });
+
   it('passes a model whose main config passes, and reports each failing bug config as the expected failure', () => {
     const { code, out } = check(fixture);
     assert.equal(code, 0, out);
@@ -184,7 +208,7 @@ describe('formal-check runner', () => {
 
   it('accepts a relative FORMAL_CACHE_DIR, which TLC must not read from its own working folder', () => {
     const cwd = folder('formal-cache-cwd-');
-    const downloaded = jarLocation({});
+    const downloaded = jarLocation(process.env);
     assert.ok(existsSync(downloaded), `the earlier tests should have downloaded ${downloaded}`);
     const inCwd = jarLocation({ FORMAL_CACHE_DIR: join(cwd, 'cache') });
     mkdirSync(dirname(inCwd), { recursive: true });

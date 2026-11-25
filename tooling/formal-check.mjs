@@ -135,7 +135,10 @@ export function judge(kind, exitCode, output) {
       : { ok: false, summary: `expected to pass, TLC exited ${exitCode}`, showOutput: true };
   }
   if (exitCode === EXIT_SAFETY_VIOLATION || exitCode === EXIT_LIVENESS_VIOLATION) {
-    return { ok: true, summary: `fails as expected (${violationOf(output)})` };
+    // TLC maps TLC_ACTION_PROPERTY_EVALUATION_FAILED to the liveness exit code, so the code
+    // alone cannot tell a caught bug from a broken property. Require a violation line.
+    const violation = violationOf(output);
+    if (violation) return { ok: true, summary: `fails as expected (${violation})` };
   }
   if (exitCode === EXIT_PASS) {
     return {
@@ -153,10 +156,10 @@ export function judge(kind, exitCode, output) {
 
 function violationOf(output) {
   const match =
-    /^Error: (Invariant .+ is violated|Action property .+ is violated|Temporal properties were violated)\.?$/m.exec(
+    /^Error: (Invariant .+ is violated(?: by the initial state)?|Property .+ is violated by the initial state|Action property .+ is violated|Temporal properties were violated)[.:]?$/m.exec(
       output,
     );
-  return match ? match[1] : 'violation';
+  return match ? match[1] : null;
 }
 
 function errorOf(output) {

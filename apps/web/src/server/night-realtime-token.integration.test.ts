@@ -14,9 +14,9 @@ import { fakeAuthorizationContext, FakeClock } from '@between-moves/domain/testi
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -46,7 +46,7 @@ function viewer(user: {
   };
 }
 
-integration('BM-037 realtime token scoping', () => {
+describe('BM-037 realtime token scoping', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const tokens = new HmacRealtimeTokenIssuer({
     appId: 'realtime-integration-app',

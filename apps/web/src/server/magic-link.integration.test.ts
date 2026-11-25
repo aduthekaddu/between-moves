@@ -22,15 +22,14 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../config';
 import { createBetterAuthOptions } from './auth-options';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
-const databaseUrl = testDatabaseUrl ?? 'postgresql://app:test@db.example.test/app?sslmode=require';
+const databaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
 
-integration('BM-008 magic-link full flow', () => {
+describe('BM-008 magic-link full flow', () => {
   const database = createDatabase(databaseUrl);
   const clock = new FakeClock(new Date());
   const codec = new AesGcmMagicLinkDeliveryCodec(

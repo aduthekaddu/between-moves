@@ -4,9 +4,9 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { PgHouseCreationRepository } from './pg-house-creation-repository';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const ownerUserId = '01941f29-7c00-7000-8000-000000000101';
 
@@ -25,7 +25,7 @@ function input(suffix = '201'): HouseCreationInput {
   };
 }
 
-integration('House creation persistence', () => {
+describe('House creation persistence', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 6 });
   const repository = new PgHouseCreationRepository(database);
 

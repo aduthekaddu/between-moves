@@ -7,8 +7,9 @@ import {
 } from '@between-moves/db/testing';
 import { expect, test, type Page } from '@playwright/test';
 import { makeSignature } from 'better-auth/crypto';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const seasonId = '01941f29-7c00-7000-8000-000000000921';
 const gameId = '01941f29-7c00-7000-8000-000000000922';
@@ -121,10 +122,8 @@ async function seedMoveThroughCommand(
 }
 
 test.describe('correspondence Move entry', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required for Move-entry E2E');
-
   test.beforeAll(async () => {
-    database = createDatabase(testDatabaseUrl ?? '');
+    database = createDatabase(testDatabaseUrl);
   });
 
   test.beforeEach(async () => {

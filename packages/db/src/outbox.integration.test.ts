@@ -4,9 +4,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { enqueueOutboxEvent } from './enqueue-outbox-event';
 import { migrateDown, migrateUp } from './migrations';
 import { PgOutboxRepository } from './outbox-repository';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const NOW = new Date('2026-08-29T10:00:00.000Z');
 
@@ -23,7 +23,7 @@ function event(id: string, sequence: bigint) {
   };
 }
 
-integration('PostgreSQL outbox', () => {
+describe('PostgreSQL outbox', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
   const repository = new PgOutboxRepository(database);
 

@@ -1,13 +1,12 @@
+import { requireE2eAppDatabaseUrl } from '@between-moves/db/test-database';
+
 const inheritedEnvironment = Object.fromEntries(
   Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
 );
 
 export const e2eEnvironment: Record<string, string> = {
   ...inheritedEnvironment,
-  DATABASE_URL:
-    process.env.DATABASE_URL ??
-    process.env.TEST_DATABASE_URL ??
-    'postgresql://app:test@db.example.test/app?sslmode=require',
+  DATABASE_URL: requireE2eAppDatabaseUrl(),
   BETTER_AUTH_SECRET: 'e2e-better-auth-secret-at-least-32-characters',
   APP_ORIGIN: 'http://127.0.0.1:3100',
   RESEND_API_KEY: 're_e2e_key',

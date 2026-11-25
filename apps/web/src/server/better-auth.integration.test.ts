@@ -6,15 +6,14 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../config';
 import { createBetterAuthOptions } from './auth-options';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const databaseUrl = testDatabaseUrl ?? 'postgresql://app:test@db.example.test/app?sslmode=require';
-const integration = testDatabaseUrl ? describe : describe.skip;
+const databaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
 
-integration('Better Auth PostgreSQL sessions', () => {
+describe('Better Auth PostgreSQL sessions', () => {
   const database = createDatabase(databaseUrl);
   const config = loadConfig({
     DATABASE_URL: databaseUrl,

@@ -5,12 +5,12 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { PgMembershipAdminRepository } from './pg-membership-admin-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 
-integration('BM-015 PostgreSQL membership administration', () => {
+describe('BM-015 PostgreSQL membership administration', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const repository = new PgMembershipAdminRepository(database);
   let houses: TwoHousesWithMembers;

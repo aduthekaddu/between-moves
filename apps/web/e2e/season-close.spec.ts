@@ -7,8 +7,9 @@ import {
   type TwoHousesWithMembers,
 } from '@between-moves/db/testing';
 import { makeSignature } from 'better-auth/crypto';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const seasonId = '01941f29-7c00-7000-8000-000000004901';
 const charterId = '01941f29-7c00-7000-8000-000000004902';
@@ -37,10 +38,8 @@ async function expectAccessibleNarrowLayout(page: Page): Promise<void> {
 }
 
 test.describe('BM-047 Season close', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required for Season close E2E');
-
   test.beforeAll(async () => {
-    database = createDatabase(testDatabaseUrl ?? '');
+    database = createDatabase(testDatabaseUrl);
     await resetTwoHousesWithMembers(database.pool);
     world = await twoHousesWithMembers(database.pool);
     const { first } = fixture();

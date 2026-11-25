@@ -9,19 +9,17 @@ on:
 
 jobs:
   dependency-security:
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11.24.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
       - run: pnpm audit --audit-level high
 
   secret-security:
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
@@ -35,7 +33,7 @@ jobs:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   sast-security:
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,15 +45,13 @@ jobs:
           semgrep scan --config p/owasp-top-ten --severity ERROR --error
 
   traceability:
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11.24.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
       - run: pnpm traceability:check
 
@@ -64,11 +60,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11.24.0
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
       - uses: actions/setup-java@v4
         with:
@@ -86,20 +80,18 @@ jobs:
         run: pnpm formal:check
 
   quality:
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11.24.0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
 
       - name: Install dependencies
@@ -113,6 +105,9 @@ jobs:
             echo '::error::Potential committed secret detected'
             exit 1
           fi
+
+      - name: Format
+        run: pnpm format:check
 
       - name: Lint
         run: pnpm lint
@@ -130,89 +125,34 @@ jobs:
     needs: quality
     # Playwright 1.55.1 has no Chromium build for ubuntu-latest once that image is 26.04.
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
-    services:
-      postgres:
-        image: postgres:16.10-bookworm
-        env:
-          POSTGRES_DB: between_moves_test
-          POSTGRES_PASSWORD: postgres-test-only
-          POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d between_moves_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11.24.0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .node-version
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Enable PostgreSQL TLS and create runtime role
-        env:
-          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
-          PGPASSWORD: postgres-test-only
-        run: |
-          openssl req -new -x509 -nodes -days 1 -subj '/CN=localhost' \
-            -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
-            -keyout /tmp/postgres-server.key -out /tmp/postgres-server.crt
-          docker cp /tmp/postgres-server.key "$POSTGRES_CONTAINER:/var/lib/postgresql/data/server.key"
-          docker cp /tmp/postgres-server.crt "$POSTGRES_CONTAINER:/var/lib/postgresql/data/server.crt"
-          docker exec --user root "$POSTGRES_CONTAINER" sh -c \
-            'chown postgres:postgres /var/lib/postgresql/data/server.* && chmod 600 /var/lib/postgresql/data/server.key'
-          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d between_moves_test -v ON_ERROR_STOP=1 \
-            -c "alter system set ssl = 'on'" \
-            -c "alter system set ssl_cert_file = 'server.crt'" \
-            -c "alter system set ssl_key_file = 'server.key'"
-          docker restart "$POSTGRES_CONTAINER"
-          until docker exec "$POSTGRES_CONTAINER" pg_isready -U postgres -d between_moves_test; do sleep 1; done
-          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d between_moves_test -v ON_ERROR_STOP=1 -c \
-            "create role between_moves_app login password 'runtime-test-only'; revoke create on schema public from public; grant connect on database between_moves_test to between_moves_app; grant usage on schema public to between_moves_app;"
+      # The same script sets up the database for local runs, so CI and laptops cannot drift.
+      - name: Start TLS PostgreSQL and runtime role
+        run: pnpm db:test:up
 
-      - name: PostgreSQL migration and round-trip integration tests
-        env:
-          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
-          TEST_DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
-        run: pnpm --filter @between-moves/db test
-
-      - name: Better Auth PostgreSQL integration tests
-        env:
-          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
-          TEST_DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
-        run: pnpm --filter @between-moves/web test
-
-      - name: Prepare migrated database for end-to-end auth
-        env:
-          DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
-          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
-          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
-        run: |
-          pnpm db:migrate
-          docker exec "$POSTGRES_CONTAINER" psql -U postgres -d between_moves_test -v ON_ERROR_STOP=1 \
-            -c "grant select, insert, update, delete on all tables in schema public to between_moves_app"
+      # Fails when the database is unreachable, a test skips, or no test runs.
+      - name: PostgreSQL integration tests
+        run: pnpm test:integration
 
       - name: Install Playwright Chromium
         run: pnpm --filter @between-moves/web exec playwright install --with-deps chromium
 
-      - name: End-to-end test with database readiness
-        env:
-          DATABASE_URL: postgresql://between_moves_app:runtime-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
-          TEST_DATABASE_URL: postgresql://postgres:postgres-test-only@127.0.0.1:5432/between_moves_test?sslmode=require
-          NODE_EXTRA_CA_CERTS: /tmp/postgres-server.crt
+      - name: End-to-end tests
         run: pnpm test:e2e
 
       - name: Upload Playwright report
@@ -222,3 +162,7 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/
           retention-days: 30
+
+      - name: Remove TLS PostgreSQL
+        if: ${{ always() }}
+        run: pnpm db:test:down

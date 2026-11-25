@@ -10,8 +10,9 @@ import { makeSignature } from 'better-auth/crypto';
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const origin = 'http://127.0.0.1:3100';
 const id = (value: number) => `01941f29-7c00-7000-8000-${String(value).padStart(12, '0')}`;
@@ -273,10 +274,8 @@ async function runClosingBookWorker(): Promise<void> {
 }
 
 test.describe('BM-048 Closing Book', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required for Closing Book E2E');
-
   test.beforeAll(async () => {
-    database = createDatabase(testDatabaseUrl ?? '');
+    database = createDatabase(testDatabaseUrl);
     await purgeFixtureLedger(database);
     await resetTwoHousesWithMembers(database.pool);
     world = await twoHousesWithMembers(database.pool);

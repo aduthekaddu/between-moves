@@ -69,6 +69,7 @@ export function createInvitationRequestHandler(
       );
     }
 
+    // [BM-051:AC-2] Over the create threshold: a fixed 429 problem with Retry-After, no account data.
     const limit = await dependencies.rateLimit(request, viewer.userId, 'create');
     if (!limit.allowed) {
       return problem(request, 429, 'rate_limited', 'Too many requests', 'Try again later.', {

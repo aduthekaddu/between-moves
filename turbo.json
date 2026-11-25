@@ -13,8 +13,10 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "test": {
-      "env": ["NODE_EXTRA_CA_CERTS", "TEST_DATABASE_URL"]
+    "test": {},
+    "test:integration": {
+      "cache": false,
+      "env": ["NODE_EXTRA_CA_CERTS", "TEST_DATABASE_URL", "TEST_RUNTIME_DATABASE_URL"]
     },
     "test:e2e": {
       "cache": false,
@@ -22,7 +24,8 @@
         "DATABASE_URL",
         "NODE_EXTRA_CA_CERTS",
         "PLAYWRIGHT_BROWSERS_PATH",
-        "TEST_DATABASE_URL"
+        "TEST_DATABASE_URL",
+        "TEST_RUNTIME_DATABASE_URL"
       ]
     }
   }

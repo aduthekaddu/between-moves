@@ -11,8 +11,9 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { handleAnalysisCallback } from './analysis-callback-handler';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const integration = process.env.TEST_DATABASE_URL ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -22,8 +23,8 @@ const secret = 'candidate-integration-secret';
 const gameId = id(4901);
 const jobId = id(4902);
 
-integration('BM-045 analyzed Game to puzzle candidate', () => {
-  const database = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
+describe('BM-045 analyzed Game to puzzle candidate', () => {
+  const database = new Pool({ connectionString: testDatabaseUrl });
   const jobs = new PgAnalysisJobRepository(database);
   const candidates = new PgPuzzleCandidateRepository(database);
   let houseId: string;

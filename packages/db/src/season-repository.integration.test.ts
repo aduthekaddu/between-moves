@@ -6,9 +6,9 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { PgSeasonRepository } from './pg-season-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const firstSeasonId = '01941f29-7c00-7000-8000-000000000801';
 const secondSeasonId = '01941f29-7c00-7000-8000-000000000802';
@@ -65,7 +65,7 @@ async function prepareDraft(
   });
 }
 
-integration('PostgreSQL Season repository', () => {
+describe('PostgreSQL Season repository', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const repository = new PgSeasonRepository(database);
   let world: TwoHousesWithMembers;

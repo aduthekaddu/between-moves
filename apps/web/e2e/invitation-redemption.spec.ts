@@ -6,8 +6,9 @@ import {
 } from '@between-moves/db/testing';
 import { expect, test } from '@playwright/test';
 import { createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const inviteeEmail = 'bm-016-invitee@example.test';
 let database: Database | undefined;
@@ -17,11 +18,6 @@ let invitationToken = '';
 interface MagicLinkMessage {
   readonly email: string;
   readonly signInUrl: string;
-}
-
-function requiredDatabaseUrl(): string {
-  if (testDatabaseUrl === undefined) throw new Error('TEST_DATABASE_URL is required');
-  return testDatabaseUrl;
 }
 
 function fixture(): TwoHousesWithMembers {
@@ -69,10 +65,8 @@ function openMagicLink(sealed: string): MagicLinkMessage {
 }
 
 test.describe('Invitation redemption through magic-link sign-in', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required for Invitation E2E');
-
   test.beforeAll(async () => {
-    database = createDatabase(requiredDatabaseUrl());
+    database = createDatabase(testDatabaseUrl);
     await resetTwoHousesWithMembers(database.pool);
     await database.pool.query('delete from users where email = $1', [inviteeEmail]);
     await database.pool.query(

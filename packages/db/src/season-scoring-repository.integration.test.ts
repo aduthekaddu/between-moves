@@ -12,9 +12,9 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgGameCompletionRepository } from './pg-game-completion-repository';
 import { PgSeasonScoringRepository } from './pg-season-scoring-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const seasonId = '01941f29-7c00-7000-8000-000000001701';
 const charterId = '01941f29-7c00-7000-8000-000000001702';
@@ -24,7 +24,7 @@ function id(suffix: number): string {
   return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
 }
 
-integration('PostgreSQL Season scoring ledger', () => {
+describe('PostgreSQL Season scoring ledger', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 12 });
   const repository = new PgSeasonScoringRepository(database);
   let world: TwoHousesWithMembers;
@@ -335,6 +335,45 @@ integration('PostgreSQL Season scoring ledger', () => {
     await expect(
       repository.findSeasonAt(world.first.houseId, new Date('2026-09-12T00:00:00.000Z')),
     ).resolves.toBe(seasonId);
+    // both ends of the Season are inside it, the instants just outside are not
+    await expect(repository.findSeasonAt(world.first.houseId, startedAt)).resolves.toBe(seasonId);
+    await expect(
+      repository.findSeasonAt(world.first.houseId, new Date('2026-09-29T00:00:00.000Z')),
+    ).resolves.toBe(seasonId);
+    await expect(
+      repository.findSeasonAt(world.first.houseId, new Date('2026-09-29T00:00:00.001Z')),
+    ).resolves.toBeNull();
+    await expect(
+      repository.findSeasonAt(world.first.houseId, new Date('2026-08-31T23:59:59.999Z')),
+    ).resolves.toBeNull();
+  });
+
+  it('[BM-034] [DR-SCORE-01..08] refuses an award that breaks the fixed recipe and writes nothing', async () => {
+    const member = world.first.member.membershipId;
+    const puzzle = publishedPuzzleScore(id(2_801), member);
+    const night = nightAttendanceScore(id(2_802), member);
+    const rejected = { code: 'validation_failed' };
+
+    // a cap other than the Season's fixed cap
+    await expect(append({ ...puzzle, cap: 99 })).rejects.toMatchObject(rejected);
+    // points that do not match the source kind
+    await expect(append({ ...puzzle, points: 5 })).rejects.toMatchObject(rejected);
+    // two entries for one Member and one source
+    await expect(append([puzzle, puzzle])).rejects.toMatchObject(rejected);
+    // one scoring event must have one source
+    await expect(append([puzzle, night])).rejects.toMatchObject(rejected);
+    // an invalid timestamp
+    await expect(append(puzzle, new Date('invalid'))).rejects.toMatchObject(rejected);
+
+    await expect(
+      database.query('select count(*)::int as count from season_score_ledger'),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+    await expect(
+      database.query(
+        `select count(*)::int as count from outbox_events where topic='season.result-recorded'`,
+      ),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+    await expect(append(puzzle)).resolves.toMatchObject({ outcome: 'recorded' });
   });
 
   it('[BM-034] [DR-SCORE-07] rejects cross-House ledger writes and standings reads', async () => {

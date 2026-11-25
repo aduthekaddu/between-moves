@@ -5,16 +5,16 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { migrateDown, migrateUp } from './migrations';
 import { PgGameNoteRepository } from './pg-game-note-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 
 function id(suffix: number): string {
   return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
 }
 
-integration('PostgreSQL Game note repository', () => {
+describe('PostgreSQL Game note repository', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
   const repository = new PgGameNoteRepository(database);
   const gameId = id(951);
@@ -101,6 +101,43 @@ integration('PostgreSQL Game note repository', () => {
       currentMembershipId: world.first.member.membershipId,
       notes: [{ body: 'Edited reflection', editedAt }],
     });
+  });
+
+  it('[BM-032] lists notes oldest first and names a Member who left as Former member', async () => {
+    const owner = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.member.userId,
+    });
+    const other = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.nonOwner.userId,
+    });
+    await expect(repository.readForGame(owner, gameId)).resolves.toMatchObject({
+      currentMembershipId: world.first.member.membershipId,
+      notes: [],
+    });
+
+    await repository.save(other, {
+      id: id(960),
+      gameId,
+      body: 'Opponent first',
+      savedAt: new Date('2026-09-16T08:00:00.000Z'),
+    });
+    await repository.save(owner, {
+      id: id(961),
+      gameId,
+      body: 'Owner second',
+      savedAt: new Date('2026-09-16T08:05:00.000Z'),
+    });
+    await database.query(`update memberships set status = 'left', left_at = now() where id = $1`, [
+      world.first.nonOwner.membershipId,
+    ]);
+
+    const view = await repository.readForGame(owner, gameId);
+    expect(view?.notes.map((note) => [note.body, note.authorDisplayName])).toEqual([
+      ['Opponent first', 'Former member'],
+      ['Owner second', world.first.member.displayName],
+    ]);
   });
 
   it('[BM-032] rejects empty and over-2000-character notes at the database boundary', async () => {

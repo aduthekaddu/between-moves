@@ -6,6 +6,8 @@ Between Moves is a pnpm workspace. `apps/web` serves the house in the browser. `
 
 An arrow means the package depends on the one it points at. The edges are the `@between-moves/*` entries in each `package.json`.
 
+<!-- doc-claims: package-diagram -->
+
 ```mermaid
 flowchart TD
   web["apps/web"]
@@ -36,7 +38,7 @@ flowchart TD
 
 `packages/contracts` and `packages/domain` and `packages/observability` depend on no workspace package. `apps/web` is the only workspace package that declares a dependency on `contracts`.
 
-`eslint.config.mjs` allows a wider set of imports than those edges. It lets `domain` import `contracts` as a type, and it names `@between-moves/config`, which is not a package. Web configuration is the module `apps/web/src/config/index.ts`.
+`eslint.config.mjs` allows a wider set of imports than those edges. It lets `domain` import `contracts` as a type. Web configuration is the module `apps/web/src/config/index.ts`.
 
 The root boundary lint covers `apps/worker` and `packages/domain`, `packages/application`, `packages/db`, `packages/adapters`, and `packages/observability`. It does not cover `apps/web` or `packages/contracts`. Web lint is `apps/web/eslint.config.mjs`, which adds the Next.js rules and `react/no-danger`. Contracts has no ESLint config in this repo.
 

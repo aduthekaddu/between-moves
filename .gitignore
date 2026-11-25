@@ -20,9 +20,6 @@ next-env.d.ts
 # Turborepo
 .turbo/
 
-# Drizzle Kit drafts; reviewed SQL lives in packages/db/migrations/NNNN_*/
-packages/db/migrations/generated/
-
 # Caches
 .cache/
 .eslintcache
@@ -53,3 +50,6 @@ test-results/
 **/.env.local
 **/.env.*.local
 *.dump
+
+# Disposable TLS PostgreSQL from `pnpm db:test:up`
+.test-database/

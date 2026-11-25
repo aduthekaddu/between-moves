@@ -18,9 +18,9 @@ import { createDeliveryMetricStubs } from '@between-moves/observability';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -54,7 +54,7 @@ async function createUpcomingGame(database: Pool, world: TwoHousesWithMembers): 
   );
 }
 
-integration('Nudge scheduling and delivery flow', () => {
+describe('Nudge scheduling and delivery flow', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   let world: TwoHousesWithMembers;
 

@@ -156,7 +156,8 @@ export class PgInvitationRedemptionRepository implements InvitationRedemptionRep
       const invitation = await lockInvitation(client, input);
       const invitationId = parseString(invitation.invitation_id, 'id');
       const houseId = parseString(invitation.house_id, 'House id');
-      const inviteKind = parseOptionalEmail(invitation.intended_email) === null ? 'shared' : 'email';
+      const inviteKind =
+        parseOptionalEmail(invitation.intended_email) === null ? 'shared' : 'email';
       const memberCap = await lockHouse(client, houseId);
       const membership = await findMembership(client, houseId, input.userId, invitationId);
       const membershipStatus =
