@@ -28,11 +28,7 @@ export type NightPresenceListener = (snapshot: NightPresenceSnapshot) => void;
 
 export interface NightPresenceStore extends NightPresenceRepository {
   readPublic(houseId: string, nightId: string, at: Date): Promise<NightPresenceSnapshot>;
-  subscribe?(
-    houseId: string,
-    nightId: string,
-    listener: NightPresenceListener,
-  ): () => void;
+  subscribe?(houseId: string, nightId: string, listener: NightPresenceListener): () => void;
 }
 
 function key(houseId: string, nightId: string): string {

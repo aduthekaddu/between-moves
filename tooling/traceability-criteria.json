@@ -2,27 +2,99 @@
   {
     "id": "BM-051:AC-1",
     "criterion": "Every response carries a nonce CSP, frame denial, nosniff, referrer policy, and HSTS without unsafe-inline.",
+    "requires": [
+      "frame-ancestors",
+      "nonce",
+      "not:unsafe-inline",
+      "x-frame-options",
+      "nosniff",
+      "referrer-policy",
+      "strict-transport-security"
+    ],
     "implementation": ["apps/web/src/proxy.ts", "apps/web/src/app/layout.tsx"],
-    "tests": ["apps/web/src/proxy.test.ts", "apps/web/e2e/security-headers.spec.ts"]
+    "tests": [
+      {
+        "path": "apps/web/src/proxy.test.ts",
+        "asserts": [
+          "frame-ancestors",
+          "nonce",
+          "not:unsafe-inline",
+          "x-frame-options",
+          "nosniff",
+          "referrer-policy",
+          "strict-transport-security"
+        ]
+      },
+      {
+        "path": "apps/web/e2e/security-headers.spec.ts",
+        "asserts": [
+          "frame-ancestors",
+          "nonce",
+          "not:unsafe-inline",
+          "x-frame-options",
+          "nosniff",
+          "referrer-policy",
+          "strict-transport-security"
+        ]
+      }
+    ]
   },
   {
     "id": "BM-051:AC-2",
     "criterion": "Moves, chat, reactions, and invitations return non-disclosing 429 responses with Retry-After after their thresholds.",
+    "requires": ["429", "retry-after", "not:userId"],
     "implementation": [
       "apps/web/src/server/rate-limit.ts",
       "apps/web/src/kernel/invitation-rate-limit.ts",
+      "apps/web/src/server/submit-move-handler.ts",
+      "apps/web/src/server/house-chat-handler.ts",
+      "apps/web/src/server/game-reaction-handler.ts",
+      "apps/web/src/app/api/houses/[houseId]/invitations/handler.ts",
+      "apps/web/src/app/api/invitations/[token]/handler.ts",
+      "apps/web/src/app/api/invitations/[token]/redeem/handler.ts",
       "packages/observability/src/rate-limit-metrics.ts"
     ],
     "tests": [
-      "apps/web/src/kernel/security-rate-limits.test.ts",
-      "packages/observability/src/logger.test.ts",
-      "packages/observability/src/rate-limit-metrics.test.ts"
+      {
+        "path": "apps/web/src/kernel/security-rate-limits.test.ts",
+        "asserts": ["retryAfterSeconds", "not:private-account-id"]
+      },
+      {
+        "path": "apps/web/src/server/submit-move-handler.test.ts",
+        "asserts": ["429", "retry-after", "rate_limited", "not:userId"]
+      },
+      {
+        "path": "apps/web/src/server/house-chat-handler.test.ts",
+        "asserts": ["429", "retry-after", "rate_limited", "not:userId"]
+      },
+      {
+        "path": "apps/web/src/server/game-reaction-handler.test.ts",
+        "asserts": ["429", "retry-after", "rate_limited", "not:userId"]
+      },
+      {
+        "path": "apps/web/src/app/api/houses/[houseId]/invitations/handler.test.ts",
+        "asserts": ["429", "retry-after", "rate_limited", "not:userId"]
+      },
+      {
+        "path": "apps/web/src/app/api/invitations/[token]/handler.test.ts",
+        "asserts": ["429", "retry-after", "rate_limited", "not:userId"]
+      },
+      {
+        "path": "apps/web/src/app/api/invitations/[token]/redeem/handler.test.ts",
+        "asserts": ["429", "retry-after", "rate_limited", "not:userId"]
+      }
     ]
   },
   {
     "id": "BM-051:AC-3",
     "criterion": "PR CI blocks on high-severity dependency, secret, and SAST findings and unmapped criteria.",
+    "requires": ["Unmapped", "MISSING"],
     "implementation": [".github/workflows/ci.yml", "tooling/traceability.mjs"],
-    "tests": ["tooling/traceability.test.mjs"]
+    "tests": [
+      {
+        "path": "tooling/traceability.test.mjs",
+        "asserts": ["Unmapped", "MISSING"]
+      }
+    ]
   }
 ]

@@ -89,6 +89,37 @@ describe('POST /api/houses/{houseId}/games/{gameId}/reactions', () => {
     expect(deps.setGameReaction).not.toHaveBeenCalled();
   });
 
+  it('[BM-051:AC-2] answers Reaction 61 with a non-disclosing 429 and Retry-After', async () => {
+    const deps = dependencies();
+    const handler = createGameReactionHandler({
+      ...deps,
+      limitReaction: createReactionRateLimit({
+        primary: new InMemoryRateLimiter(),
+        fallback: new InMemoryRateLimiter(),
+        incrementRateLimitHit: vi.fn(),
+        onStoreError: vi.fn(),
+      }),
+    });
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      expect((await handler(request(), houseId, gameId)).status).toBe(200);
+    }
+
+    const limited = await handler(request(), houseId, gameId);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0);
+    const body: unknown = await limited.json();
+    expect(body).toEqual({
+      type: 'https://betweenmoves.app/problems/rate_limited',
+      title: 'Too many Reactions',
+      status: 429,
+      code: 'rate_limited',
+      detail: 'Try reacting again shortly.',
+      instance: `/api/houses/${houseId}/games/${gameId}/reactions`,
+    });
+    expect(JSON.stringify(body)).not.toContain(viewer.userId);
+    expect(deps.setGameReaction).toHaveBeenCalledTimes(60);
+  });
+
   it('[BM-031] [DR-SEC-04] returns 429 at the real account boundary', async () => {
     const deps = dependencies();
     const handler = createGameReactionHandler({

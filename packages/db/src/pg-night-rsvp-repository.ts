@@ -87,7 +87,14 @@ export class PgNightRsvpRepository implements NightRsvpRepository {
                updated_at = excluded.updated_at
         returning id::text, house_id::text, night_id::text, membership_id::text,
                   status, responded_at`,
-        [input.rsvpId, context.houseId, input.nightId, membershipId, input.status, input.respondedAt],
+        [
+          input.rsvpId,
+          context.houseId,
+          input.nightId,
+          membershipId,
+          input.status,
+          input.respondedAt,
+        ],
       );
       return parseRsvp(result.rows[0] as RsvpRow);
     });
