@@ -928,7 +928,10 @@ describe('package diagram', () => {
         '  worker --> domain',
       ),
     });
-    assert.equal(mentions(findings, 'node `packages/observability`', 'missing from the diagram').length, 1);
+    assert.equal(
+      mentions(findings, 'node `packages/observability`', 'missing from the diagram').length,
+      1,
+    );
   });
 
   it('flags an edge to an id with no label', async () => {
