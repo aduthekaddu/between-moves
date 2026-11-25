@@ -24,8 +24,7 @@ export interface NightPresenceRedisClient {
 }
 
 export type UpstashNightPresenceStoreOptions =
-  | { readonly url: string; readonly token: string }
-  | { readonly client: NightPresenceRedisClient };
+  { readonly url: string; readonly token: string } | { readonly client: NightPresenceRedisClient };
 
 function scopeKey(houseId: string, nightId: string): string {
   return `between-moves:night-presence:${houseId}:${nightId}`;

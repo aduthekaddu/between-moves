@@ -5,6 +5,8 @@ import {
 } from '@between-moves/domain';
 import type { StructuredLogger } from '@between-moves/observability';
 import { describe, expect, it, vi } from 'vitest';
+import { createInvitationRateLimit } from '../../../../../kernel/invitation-rate-limit';
+import { InMemoryRateLimiter } from '../../../../../kernel/rate-limit';
 import { createInvitationRequestHandler } from './handler';
 
 const houseId = '01941f29-7c00-7000-8000-000000000201';
@@ -76,6 +78,36 @@ describe('POST /api/houses/{houseId}/invitations', () => {
       viewer,
     });
     expect(JSON.stringify(deps.logger.log.mock.calls)).not.toContain('secret-raw-invitation-token');
+  });
+
+  it('[BM-051:AC-2] answers Invitation create 21 with a non-disclosing 429 and Retry-After', async () => {
+    const deps = dependencies();
+    const handler = createInvitationRequestHandler({
+      ...deps,
+      rateLimit: createInvitationRateLimit({
+        primary: new InMemoryRateLimiter(),
+        incrementRateLimitHit: vi.fn(),
+        onStoreError: vi.fn(),
+      }),
+    });
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      expect((await handler(request({ kind: 'shared' }), houseId)).status).toBe(201);
+    }
+
+    const limited = await handler(request({ kind: 'shared' }), houseId);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0);
+    const body: unknown = await limited.json();
+    expect(body).toEqual({
+      type: 'https://betweenmoves.app/problems/rate_limited',
+      title: 'Too many requests',
+      status: 429,
+      code: 'rate_limited',
+      detail: 'Try again later.',
+      instance: `/api/houses/${houseId}/invitations`,
+    });
+    expect(JSON.stringify(body)).not.toContain(viewer.userId);
+    expect(deps.createInvitation).toHaveBeenCalledTimes(20);
   });
 
   it('[BM-014] [DR-INVITE-05] accepts only a valid email-restricted single Invitation', async () => {

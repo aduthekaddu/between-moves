@@ -39,6 +39,7 @@ export function createInspectInvitationRequestHandler(
       );
     }
 
+    // [BM-051:AC-2] Over the inspect threshold: a fixed 429 problem with Retry-After, no account data.
     const limit = await dependencies.rateLimit(request, viewer.userId, 'inspect');
     if (!limit.allowed) {
       return problem(request, 429, 'rate_limited', 'Too many requests', 'Try again later.', {

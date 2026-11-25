@@ -103,6 +103,43 @@ integration('PostgreSQL Game note repository', () => {
     });
   });
 
+  it('[BM-032] lists notes oldest first and names a Member who left as Former member', async () => {
+    const owner = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.member.userId,
+    });
+    const other = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.nonOwner.userId,
+    });
+    await expect(repository.readForGame(owner, gameId)).resolves.toMatchObject({
+      currentMembershipId: world.first.member.membershipId,
+      notes: [],
+    });
+
+    await repository.save(other, {
+      id: id(960),
+      gameId,
+      body: 'Opponent first',
+      savedAt: new Date('2026-09-16T08:00:00.000Z'),
+    });
+    await repository.save(owner, {
+      id: id(961),
+      gameId,
+      body: 'Owner second',
+      savedAt: new Date('2026-09-16T08:05:00.000Z'),
+    });
+    await database.query(`update memberships set status = 'left', left_at = now() where id = $1`, [
+      world.first.nonOwner.membershipId,
+    ]);
+
+    const view = await repository.readForGame(owner, gameId);
+    expect(view?.notes.map((note) => [note.body, note.authorDisplayName])).toEqual([
+      ['Opponent first', 'Former member'],
+      ['Owner second', world.first.member.displayName],
+    ]);
+  });
+
   it('[BM-032] rejects empty and over-2000-character notes at the database boundary', async () => {
     const context = fakeAuthorizationContext({
       houseId: world.first.houseId,
