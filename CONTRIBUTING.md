@@ -12,6 +12,8 @@ Set the machine up with the install steps in [README.md](README.md). The scripts
 
    When it reports formatting, run `pnpm format` and run `pnpm check` again. CI runs the same format check and fails the pull request on any unformatted file.
 
+   Lint includes `pnpm lint:css`. It rejects a field `font-size` in `apps/web` CSS that it cannot prove is 1rem or more, and any change to the base rules in `globals.css`. Its message names the fix. Control sizes and covers are checked only by `pnpm test:e2e`.
+
 2. When the change touches a BM-051 security criterion, regenerate the matrix and check it.
 
    ```bash

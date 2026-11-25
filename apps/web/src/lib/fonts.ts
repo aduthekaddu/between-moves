@@ -13,7 +13,11 @@ export const anek = localFont({
   adjustFontFallback: 'Arial',
 });
 
-/** IBM Plex Mono (OFL) for notation, clocks, postmarks and captions. */
+/**
+ * IBM Plex Mono (OFL) for notation, clocks, postmarks and captions. Not preloaded: next/font
+ * preloads every weight on every page, and pages that never draw a weight (sign-in skips 500)
+ * would fetch it anyway. e2e/page-loading.spec.ts fails on such a preload.
+ */
 export const plexMono = localFont({
   src: [
     { path: '../fonts/plex-mono-regular.woff2', weight: '400', style: 'normal' },
@@ -22,5 +26,6 @@ export const plexMono = localFont({
   ],
   variable: '--font-plex',
   display: 'swap',
+  preload: false,
   adjustFontFallback: false,
 });
