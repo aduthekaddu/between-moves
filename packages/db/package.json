@@ -17,18 +17,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "migrate": "tsx src/migrate-cli.ts up",
-    "migrate:down": "tsx src/migrate-cli.ts down",
-    "schema:generate": "drizzle-kit generate"
+    "migrate:down": "tsx src/migrate-cli.ts down"
   },
   "dependencies": {
     "@between-moves/domain": "workspace:*",
-    "drizzle-orm": "0.45.2",
     "pg": "8.23.0"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
     "@types/pg": "8.23.1",
-    "drizzle-kit": "0.31.10",
     "tsx": "4.23.12",
     "typescript": "6.0.3",
     "vitest": "4.1.11"

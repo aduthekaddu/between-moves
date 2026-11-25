@@ -26,7 +26,7 @@ Those names are the lint allow-list. Add the workspace dependency to that packag
 
 `pnpm lint:boundaries` covers the worker and the packages named in the root `package.json` script. It skips `apps/web` and `packages/contracts`. The web app uses `apps/web/eslint.config.mjs`. Contracts has no ESLint config in this repo.
 
-Reviewed SQL lives in `packages/db/migrations/NNNN_name/`. `pnpm db:generate` writes a draft under `packages/db/migrations/generated/`, and git ignores that directory. `pnpm db:migrate:down` throws when `APP_ENV` is `production`. The check is in `packages/db/src/migrate-cli.ts`.
+Reviewed SQL in `packages/db/migrations/NNNN_name/` is the only copy of the database schema. Write each migration by hand as `up.sql` and `down.sql`. No ORM schema file exists. Repositories use `pg` and parse each row. `pnpm db:migrate:down` throws when `APP_ENV` is `production`. The check is in `packages/db/src/migrate-cli.ts`.
 
 Point database integration tests at a disposable database. They read `TEST_DATABASE_URL` and skip when it is unset. `packages/db/src/season-closing.integration.test.ts` rolls every migration down before each test.
 
