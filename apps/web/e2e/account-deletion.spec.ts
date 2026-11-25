@@ -8,8 +8,9 @@ import {
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { makeSignature } from 'better-auth/crypto';
 import { readFile } from 'node:fs/promises';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const seasonId = '01941f29-7c00-7000-8000-000000005301';
 const gameId = '01941f29-7c00-7000-8000-000000005302';
@@ -88,10 +89,8 @@ async function expectAccessible(page: Page): Promise<void> {
 }
 
 test.describe('account export and deletion', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required for account E2E');
-
   test.beforeAll(async () => {
-    database = createDatabase(testDatabaseUrl ?? '');
+    database = createDatabase(testDatabaseUrl);
   });
 
   test.beforeEach(async () => {

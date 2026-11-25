@@ -8,6 +8,7 @@ pnpm-lock.yaml
 docs
 playwright-report
 test-results
+.test-database
 
 # Written by tooling/traceability.mjs, which pnpm traceability:check compares byte for byte.
 # Prettier would pad the table columns, so the check would fail after every format.

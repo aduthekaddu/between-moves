@@ -7,8 +7,9 @@ import {
 } from '@between-moves/db/testing';
 import { expect, test } from '@playwright/test';
 import { makeSignature } from 'better-auth/crypto';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const seasonId = '01941f29-7c00-7000-8000-000000000971';
 const correspondenceId = '01941f29-7c00-7000-8000-000000000972';
@@ -17,9 +18,8 @@ let database: Database;
 let world: TwoHousesWithMembers;
 
 test.describe('[BM-052] pilot core page accessibility', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required');
   test.beforeAll(async () => {
-    database = createDatabase(testDatabaseUrl!);
+    database = createDatabase(testDatabaseUrl);
   });
   test.beforeEach(async () => {
     await resetTwoHousesWithMembers(database.pool);

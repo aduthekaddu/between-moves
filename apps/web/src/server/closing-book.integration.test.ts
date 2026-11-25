@@ -29,8 +29,9 @@ import { createDeliveryMetricStubs } from '@between-moves/observability';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const integration = process.env.TEST_DATABASE_URL ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -47,8 +48,8 @@ function viewer(member: { readonly userId: string; readonly displayName: string 
   } satisfies AuthenticatedViewer;
 }
 
-integration('BM-048 Closing Book from Season close to House view', () => {
-  const database = new Pool({ connectionString: process.env.TEST_DATABASE_URL, max: 8 });
+describe('BM-048 Closing Book from Season close to House view', () => {
+  const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const books = new PgClosingBookRepository(database);
   let world: TwoHousesWithMembers;
   let observations: ClosingBookObservation[];

@@ -7,9 +7,9 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgSeasonRepository } from './pg-season-repository';
 import { PgSeasonScoringRepository } from './pg-season-scoring-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const id = (value: number) => `01941f29-7c00-7000-8000-${String(value).padStart(12, '0')}`;
 const seasonId = id(4701);
@@ -31,7 +31,7 @@ const pointsRecipe = {
   caps: { games: 8, nights: 4, puzzles: 2 },
 } as const;
 
-integration('BM-047 PostgreSQL Season closing', () => {
+describe('BM-047 PostgreSQL Season closing', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const repository = new PgSeasonRepository(database);
   let world: TwoHousesWithMembers;

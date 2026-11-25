@@ -10,8 +10,9 @@ import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const integration = process.env.TEST_DATABASE_URL ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(
   new URL('../../../../packages/db/migrations', import.meta.url),
 );
@@ -19,8 +20,8 @@ const id = (number: number) => `01941f29-7c00-7000-8000-${String(number).padStar
 const now = new Date();
 const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-integration('BM-046 confirm, publish, and score', () => {
-  const database = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
+describe('BM-046 confirm, publish, and score', () => {
+  const database = new Pool({ connectionString: testDatabaseUrl });
   const puzzles = new PgHousePuzzleRepository(database);
   let houseId: string;
   let otherHouseId: string;

@@ -7,8 +7,9 @@ import {
   type TwoHousesWithMembers,
 } from '@between-moves/db/testing';
 import { makeSignature } from 'better-auth/crypto';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 let database: Database | undefined;
 let world: TwoHousesWithMembers | undefined;
@@ -16,11 +17,6 @@ const shelfSeasonId = '01941f29-7c00-7000-8000-000000000741';
 
 function shelfGameId(suffix: number): string {
   return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
-}
-
-function requiredDatabaseUrl(): string {
-  if (testDatabaseUrl === undefined) throw new Error('TEST_DATABASE_URL is required');
-  return testDatabaseUrl;
 }
 
 function fixture(): TwoHousesWithMembers {
@@ -146,10 +142,8 @@ async function seedMoveShelf(db: Database, seeded: TwoHousesWithMembers): Promis
 }
 
 test.describe('member-scoped House home', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required for House E2E');
-
   test.beforeAll(async () => {
-    database = createDatabase(requiredDatabaseUrl());
+    database = createDatabase(testDatabaseUrl);
     await resetTwoHousesWithMembers(database.pool);
     world = await twoHousesWithMembers(database.pool);
     const seeded = fixture();

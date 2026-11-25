@@ -6,9 +6,9 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgNightRepository } from './pg-night-repository';
 import { PgSeasonRepository } from './pg-season-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const seasonId = '01941f29-7c00-7000-8000-000000000801';
 const charterId = '01941f29-7c00-7000-8000-000000000811';
@@ -20,7 +20,7 @@ const nightIds = [
 ] as const;
 const createdAt = new Date('2026-09-01T12:00:00.000Z');
 
-integration('PostgreSQL Between Moves Night schedule', () => {
+describe('PostgreSQL Between Moves Night schedule', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const seasons = new PgSeasonRepository(database);
   const nights = new PgNightRepository(database);

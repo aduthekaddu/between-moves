@@ -16,6 +16,7 @@ You need the tools and settings in this table.
 | Node.js           | 24 (`.node-version`). pnpm stops on a Node outside `engines.node` in any `package.json`.                 |
 | pnpm              | 11.24.0, the `packageManager` field in `package.json`. Run it through Corepack, not a standalone binary. |
 | PostgreSQL        | A `DATABASE_URL` whose query includes `sslmode=require`. CI uses PostgreSQL 16.10.                       |
+| Docker, `openssl` | Only for tests. `pnpm db:test:up` starts the TLS test database.                                          |
 | Web configuration | Every key in `apps/web/.env.example`. `BETTER_AUTH_SECRET` must be at least 32 characters.               |
 | Trigger.dev       | 4.5.6, only when you deploy `apps/worker`.                                                               |
 

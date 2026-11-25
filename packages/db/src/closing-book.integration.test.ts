@@ -7,9 +7,9 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgClosingBookRepository } from './pg-closing-book-repository';
 import { PgSeasonRepository } from './pg-season-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const id = (value: number) => `01941f29-7c00-7000-8000-${String(value).padStart(12, '0')}`;
 const seasonId = id(4901);
@@ -32,7 +32,7 @@ const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const scholarsMate = ['e2e4', 'e7e5', 'd1h5', 'b8c6', 'f1c4', 'g8f6', 'h5f7'];
 const scholarsSan = ['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7#'];
 
-integration('BM-048 PostgreSQL Closing Book', () => {
+describe('BM-048 PostgreSQL Closing Book', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const seasons = new PgSeasonRepository(database);
   const books = new PgClosingBookRepository(database);

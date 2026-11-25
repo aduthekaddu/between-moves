@@ -6,16 +6,16 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgNightAttendanceRepository } from './pg-night-attendance-repository';
 import { PgSeasonRepository } from './pg-season-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 
 function id(suffix: number): string {
   return `01941f29-7c00-7000-8000-${suffix.toString().padStart(12, '0')}`;
 }
 
-integration('PostgreSQL Between Moves Night attendance', () => {
+describe('PostgreSQL Between Moves Night attendance', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 8 });
   const seasonId = id(960);
   const charterId = id(961);

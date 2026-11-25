@@ -7,9 +7,9 @@ import { migrateDown, migrateUp } from './migrations';
 import { PgGameSeatAcceptanceRepository } from './pg-game-seat-acceptance-repository';
 import { PgGameSeatRepository } from './pg-game-seat-repository';
 import { twoHousesWithMembers, type TwoHousesWithMembers } from './testing';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 const seasonId = '01941f29-7c00-7000-8000-000000000701';
 const charterId = '01941f29-7c00-7000-8000-000000000702';
@@ -71,7 +71,7 @@ async function createActiveSeason(database: Pool, houseId: string): Promise<void
   );
 }
 
-integration('PostgreSQL Game seat acceptance repository', () => {
+describe('PostgreSQL Game seat acceptance repository', () => {
   const database = new Pool({ connectionString: testDatabaseUrl, max: 6 });
   const creation = new PgGameSeatRepository(database);
   const acceptance = new PgGameSeatAcceptanceRepository(database);

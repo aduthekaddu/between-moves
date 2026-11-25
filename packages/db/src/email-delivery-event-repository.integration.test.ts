@@ -3,12 +3,12 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PgEmailDeliveryEventRepository } from './email-delivery-event-repository';
 import { migrateDown, migrateUp } from './migrations';
+import { requireTestDatabaseUrl } from './test-database';
 
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-const integration = testDatabaseUrl ? describe : describe.skip;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const migrationsDirectory = fileURLToPath(new URL('../migrations', import.meta.url));
 
-integration('PostgreSQL email delivery events', () => {
+describe('PostgreSQL email delivery events', () => {
   const database = new Pool({ connectionString: testDatabaseUrl });
   const repository = new PgEmailDeliveryEventRepository(database);
 
