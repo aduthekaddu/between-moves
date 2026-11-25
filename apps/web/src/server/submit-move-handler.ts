@@ -122,6 +122,7 @@ export function createSubmitMoveHandler(dependencies: SubmitMoveHandlerDependenc
         'Sign in to submit a Move.',
       );
     }
+    // [BM-051:AC-2] Over the Move threshold: a fixed 429 problem with Retry-After, no account data.
     const rateLimit = await dependencies.limitMove(request, viewer.userId);
     if (!rateLimit.allowed) {
       return problem(

@@ -116,7 +116,6 @@ export default [
         '@between-moves/db',
         '@between-moves/adapters',
         '@between-moves/contracts',
-        '@between-moves/config',
         '@between-moves/observability',
       ]),
     },
@@ -162,7 +161,6 @@ export default [
       'no-restricted-imports': workspaceImportsAllowedFrom([
         '@between-moves/domain',
         '@between-moves/contracts',
-        '@between-moves/config',
         '@between-moves/observability',
       ]),
     },

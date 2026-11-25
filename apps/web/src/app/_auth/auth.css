@@ -195,7 +195,6 @@
   border-radius: var(--radius);
   background: #fffdf7;
   color: var(--ink);
-  font: inherit;
 }
 
 .auth-form__field input:focus-visible,

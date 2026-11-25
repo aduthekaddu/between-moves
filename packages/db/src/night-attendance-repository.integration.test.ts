@@ -389,6 +389,43 @@ describe('PostgreSQL Between Moves Night attendance', () => {
     ).resolves.toMatchObject({ rows: [{ count: 0 }] });
   });
 
+  it('[BM-036] [DR-NIGHT-02] refuses a join on a Night that is not live or by a former Member', async () => {
+    const repository = new PgNightAttendanceRepository(database);
+    const context = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.nonOwner.userId,
+    });
+    const join = (nightId: string, attendanceId: string, eventId: string) =>
+      repository.join(context, { attendanceId, eventId, nightId, joinedAt: startedAt });
+
+    // nightIds[1] is still scheduled
+    await expect(join(nightIds[1], id(1_040), id(1_041))).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    await database.query(`update house_nights set state = 'ended', ended_at = $2 where id = $1`, [
+      nightIds[0],
+      startedAt,
+    ]);
+    await expect(join(nightIds[0], id(1_042), id(1_043))).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    await database.query(`update house_nights set state = 'live', ended_at = null where id = $1`, [
+      nightIds[0],
+    ]);
+    await database.query(`update memberships set status = 'left', left_at = now() where id = $1`, [
+      world.first.nonOwner.membershipId,
+    ]);
+    await expect(join(nightIds[0], id(1_044), id(1_045))).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    await expect(
+      database.query('select count(*)::int as count from night_attendance'),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+    await expect(
+      database.query('select count(*)::int as count from night_attendance_events'),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+  });
+
   it('[BM-033] [DR-DELIV-01] rolls attendance back when its outbox append fails', async () => {
     const clock = new FakeClock(startedAt);
     const repository = new PgNightAttendanceRepository(database);

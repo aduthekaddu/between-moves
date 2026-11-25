@@ -144,6 +144,70 @@ describe('PostgreSQL Between Moves Night schedule', () => {
     ]);
   });
 
+  it('[BM-020] [DR-NIGHT-03] refuses a clashing start and a started Night, and audits only real changes', async () => {
+    const owner = fakeAuthorizationContext({
+      viewerId: world.first.member.userId,
+      houseId: world.first.houseId,
+    });
+    const reschedule = (
+      nightId: string,
+      auditId: string,
+      scheduledStart: Date,
+      scheduledEnd: Date,
+    ) =>
+      nights.change(owner, {
+        nightId,
+        auditId,
+        command: { kind: 'reschedule', scheduledStart, scheduledEnd },
+        changedAt: createdAt,
+      });
+
+    // Night 2 already starts at this instant
+    await expect(
+      reschedule(
+        nightIds[0],
+        '01941f29-7c00-7000-8000-000000000941',
+        new Date('2026-09-11T14:00:00.000Z'),
+        new Date('2026-09-11T16:00:00.000Z'),
+      ),
+    ).rejects.toMatchObject({ code: 'conflict' });
+
+    // the same times again change nothing and write no audit row
+    await expect(
+      reschedule(
+        nightIds[0],
+        '01941f29-7c00-7000-8000-000000000942',
+        new Date('2026-09-04T14:00:00.000Z'),
+        new Date('2026-09-04T16:00:00.000Z'),
+      ),
+    ).resolves.toMatchObject({ changedNow: false });
+
+    await database.query(`update house_nights set state = 'live', started_at = $2 where id = $1`, [
+      nightIds[2],
+      new Date('2026-09-18T14:00:00.000Z'),
+    ]);
+    await expect(
+      reschedule(
+        nightIds[2],
+        '01941f29-7c00-7000-8000-000000000943',
+        new Date('2026-09-19T14:00:00.000Z'),
+        new Date('2026-09-19T16:00:00.000Z'),
+      ),
+    ).rejects.toMatchObject({ code: 'conflict' });
+    await expect(
+      nights.change(owner, {
+        nightId: nightIds[2],
+        auditId: '01941f29-7c00-7000-8000-000000000944',
+        command: { kind: 'cancel' },
+        changedAt: createdAt,
+      }),
+    ).rejects.toMatchObject({ code: 'conflict' });
+
+    await expect(
+      database.query('select count(*)::int as count from night_audit'),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
+  });
+
   it('[BM-020] [DR-PERM-01] rejects a Member at the repository authority seam', async () => {
     const member = fakeAuthorizationContext({
       viewerId: world.first.nonOwner.userId,

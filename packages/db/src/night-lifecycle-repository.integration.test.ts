@@ -219,6 +219,48 @@ describe('PostgreSQL Between Moves Night lifecycle', () => {
     ).resolves.toBe(true);
   });
 
+  it('[BM-035] [DR-NIGHT-03] gives a Night host only to an active Member of a scheduled or live Night', async () => {
+    const owner = fakeAuthorizationContext({
+      viewerId: world.first.member.userId,
+      houseId: world.first.houseId,
+    });
+    const hostFor = (nightId: string, hostMembershipId: string) =>
+      lifecycle.assignHost(owner, { nightId, hostMembershipId, assignedAt: createdAt });
+    const hostDuty = (operation: 'start' | 'end') =>
+      lifecycle.isAssignedNightHost({
+        houseId: world.first.houseId,
+        nightId: nightIds[0],
+        membershipId: world.first.nonOwner.membershipId,
+        operation,
+      });
+
+    await expect(hostFor(nightIds[0], world.first.nonOwner.membershipId)).resolves.toMatchObject({
+      changedNow: true,
+    });
+    // a scheduled Night can start but not end
+    await expect(hostDuty('start')).resolves.toBe(true);
+    await expect(hostDuty('end')).resolves.toBe(false);
+
+    await database.query(`update memberships set status = 'left', left_at = now() where id = $1`, [
+      world.first.nonOwner.membershipId,
+    ]);
+    await expect(hostFor(nightIds[1], world.first.nonOwner.membershipId)).rejects.toMatchObject({
+      code: 'validation_failed',
+    });
+    const candidates = await lifecycle.listHostCandidates(owner);
+    const candidateIds = candidates.map((candidate) => candidate.membershipId);
+    expect(candidateIds).toContain(world.first.member.membershipId);
+    expect(candidateIds).not.toContain(world.first.nonOwner.membershipId);
+
+    await database.query(
+      `update house_nights set state = 'ended', started_at = $2, ended_at = $3 where id = $1`,
+      [nightIds[1], startedAt, endedAt],
+    );
+    await expect(hostFor(nightIds[1], world.first.member.membershipId)).rejects.toMatchObject({
+      code: 'conflict',
+    });
+  });
+
   it('[BM-035] [DR-SEC-01] denies cross-House start, host assignment, and RSVP', async () => {
     const otherOwner = fakeAuthorizationContext({
       viewerId: world.second.member.userId,
@@ -403,5 +445,33 @@ describe('PostgreSQL Between Moves Night lifecycle', () => {
       [nightIds[0]],
     );
     expect(count.rows).toEqual([{ count: 1 }]);
+  });
+
+  it('[BM-035] refuses an RSVP for an ended Night, a former Member, or an unknown status', async () => {
+    const member = fakeAuthorizationContext({
+      viewerId: world.first.nonOwner.userId,
+      houseId: world.first.houseId,
+    });
+    const rsvp = (nightId: string, rsvpId: string, status: 'going' | 'not_going' = 'going') =>
+      rsvps.rsvp(member, { rsvpId, nightId, status, respondedAt: createdAt });
+    await database.query(
+      `update house_nights set state = 'ended', started_at = $2, ended_at = $3 where id = $1`,
+      [nightIds[0], startedAt, endedAt],
+    );
+    await expect(rsvp(nightIds[0], '01941f29-7c00-7000-8000-000000000931')).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    await expect(
+      rsvp(nightIds[1], '01941f29-7c00-7000-8000-000000000932', 'maybe' as 'going'),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
+    await database.query(`update memberships set status = 'left', left_at = now() where id = $1`, [
+      world.first.nonOwner.membershipId,
+    ]);
+    await expect(rsvp(nightIds[1], '01941f29-7c00-7000-8000-000000000933')).rejects.toMatchObject({
+      code: 'not_found',
+    });
+    await expect(
+      database.query('select count(*)::int as count from night_rsvps'),
+    ).resolves.toMatchObject({ rows: [{ count: 0 }] });
   });
 });

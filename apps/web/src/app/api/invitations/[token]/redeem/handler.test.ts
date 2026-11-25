@@ -4,6 +4,8 @@ import {
   type AuthenticatedViewer,
 } from '@between-moves/domain';
 import { describe, expect, it, vi } from 'vitest';
+import { createInvitationRateLimit } from '../../../../../kernel/invitation-rate-limit';
+import { InMemoryRateLimiter } from '../../../../../kernel/rate-limit';
 import { createRedeemInvitationRequestHandler } from './handler';
 
 const viewer: AuthenticatedViewer = {
@@ -104,6 +106,36 @@ describe('POST /api/invitations/{token}/redeem', () => {
     expect(limitedResponse.status).toBe(429);
     expect(limitedResponse.headers.get('retry-after')).toBe('19');
     expect(limited.redeemInvitation).not.toHaveBeenCalled();
+  });
+
+  it('[BM-051:AC-2] answers Invitation redemption 11 with a non-disclosing 429 and Retry-After', async () => {
+    const deps = dependencies();
+    const handler = createRedeemInvitationRequestHandler({
+      ...deps,
+      rateLimit: createInvitationRateLimit({
+        primary: new InMemoryRateLimiter(),
+        incrementRateLimitHit: vi.fn(),
+        onStoreError: vi.fn(),
+      }),
+    });
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      expect((await handler(request(), validToken)).status).toBe(200);
+    }
+
+    const limited = await handler(request(), validToken);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0);
+    const body: unknown = await limited.json();
+    expect(body).toEqual({
+      type: 'https://betweenmoves.app/problems/rate_limited',
+      title: 'Too many requests',
+      status: 429,
+      code: 'rate_limited',
+      detail: 'Try again later.',
+      instance: '/api/invitations/[token]/redeem',
+    });
+    expect(JSON.stringify(body)).not.toContain(viewer.userId);
+    expect(deps.redeemInvitation).toHaveBeenCalledTimes(10);
   });
 
   it('[BM-016] returns distinct non-leaking invalid and full outcomes', async () => {

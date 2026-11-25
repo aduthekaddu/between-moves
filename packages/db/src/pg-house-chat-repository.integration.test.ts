@@ -1,5 +1,9 @@
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
-import { NIGHT_CHAT_DELETED_TOPIC, NIGHT_CHAT_POSTED_TOPIC } from '@between-moves/domain';
+import {
+  HOUSE_CHAT_RECENT_LIMIT,
+  NIGHT_CHAT_DELETED_TOPIC,
+  NIGHT_CHAT_POSTED_TOPIC,
+} from '@between-moves/domain';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -175,6 +179,82 @@ describe('PostgreSQL House chat repository', () => {
         postedAt: new Date('2026-09-18T14:09:00.000Z'),
       }),
     ).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('[BM-040] refuses chat on an ended Night and refuses to delete a message twice', async () => {
+    const owner = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.member.userId,
+    });
+    const postedAt = new Date('2026-09-18T14:12:00.000Z');
+    await repository.post(owner, {
+      id: id(994),
+      eventId: id(995),
+      nightId,
+      body: 'Last word',
+      postedAt,
+    });
+    await database.query(`update house_nights set state = 'ended', ended_at = $2 where id = $1`, [
+      nightId,
+      new Date('2026-09-18T16:00:00.000Z'),
+    ]);
+    await expect(
+      repository.post(owner, {
+        id: id(996),
+        eventId: id(997),
+        nightId,
+        body: 'After the Night',
+        postedAt: new Date('2026-09-18T16:01:00.000Z'),
+      }),
+    ).rejects.toMatchObject({ code: 'not_found' });
+
+    const remove = (eventId: string) =>
+      repository.softDelete(owner, {
+        eventId,
+        nightId,
+        messageId: id(994),
+        deletedAt: new Date('2026-09-18T16:02:00.000Z'),
+      });
+    await remove(id(998));
+    await expect(remove(id(999))).rejects.toMatchObject({ code: 'not_found' });
+    // the refused second delete left no event and did not move the chat sequence
+    await expect(
+      database.query(`select count(*)::int as count from outbox_events where topic = $1`, [
+        NIGHT_CHAT_DELETED_TOPIC,
+      ]),
+    ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+    await expect(
+      database.query('select chat_sequence::int as sequence from house_nights where id = $1', [
+        nightId,
+      ]),
+    ).resolves.toMatchObject({ rows: [{ sequence: 2 }] });
+  });
+
+  it('[BM-040] reads the latest messages in order when a Night has more than the recent limit', async () => {
+    const owner = fakeAuthorizationContext({
+      houseId: world.first.houseId,
+      viewerId: world.first.member.userId,
+    });
+    const total = HOUSE_CHAT_RECENT_LIMIT + 2;
+    await database.query(
+      `insert into house_messages
+         (id, house_id, night_id, membership_id, body, sequence, created_at)
+       select ('01941f29-7c00-7000-8000-' || lpad((5000 + n)::text, 12, '0'))::uuid,
+              $1, $2, $3, 'message ' || n, n, now()
+         from generate_series(1, $4::int) as n`,
+      [world.first.houseId, nightId, world.first.member.membershipId, total],
+    );
+    await database.query('update house_nights set chat_sequence = $2 where id = $1', [
+      nightId,
+      total,
+    ]);
+
+    const snapshot = await repository.readRecent(owner, nightId);
+    const sequences = snapshot?.messages.map((message) => message.sequence) ?? [];
+    expect(sequences).toHaveLength(HOUSE_CHAT_RECENT_LIMIT);
+    expect(sequences[0]).toBe(3n);
+    expect(sequences.at(-1)).toBe(BigInt(total));
+    expect(sequences).toEqual([...sequences].sort((a, b) => Number(a - b)));
   });
 
   it('[BM-040] does not let a Member soft-delete at the persistence boundary', async () => {
