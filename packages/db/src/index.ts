@@ -21,7 +21,7 @@ export type {
   AnalysisCandidateCompletion,
 } from './pg-analysis-job-repository';
 export { PgEmailDeliveryEventRepository } from './email-delivery-event-repository';
-export { PgNudgeEmailReader } from './pg-nudge-email-reader';
+export { PgNudgeDeliveryGate } from './pg-nudge-delivery-gate';
 export { PgNudgeRepository } from './pg-nudge-repository';
 
 export { PgMagicLinkOutboxWriter } from './magic-link-outbox-writer';

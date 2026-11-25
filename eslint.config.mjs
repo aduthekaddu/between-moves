@@ -1,6 +1,10 @@
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import tsParser from '@typescript-eslint/parser';
 import { testDatabaseEnvRule } from './tooling/eslint-test-database-env.mjs';
+import {
+  rejectVerifiedNudgeDeliveryAssertion,
+  verifiedNudgeDeliveryAllowedFiles,
+} from './tooling/verified-nudge-delivery-lint.mjs';
 
 const boundaryMessage =
   'Package boundary violation: this layer may only import the workspace packages allowed by the architecture.';
@@ -102,7 +106,23 @@ export default [
   },
   {
     files: lintedSources,
-    ignores: ['packages/db/src/test-database/**'],
+    ignores: ['packages/db/src/test-database/**', ...verifiedNudgeDeliveryAllowedFiles],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...testDatabaseEnvRule.slice(1),
+        ...rejectVerifiedNudgeDeliveryAssertion.slice(1),
+      ],
+    },
+  },
+  {
+    files: ['packages/db/src/test-database/**'],
+    rules: {
+      'no-restricted-syntax': rejectVerifiedNudgeDeliveryAssertion,
+    },
+  },
+  {
+    files: verifiedNudgeDeliveryAllowedFiles,
     rules: {
       'no-restricted-syntax': testDatabaseEnvRule,
     },

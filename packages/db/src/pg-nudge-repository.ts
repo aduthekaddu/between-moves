@@ -7,12 +7,13 @@ import {
   type NudgeStage,
 } from '@between-moves/domain';
 import type { Pool, PoolClient, QueryResultRow } from 'pg';
+import { dueNudgesAt } from './due-nudges';
 import { enqueueOutboxEvent } from './enqueue-outbox-event';
 
 interface DueNudgeRow extends QueryResultRow {
   game_id: string;
   house_id: string;
-  current_ply: number;
+  ply: number;
   recipient_membership_id: string;
   stage: NudgeStage;
   move_due_at: Date;
@@ -22,8 +23,8 @@ function parseDue(row: DueNudgeRow): DueNudge {
   if (
     !row.game_id ||
     !row.house_id ||
-    !Number.isInteger(row.current_ply) ||
-    row.current_ply < 0 ||
+    !Number.isInteger(row.ply) ||
+    row.ply < 0 ||
     !row.recipient_membership_id ||
     (row.stage !== 'advance' && row.stage !== 'overdue') ||
     !(row.move_due_at instanceof Date)
@@ -33,7 +34,7 @@ function parseDue(row: DueNudgeRow): DueNudge {
   return {
     gameId: row.game_id,
     houseId: row.house_id,
-    ply: row.current_ply,
+    ply: row.ply,
     recipientMembershipId: row.recipient_membership_id,
     stage: row.stage,
     moveDueAt: row.move_due_at,
@@ -41,29 +42,22 @@ function parseDue(row: DueNudgeRow): DueNudge {
 }
 
 async function lockCurrentNudge(client: PoolClient, nudge: DueNudge, now: Date): Promise<boolean> {
+  await client.query('select 1 from games where id = $1 and house_id = $2 for update', [
+    nudge.gameId,
+    nudge.houseId,
+  ]);
   const result = await client.query(
-    `select 1
-       from games g
-       join memberships recipient
-         on recipient.id = case g.side_to_move
-              when 'white' then g.white_membership_id else g.black_membership_id end
-        and recipient.house_id = g.house_id
-        and recipient.status = 'active'
-      where g.id = $1 and g.house_id = $2
-        and g.mode = 'correspondence' and g.state = 'active'
-        and g.current_ply = $3 and recipient.id = $4
-        and g.move_due_at = $5
-        and (($6 = 'advance' and g.move_due_at > $7)
-          or ($6 = 'overdue' and g.move_due_at <= $7))
-      for update of g`,
+    `select 1 from (${dueNudgesAt('$1')}) due
+      where due.game_id = $2 and due.house_id = $3 and due.ply = $4
+        and due.recipient_membership_id = $5 and due.stage = $6 and due.move_due_at = $7`,
     [
+      now,
       nudge.gameId,
       nudge.houseId,
       nudge.ply,
       nudge.recipientMembershipId,
-      nudge.moveDueAt,
       nudge.stage,
-      now,
+      nudge.moveDueAt,
     ],
   );
   return result.rowCount === 1;
@@ -75,31 +69,17 @@ export class PgNudgeRepository implements NudgeRepository {
 
   async findDue(request: FindDueNudges): Promise<readonly DueNudge[]> {
     const result = await this.database.query<DueNudgeRow>(
-      `with candidates as (
-         select g.id as game_id, g.house_id, g.current_ply,
-                case g.side_to_move when 'white' then g.white_membership_id
-                     else g.black_membership_id end as recipient_membership_id,
-                case when g.move_due_at <= $1 then 'overdue' else 'advance' end as stage,
-                g.move_due_at
-           from games g
-           join memberships recipient
-             on recipient.id = case g.side_to_move
-                  when 'white' then g.white_membership_id else g.black_membership_id end
-            and recipient.house_id = g.house_id
-            and recipient.status = 'active'
-          where g.mode = 'correspondence' and g.state = 'active'
-            and g.move_due_at is not null and g.move_due_at <= $2
-       )
-       select candidate.*
-         from candidates candidate
-        where not exists (
-          select 1 from nudge_deliveries delivery
-           where delivery.game_id = candidate.game_id
-             and delivery.ply = candidate.current_ply
-             and delivery.recipient_membership_id = candidate.recipient_membership_id
-             and delivery.stage = candidate.stage
-        )
-        order by candidate.move_due_at, candidate.game_id, candidate.stage
+      `select due.*
+         from (${dueNudgesAt('$1')}) due
+        where due.move_due_at <= $2
+          and not exists (
+            select 1 from nudge_deliveries delivery
+             where delivery.game_id = due.game_id
+               and delivery.ply = due.ply
+               and delivery.recipient_membership_id = due.recipient_membership_id
+               and delivery.stage = due.stage
+          )
+        order by due.move_due_at, due.game_id, due.stage
         limit $3`,
       [request.now, request.advanceCutoff, request.limit],
     );

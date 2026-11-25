@@ -3,7 +3,7 @@ import {
   PermanentOutboxError,
   type ClaimedOutboxEvent,
   type Clock,
-  type NudgeEmailReader,
+  type NudgeDeliveryGate,
   type NudgeEmailSender,
   type NudgeMetrics,
   type NudgeStage,
@@ -24,7 +24,7 @@ function nudgeStage(event: ClaimedOutboxEvent): NudgeStage {
 /** [BM-029] [DR-DELIV-01/03] Delivers via provider-idempotent outbox event IDs. */
 export function createNudgeEmailConsumer(dependencies: {
   readonly clock: Clock;
-  readonly reader: NudgeEmailReader;
+  readonly gate: NudgeDeliveryGate;
   readonly sender: NudgeEmailSender;
   readonly metrics: NudgeMetrics;
   readonly retryWindowMs?: number;
@@ -36,17 +36,18 @@ export function createNudgeEmailConsumer(dependencies: {
   return {
     async consume(event) {
       const stage = nudgeStage(event);
-      if (dependencies.clock.now().getTime() - event.occurredAt.getTime() >= retryWindowMs) {
+      const now = dependencies.clock.now();
+      if (now.getTime() - event.occurredAt.getTime() >= retryWindowMs) {
         dependencies.metrics.incrementNudgeSend(stage, 'failure');
         throw new PermanentOutboxError('Nudge provider idempotency window expired');
       }
-      const message = await dependencies.reader.readForDelivery(event);
-      if (message === null) {
+      const delivery = await dependencies.gate.pass(event, now);
+      if (delivery === null) {
         dependencies.metrics.incrementNudgeSend(stage, 'skipped');
         return 'processed';
       }
       try {
-        const result = await dependencies.sender.sendNudge(message, {
+        const result = await dependencies.sender.sendNudge(delivery, {
           idempotencyKey: event.id,
         });
         dependencies.metrics.incrementNudgeSend(

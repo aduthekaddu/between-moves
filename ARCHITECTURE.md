@@ -152,6 +152,40 @@ stateDiagram-v2
   s0 --> s3: a member accepts after it expires
 ```
 
+## Nudge
+
+A Nudge is an email that tells a player it is their move in a correspondence game. The `advance` stage goes out before `move_due_at`, and the `overdue` stage from `move_due_at` on. `createNudgeDispatcher` in `packages/application/src/delivery/nudges.ts` queues one `nudge.due` outbox event per game, ply, recipient and stage. The primary key of `nudge_deliveries` holds that key. The outbox delivers the event later, maybe after a retry.
+
+One rule says whether a Nudge is still due: `dueNudgesAt` in `packages/db/src/due-nudges.ts`. `findDue`, `lockCurrentNudge` and `PgNudgeDeliveryGate.pass` all select from it. The Nudge sender accepts only a `VerifiedNudgeDelivery`, and only the gate issues one. The gate reads current state with the clock read for that attempt. It holds no lock while Resend runs, so a reply or a game end in that gap can still let one email out for the turn that just closed. A Nudge that is no longer due is skipped: its event settles with no email, and the metric counts `skipped`.
+
+The TLA+ model `architecture/models/nudge-outbox/NudgeOutbox.tla` checks that rule across retries, lease loss, crashes and Resend timeouts. Run it with `pnpm formal:check`. [`.claude/skills/verify-nudge-outbox/SKILL.md`](.claude/skills/verify-nudge-outbox/SKILL.md) gives its bounds, how to read a failure, and how to update it.
+
+The chart follows one Nudge through a one-worker, one-turn run of the model. It hides the steps that stay in one state, such as a claim, a tick, or a lease that runs out.
+
+```mermaid
+---
+title: "Nudge delivery"
+---
+stateDiagram-v2
+  s0: No Nudge queued
+  s1: Queued, no email yet
+  s2: Still due at the gate
+  s3: Email sent, row not settled
+  s4: No email, row settled
+  s5: Email sent, row settled
+  s6: No email, row failed
+  s7: Email sent, row failed
+  [*] --> s0
+  s0 --> s1: the dispatcher queues the Nudge
+  s1 --> s2: the gate finds it still due
+  s2 --> s1: the worker stops or Resend fails first
+  s2 --> s3: Resend accepts the email
+  s1 --> s4: the gate found it no longer due, and the row settles
+  s3 --> s5: the outbox marks it sent
+  s1 --> s6: the retry window or the attempts run out
+  s3 --> s7: the retry window or the attempts run out
+```
+
 ## Account
 
 A signed-in person uses `/account`. Export is `GET /api/account/export`. Delete is `POST /api/account/delete` with the confirmation text `ACCOUNT_DELETION_CONFIRMATION` in `packages/contracts/src/account-data-rights.ts`, which is `delete my account`.

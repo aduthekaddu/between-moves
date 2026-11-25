@@ -184,6 +184,31 @@ describe('PostgreSQL Nudge dispatcher persistence', () => {
     expect(game.rows).toEqual([{ state: 'active' }]);
   });
 
+  it('[BM-029] neither finds nor enqueues a Nudge for a deleted account', async () => {
+    const request = {
+      now: clock.now(),
+      advanceCutoff: new Date('2026-09-16T12:00:00.000Z'),
+      limit: 10,
+    };
+    const advance = (await repository.findDue(request)).find((nudge) => nudge.gameId === id(711))!;
+    await database.query(
+      `update users
+          set status = 'deleted', deleted_at = $2, display_name = 'Former member',
+              email = id::text || '@deleted.invalid', email_verified = false,
+              email_verified_at = null, image_url = null
+        where id = $1`,
+      [world.first.member.userId, NOW],
+    );
+
+    const due = await repository.findDue(request);
+    expect(due.map(({ gameId, stage }) => ({ gameId, stage }))).toEqual([
+      { gameId: id(712), stage: 'overdue' },
+    ]);
+    await expect(
+      repository.enqueue(advance, event(id(822), advance.gameId, advance.houseId)),
+    ).resolves.toBe(false);
+  });
+
   it('[BM-029] keeps Nudge and later Game events on one monotonic aggregate sequence', async () => {
     const advance = (
       await repository.findDue({

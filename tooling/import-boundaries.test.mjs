@@ -100,3 +100,35 @@ describe('BM-005 package import boundaries', () => {
     );
   });
 });
+
+describe('BM-029 VerifiedNudgeDelivery is issued only by the delivery gate', () => {
+  const forge =
+    "import type { NudgeEmail, VerifiedNudgeDelivery } from '@between-moves/domain'; export const forge = (email: NudgeEmail) => email as VerifiedNudgeDelivery;";
+
+  async function forgeErrors(filePath, source) {
+    const [result] = await eslint.lintText(source, { filePath: join(root, filePath) });
+    return result.messages.filter((message) => message.ruleId === 'no-restricted-syntax');
+  }
+
+  it('[BM-029] rejects an assertion to VerifiedNudgeDelivery and names PgNudgeDeliveryGate.pass', async () => {
+    for (const filePath of ['packages/db/src/example.ts', 'apps/worker/src/example.ts']) {
+      const errors = await forgeErrors(filePath, forge);
+      assert.equal(errors.length, 1, filePath);
+      assert.match(errors[0]?.message ?? '', /PgNudgeDeliveryGate\.pass/);
+    }
+    const doubleCast = await forgeErrors(
+      'packages/application/src/example.ts',
+      "import type { VerifiedNudgeDelivery } from '@between-moves/domain'; export const forge = (value: object) => value as unknown as VerifiedNudgeDelivery;",
+    );
+    assert.equal(doubleCast.length, 1);
+  });
+
+  it('[BM-029] allows the gate and the test fake to assert it', async () => {
+    for (const filePath of [
+      'packages/db/src/pg-nudge-delivery-gate.ts',
+      'packages/domain/src/testing/fake-verified-nudge-delivery.ts',
+    ]) {
+      assert.deepEqual(await forgeErrors(filePath, forge), [], filePath);
+    }
+  });
+});

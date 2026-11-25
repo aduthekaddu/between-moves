@@ -33,7 +33,7 @@ import {
   PgClosingBookRepository,
   PgInvitationEmailDeliveryGate,
   PgNightAttendanceRepository,
-  PgNudgeEmailReader,
+  PgNudgeDeliveryGate,
   PgNudgeRepository,
   PgOutboxRepository,
   PgSeasonScoringRepository,
@@ -98,7 +98,7 @@ export async function runOutboxDispatcher(): Promise<DispatchSummary> {
     });
     const nudge = createNudgeEmailConsumer({
       clock,
-      reader: new PgNudgeEmailReader(database.pool),
+      gate: new PgNudgeDeliveryGate(database.pool),
       sender: new ResendNudgeEmailSender({
         apiKey,
         from,

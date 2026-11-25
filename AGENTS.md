@@ -38,4 +38,6 @@ The traceability check handles three kinds of mapped file: Vitest files under `a
 
 Regenerate `tooling/traceability-matrix.md` with `pnpm traceability:generate`. Leave the generated file as the command wrote it.
 
+A Nudge email goes out only through `PgNudgeDeliveryGate`: `NudgeEmailSender` accepts only the `VerifiedNudgeDelivery` it issues. Change what "still due" means only in `dueNudgesAt` (`packages/db/src/due-nudges.ts`). When you change Nudge scheduling or delivery, follow `.claude/skills/verify-nudge-outbox/SKILL.md`.
+
 When a House write emits an outbox event, write the state change and the event on the same database client. `snapshotAndEnqueueClosing` in `packages/db/src/pg-season-closing.ts` does that for `season.closing`.
