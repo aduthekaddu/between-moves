@@ -4,6 +4,7 @@ import {
   twoHousesWithMembers,
   type TwoHousesWithMembers,
 } from '@between-moves/db/testing';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 import { expect, test, type Page } from '@playwright/test';
 import { makeSignature } from 'better-auth/crypto';
 import { auditTouch } from './support/touch-audit';
@@ -13,7 +14,7 @@ import { auditTouch } from './support/touch-audit';
  * the area a finger can hit, controls that overlap, and text that runs under a control.
  * Each width is a phone: 320 (the WCAG 1.4.10 reflow width) and 360 (the pilot width).
  */
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 const seasonId = '01941f29-7c00-7000-8000-000000000981';
 const charterId = '01941f29-7c00-7000-8000-000000000982';
@@ -151,9 +152,8 @@ const phones = [
 ] as const;
 
 test.describe('phone and touch guards', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required');
   test.beforeAll(async () => {
-    database = createDatabase(testDatabaseUrl!);
+    database = createDatabase(testDatabaseUrl);
     await seed();
   });
   test.afterAll(async () => {

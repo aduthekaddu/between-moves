@@ -4,6 +4,7 @@ import {
   twoHousesWithMembers,
   type TwoHousesWithMembers,
 } from '@between-moves/db/testing';
+import { requireTestDatabaseUrl } from '@between-moves/db/test-database';
 import { expect, test } from '@playwright/test';
 import { makeSignature } from 'better-auth/crypto';
 import { unusedPreloads } from './support/unused-preloads';
@@ -14,16 +15,15 @@ import { unusedPreloads } from './support/unused-preloads';
  * request at high priority (the 404 photo did, on slow phones). These checks run on
  * ordinary routes, where nothing may fail to load and every preload must have a user.
  */
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const testDatabaseUrl = requireTestDatabaseUrl();
 const secret = 'e2e-better-auth-secret-at-least-32-characters';
 let database: Database;
 let world: TwoHousesWithMembers;
 
 test.describe('page loading', () => {
-  test.skip(testDatabaseUrl === undefined, 'TEST_DATABASE_URL is required');
   test.use({ viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true });
   test.beforeAll(async () => {
-    database = createDatabase(testDatabaseUrl!);
+    database = createDatabase(testDatabaseUrl);
     await resetTwoHousesWithMembers(database.pool);
     world = await twoHousesWithMembers(database.pool);
     await database.pool.query(
