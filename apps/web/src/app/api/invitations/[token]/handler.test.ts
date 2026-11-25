@@ -1,5 +1,7 @@
 import { AuthenticationRequiredError, type AuthenticatedViewer } from '@between-moves/domain';
 import { describe, expect, it, vi } from 'vitest';
+import { createInvitationRateLimit } from '../../../../kernel/invitation-rate-limit';
+import { InMemoryRateLimiter } from '../../../../kernel/rate-limit';
 import { createInspectInvitationRequestHandler } from './handler';
 
 const viewer: AuthenticatedViewer = {
@@ -47,6 +49,36 @@ describe('GET /api/invitations/{token}', () => {
     expect(first.status).toBe(410);
     expect(await first.json()).toEqual(await second.json());
     expect(unavailable.inspectInvitation).toHaveBeenCalledOnce();
+  });
+
+  it('[BM-051:AC-2] answers Invitation inspection 31 with a non-disclosing 429 and Retry-After', async () => {
+    const deps = dependencies();
+    const handler = createInspectInvitationRequestHandler({
+      ...deps,
+      rateLimit: createInvitationRateLimit({
+        primary: new InMemoryRateLimiter(),
+        incrementRateLimitHit: vi.fn(),
+        onStoreError: vi.fn(),
+      }),
+    });
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      expect((await handler(new Request(endpoint), validToken)).status).toBe(200);
+    }
+
+    const limited = await handler(new Request(endpoint), validToken);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0);
+    const body: unknown = await limited.json();
+    expect(body).toEqual({
+      type: 'https://betweenmoves.app/problems/rate_limited',
+      title: 'Too many requests',
+      status: 429,
+      code: 'rate_limited',
+      detail: 'Try again later.',
+      instance: '/api/invitations/[token]',
+    });
+    expect(JSON.stringify(body)).not.toContain(viewer.userId);
+    expect(deps.inspectInvitation).toHaveBeenCalledTimes(30);
   });
 
   it('[BM-014] [DR-INVITE-13] authenticates and rate-limits every inspection attempt', async () => {

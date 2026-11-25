@@ -1,7 +1,4 @@
-import {
-  HouseAuthorizationDeniedError,
-  type NightRailSnapshot,
-} from '@between-moves/domain';
+import { HouseAuthorizationDeniedError, type NightRailSnapshot } from '@between-moves/domain';
 import { fakeAuthorizationContext } from '@between-moves/domain/testing';
 import { createRealtimeMetricStubs, createStructuredLogger } from '@between-moves/observability';
 import { describe, expect, it, vi } from 'vitest';

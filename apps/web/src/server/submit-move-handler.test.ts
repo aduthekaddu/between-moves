@@ -8,6 +8,8 @@ import {
 } from '@between-moves/domain';
 import type { MoveMetricStubs, StructuredLogger } from '@between-moves/observability';
 import { describe, expect, it, vi } from 'vitest';
+import { InMemoryRateLimiter } from '../kernel/rate-limit';
+import { createMoveRateLimit } from '../kernel/move-rate-limit';
 import { createSubmitMoveHandler, type SubmitMoveHandlerDependencies } from './submit-move-handler';
 
 const houseId = '01941f29-7c00-7000-8000-000000000201';
@@ -232,6 +234,37 @@ describe('BM-024 submit Move HTTP boundary', () => {
     expect(limitedResponse.status).toBe(429);
     expect(limitedResponse.headers.get('retry-after')).toBe('12');
     expect(limited.submitMove).not.toHaveBeenCalled();
+  });
+
+  it('[BM-051:AC-2] answers Move 61 with a non-disclosing 429 and Retry-After', async () => {
+    const deps = dependencies();
+    const handler = createSubmitMoveHandler({
+      ...deps,
+      limitMove: createMoveRateLimit({
+        primary: new InMemoryRateLimiter(),
+        fallback: new InMemoryRateLimiter(),
+        incrementRateLimitHit: vi.fn(),
+        onStoreError: vi.fn(),
+      }),
+    });
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      expect((await handler(request(), houseId, gameId)).status).toBe(200);
+    }
+
+    const limited = await handler(request(), houseId, gameId);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0);
+    const body: unknown = await limited.json();
+    expect(body).toEqual({
+      type: 'https://betweenmoves.app/problems/rate_limited',
+      title: 'Too many Moves',
+      status: 429,
+      code: 'rate_limited',
+      detail: 'Try submitting the Move again shortly.',
+      instance: `/api/houses/${houseId}/games/${gameId}/moves`,
+    });
+    expect(JSON.stringify(body)).not.toContain(viewer.userId);
+    expect(deps.submitMove).toHaveBeenCalledTimes(60);
   });
 
   it('[BM-043] counts a non-seated Move rejection without accepting the command', async () => {

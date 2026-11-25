@@ -61,6 +61,7 @@ export function createGameReactionHandler(dependencies: GameReactionHandlerDepen
         'Sign in to react to this Game.',
       );
     }
+    // [BM-051:AC-2] Over the Reaction threshold: a fixed 429 problem with Retry-After, no account data.
     const rateLimit = await dependencies.limitReaction(request, viewer.userId);
     if (!rateLimit.allowed) {
       return problem(
