@@ -135,6 +135,37 @@ describe('House chat HTTP boundary', () => {
     expect(JSON.stringify(deps.logger.log.mock.calls)).not.toContain('too many');
   });
 
+  it('[BM-051:AC-2] answers chat message 21 with a non-disclosing 429 and Retry-After', async () => {
+    const deps = dependencies();
+    const handler = createPostHouseChatHandler({
+      ...deps,
+      limitChat: createChatRateLimit({
+        primary: new InMemoryRateLimiter(),
+        fallback: new InMemoryRateLimiter(),
+        incrementRateLimitHit: vi.fn(),
+        onStoreError: vi.fn(),
+      }),
+    });
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      expect((await handler(postRequest({ body: 'hello' }), houseId, nightId)).status).toBe(201);
+    }
+
+    const limited = await handler(postRequest({ body: 'hello' }), houseId, nightId);
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0);
+    const body: unknown = await limited.json();
+    expect(body).toEqual({
+      type: 'https://betweenmoves.app/problems/rate_limited',
+      title: 'Too many chat messages',
+      status: 429,
+      code: 'rate_limited',
+      detail: 'Try sending your message again shortly.',
+      instance: `/api/houses/${houseId}/nights/${nightId}/chat`,
+    });
+    expect(JSON.stringify(body)).not.toContain(viewer.userId);
+    expect(deps.postHouseChat).toHaveBeenCalledTimes(20);
+  });
+
   it('[BM-040] reads a durable snapshot without bodies in diagnostics', async () => {
     const lines: unknown[] = [];
     const response = await createReadHouseChatHandler({
